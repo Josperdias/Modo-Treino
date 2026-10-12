@@ -78,10 +78,25 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KS_ALIAS" ] && [ -n "$KS_KEYPASS" ]; then
+            # Segredos colados à mão costumam vir com espaço ou quebra de linha no fim: tira antes de usar.
+            trim() { printf '%s' "$1" | tr -d '[:space:]'; }
+            export KS_PASS="$(trim "$KS_PASS")" KS_ALIAS="$(trim "$KS_ALIAS")" KS_KEYPASS="$(trim "$KS_KEYPASS")"
             printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/modo-treino.jks"
+            # Confere a chave em segundos (sem imprimir nada secreto), em vez de descobrir só depois de 6 min de Gradle.
+            if ! keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS > /dev/null 2>&1; then
+              echo "::error::A senha do keystore (ANDROID_KEYSTORE_PASSWORD) não abre o arquivo do ANDROID_KEYSTORE_BASE64. Recadastre os dois secrets a partir do mesmo keystore."; exit 1
+            fi
+            if ! keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS -alias "$KS_ALIAS" > /dev/null 2>&1; then
+              echo "::error::O alias (ANDROID_KEY_ALIAS) não existe nesse keystore."; exit 1
+            fi
+            cp "$RUNNER_TEMP/modo-treino.jks" "$RUNNER_TEMP/teste-chave.jks"
+            if ! keytool -keypasswd -keystore "$RUNNER_TEMP/teste-chave.jks" -storepass:env KS_PASS -alias "$KS_ALIAS" -keypass:env KS_KEYPASS -new:env KS_KEYPASS > /dev/null 2>&1; then
+              echo "::error::A senha da chave (ANDROID_KEY_PASSWORD) não confere com o alias."; exit 1
+            fi
+            rm -f "$RUNNER_TEMP/teste-chave.jks"
             echo "MT_KEYSTORE_FILE=$RUNNER_TEMP/modo-treino.jks" >> "$GITHUB_ENV"
             echo "mode=propria" >> "$GITHUB_OUTPUT"
-            echo "Assinatura: chave própria do projeto."
+            echo "Assinatura: chave própria do projeto (keystore, alias e senhas conferidos)."
           else
             echo "mode=teste" >> "$GITHUB_OUTPUT"
             echo "Assinatura: chave de teste do template (secrets ausentes)."
@@ -93,6 +108,8 @@ jobs:
           MT_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          # mesmos valores já conferidos acima, sem espaços/quebras de linha
+          for v in MT_KEYSTORE_PASSWORD MT_KEY_ALIAS MT_KEY_PASSWORD; do export "$v=$(printf '%s' "${!v}" | tr -d '[:space:]')"; done
           node ../../scripts/assinar-android.mjs app/build.gradle
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
