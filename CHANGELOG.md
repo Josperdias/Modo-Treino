@@ -2,6 +2,54 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.3.2] — 2026-10-12
+
+### Atualização dentro do app
+- **Aviso de versão nova no topo do app** (cartão no estilo do site, no lugar do aviso genérico do Android): mostra a versão, o tamanho, **"O que há de novo"** (vem do CHANGELOG da release) e o botão **ATUALIZAR AGORA**.
+- **Baixa aqui mesmo**, com barra de progresso (e cancelar), confere o tamanho do arquivo e abre o instalador do Android; você só confirma. O Android só aceita a atualização se o APK for assinado com a **mesma chave**. Se o Android pedir, o botão **PERMITIR INSTALAR** abre a tela certa.
+- *Depois* dispensa o aviso daquela versão (ele não volta ao reabrir); **Verificar agora** em Ajustes mostra de novo.
+- Nova permissão: `REQUEST_INSTALL_PACKAGES` (necessária para abrir o instalador).
+
+### Notificações aparecem de verdade
+- No Android 13+ **sem a permissão de notificações nenhuma notificação aparece, nem a do player**. O app agora **pede a permissão na primeira abertura** e mostra o estado em **Ajustes → Notificações** (com botão para permitir ou abrir as configurações do Android).
+
+### Nome do arquivo e release
+- O APK deixa de ter **"-teste"** no nome: `modo-treino-1.3.2.apk`. A release agora se chama "Modo Treino 1.3.2", não é mais pré-release e traz as novidades no topo.
+
+### Instalação
+- A página `/baixar/` explica o bloqueio **"App blocked to protect your device"** do Play Protect (verificação de desenvolvedor exigida no Brasil desde 30/09/2026) e as saídas.
+
+## [1.3.1] — 2026-10-12
+
+Ajustes a partir do uso no aparelho real.
+
+### Rádio do mundo
+- **Planeta neon retrô**: volta o planeta de **pontinhos** (hexágonos), agora em **rosa-choque, roxo e azul elétrico** (neon retrô), num **espaço estrelado** índigo com halo rosa→azul. Países vizinhos **nunca repetem a cor** e têm fronteira fina e **nome em português** (aparecem mais nomes quanto mais perto você chega).
+- **Pontos que se leem**: as rádios são **pinos índigo com contorno creme**; ao tocar numa, ela fica **vermelha**; ao começar a tocar, **verde** (com anel pulsando). Legenda na tela.
+- **Rádios espalhadas pelo país**: quando muitas rádios têm a mesma coordenada (centro da cidade/país), elas são espalhadas dentro do próprio país em vez de virar um ponto só. A localização continua aproximada.
+- **Nome da faixa**: o app lê os metadados do stream (ICY) a cada 20 s e mostra "♪ Artista – Música" no cartão da rádio, no player e no mini player (e na tela de bloqueio). Rádios que não publicam isso mostram "Esta rádio não informa a faixa".
+- **País certinho**: o cartão mostra a bandeira e o país por extenso; novo botão **PAÍSES** lista todos com a quantidade de rádios; vários pontos juntos viram o botão **+N** para escolher pelo nome.
+- **Estilos**: 20 estilos (Pop, Rock, Sertanejo, MPB, Funk, Samba, Gospel, Notícias…); ao escolher um, o globo mostra **só** as rádios daquele estilo.
+- O globo **para de desenhar quando você sai da aba** Rádio (antes continuava rodando escondido, o que travava as outras abas e gastava bateria).
+
+### Tocando agora
+- Tocar no **mini player** abre o cartão **"Tocando agora"**: a **fita girando** (ou o globo, se for rádio), nome, de onde vem, barra de progresso com tempo, **repetir · anterior · play/pausar · próxima · coração** e volume. O coração guarda na bag **Favoritas**.
+
+### Notificações
+- **Música/rádio**: a notificação do player ganhou **arte da fita** (uma cor por música, igual ao cassete da lista) ou **globo** para rádios, com nome, de onde vem (fita da bag X / país da rádio) e o **nome da faixa** quando a rádio informa. Controles: o que o sistema oferece para o player (tocar/pausar). *Anterior/Próxima e o cassete girando na notificação não são possíveis com o motor de áudio atual.*
+- **Exercício** (separada): fixa durante o modo execução, mostra "Treino A · exercício 3/6" e a série atual; ao tocar nela, volta para o treino. Liga/desliga em Ajustes → *Notificação do exercício*. Pede a permissão de notificações na primeira vez (Android 13+).
+
+### Instalação
+- A página `/baixar/` agora explica o **aviso do Play Protect** (app fora da Play Store que o Google ainda não analisou) e como seguir com segurança.
+
+### Fitas
+- Lista **virtualizada**: rola até o fim sem o botão "ver mais" (só as linhas visíveis existem) e as linhas ficaram leves (sem animação por linha).
+- **Fitas coloridas**: cada música tem seu cassete, em 8 cores, para reconhecer de relance.
+
+### Técnico
+- `android.versionCode` agora acompanha a versão (1.3.1 = 10301) e o `verify.py` confere. O 1.3.0 saiu com versionCode 1 (padrão do Expo).
+- Leitor ICY (`scripts/globe/icy.js`) com testes contra um servidor de verdade.
+
 ## [1.3.0] — 2026-10-12
 
 ### Novo

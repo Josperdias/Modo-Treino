@@ -15,13 +15,14 @@ export type Store = {
   sessions: Session[];
   notifyUpdates: boolean;
   keepAwake: boolean;
+  notifyWorkout: boolean;
   sounds: SoundSettings;
 };
 
 export const STORAGE = 'modo-treino-native-v1';
 const INITIAL: Store = {
   persona: 'vinho', restExercise: 60, restSet: 0, sets: {}, override: {}, sessions: [],
-  notifyUpdates: true, keepAwake: false, sounds: {...DEFAULT_SOUNDS},
+  notifyUpdates: true, keepAwake: false, notifyWorkout: true, sounds: {...DEFAULT_SOUNDS},
 };
 
 export const todayKey = () => {

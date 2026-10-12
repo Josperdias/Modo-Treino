@@ -4,6 +4,7 @@ import {Text} from '../text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, G, Line, Rect} from 'react-native-svg';
 import {C} from '../theme';
+import {tapeIndex} from './tapeIndex';
 
 const W = 320, H = 200;
 const LEFT = {x: 98, y: 124}, RIGHT = {x: 222, y: 124};
@@ -70,21 +71,31 @@ const CS = StyleSheet.create({
   title: {fontSize: 22, fontWeight: '900', color: C.ink, marginTop: 4, letterSpacing: -0.4},
 });
 
-const TAPE_COLORS = ['#F6A4C1', '#A9C6F8', '#FFD365', '#A8E0C2', '#C7B6F2'];
-const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+// Cada fita tem a sua cor, para reconhecer uma música de relance na lista (corpo, rótulo e carretéis combinam).
+const TAPES: {body: string; label: string; ink: string}[] = [
+  {body: '#F0568A', label: '#FFD3E3', ink: '#7A1740'},   // rosa
+  {body: '#3F7BEA', label: '#CFE0FF', ink: '#173E8F'},   // azul
+  {body: '#F5B71F', label: '#FFEDB0', ink: '#7A5200'},   // amarelo
+  {body: '#2DB67C', label: '#C9F3DF', ink: '#0F5E3E'},   // verde
+  {body: '#8A5CE6', label: '#E2D4FF', ink: '#42218F'},   // roxo
+  {body: '#F2793A', label: '#FFD9C2', ink: '#8A3410'},   // laranja
+  {body: '#1FB5C9', label: '#C7F1F7', ink: '#0B5D69'},   // turquesa
+  {body: '#E0453F', label: '#FFD0CD', ink: '#7C1814'},   // vermelho
+];
+const BORDER = '#0B1033';
 
-/** Mini cassete de UMA música (uma fita). A cor do rótulo varia por música; estática de propósito, para listas longas. */
-export function MiniTape({id, size = 76, on = false}: {id: string; size?: number; on?: boolean}) {
-  const label = TAPE_COLORS[hash(id) % TAPE_COLORS.length];
+/** Mini cassete de UMA música (uma fita), colorido por música. Estático e leve de propósito: listas com centenas de fitas. */
+export const MiniTape = React.memo(function MiniTape({id, size = 76}: {id: string; size?: number; on?: boolean}) {
+  const t = TAPES[tapeIndex(id)];
   return (
-    <Svg width={size} height={size * 0.64} viewBox="0 0 100 64" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Rect x={2} y={2} width={96} height={60} rx={9} fill={on ? C.yellow : '#25316C'} stroke="#0B1033" strokeWidth={3} />
-      <Rect x={9} y={7} width={82} height={24} rx={4} fill={label} stroke="#0B1033" strokeWidth={1.5} />
-      <Rect x={16} y={14} width={44} height={3} rx={1.5} fill="#0B1033" opacity={0.55} />
-      <Rect x={16} y={20} width={28} height={3} rx={1.5} fill="#0B1033" opacity={0.3} />
-      <Rect x={16} y={34} width={68} height={20} rx={10} fill="#090D23" />
-      <Circle cx={32} cy={44} r={6} fill="#E9E4DA" /><Circle cx={32} cy={44} r={2.2} fill="#101733" />
-      <Circle cx={68} cy={44} r={6} fill="#E9E4DA" /><Circle cx={68} cy={44} r={2.2} fill="#101733" />
+    <Svg width={size} height={size * 0.64} viewBox="0 0 100 64">
+      <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.body} stroke={BORDER} strokeWidth={3} />
+      <Rect x={9} y={7} width={82} height={24} rx={4} fill={t.label} stroke={BORDER} strokeWidth={1.5} />
+      <Rect x={16} y={14} width={44} height={3} rx={1.5} fill={t.ink} opacity={0.75} />
+      <Rect x={16} y={20} width={28} height={3} rx={1.5} fill={t.ink} opacity={0.45} />
+      <Rect x={16} y={34} width={68} height={20} rx={10} fill="#0B1033" />
+      <Circle cx={32} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={32} cy={44} r={2.4} fill={t.body} />
+      <Circle cx={68} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={68} cy={44} r={2.4} fill={t.body} />
     </Svg>
   );
-}
+});

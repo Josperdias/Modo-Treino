@@ -11,6 +11,7 @@ import {AText, Btn, Confetti, FitText, Float, Icon, Pattern, Pop, Press, Pulse, 
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {C, INK, R, T, useNarrow} from '../theme';
 import MiniPlayer from '../music/MiniPlayer';
+import {limparTreino, mostrarTreino} from '../notify';
 
 type Props = {
   treino: Treino;
@@ -100,6 +101,16 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const ex = list[i];
   const total = app.total(ex);
   const cur = doneCount(app.done(ex), total);
+
+  // notificação do exercício (separada da de música): fixa durante o treino; ao tocar nela o app volta para esta tela
+  useEffect(() => {
+    if (!state.notifyWorkout || phase === 'done') { void limparTreino(); return; }
+    const titulo = `Treino ${treino} · exercício ${i + 1}/${list.length}`;
+    const proximo = list[i + 1];
+    const corpo = phase === 'rest' ? `Descansando${proximo && cur >= total ? ` · próximo: ${proximo.nome}` : ''}` : `${ex.nome} · ${cur}/${total} séries`;
+    void mostrarTreino(titulo, corpo);
+  }, [state.notifyWorkout, phase, i, cur, total]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { void limparTreino(); }, []);
   const c = app.conf(ex);
   const info = imageInfo(ex, state.persona);
   const cols = Math.min(total, 6);

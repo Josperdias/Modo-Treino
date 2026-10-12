@@ -41,8 +41,11 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
   use `contain`. O selo "JOSPERD / CAMILA" fica **fora** da arte, nunca por cima.
 - **Camadas do site**: modo execução (z 90) < player (100) < cronômetro (110) < aviso (120) < janela de edição (140). O aviso
   (`.toast`) tem `pointer-events:none`; um elemento invisível que captura toques é bug.
+- **Globo (Rádio)**: pausa o desenho quando a aba não está visível (comandos `pause`/`resume`); o nome da faixa vem de `scripts/globe/icy.js` dentro da própria página. Visual retrô de fita (planeta de pontinhos neon rosa/roxo/azul, espaço estrelado; NÃO use atlas/sépia nem cores 'doces' amarelo/menta: o dono não gostou); rádio = pino índigo, escolhida vermelha, tocando verde. Vizinhos nunca repetem a cor. Regenere com `node scripts/build-globe.mjs`.
+- **Notificações**: a de música é a do player do sistema (`setActiveForLockScreen` com arte de `assets/notif/`, gerada por `scripts/gerar-arte-notificacao.mjs`); a do exercício é do `expo-notifications` (`src/notify.ts`), fixa e com falha silenciosa. Sem Anterior/Próxima: o expo-audio não oferece.
+- **Listas grandes** (fitas): sempre `FlatList` virtualizada com linhas leves e memoizadas; nada de `ScrollView` com centenas de itens nem animação por linha.
 - **Versão única**: `native/package.json`, `native/app.json`, `package.json`, `native/App.tsx`, `site/updates.js` e `site/sw.js`
-  precisam ter o mesmo número (o `verify.py` confere).
+  precisam ter o mesmo número (o `verify.py` confere); `android.versionCode` = X*10000+Y*100+Z (`bump-version.mjs` cuida).
 - **Saídas de job e secrets**: o GitHub descarta qualquer saída de job que contenha o valor de um secret. O alias da chave (`modo-treino`) é secret e faz parte do nome do APK, então o job de publicação calcula o nome do APK sozinho (`ls dist/*.apk`) em vez de receber por `needs.apk.outputs`.
 - **APK de teste** = `assembleRelease` (JS embutido). Nunca volte para `assembleDebug`: sem Metro, o app abre em tela vermelha.
 - Fontes: só OFL embutidas (Barlow Condensed, DM Sans). Não adicione Le Cartoonie sem licença.

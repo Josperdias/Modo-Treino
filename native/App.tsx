@@ -14,6 +14,7 @@ import {AppProvider, useApp} from './src/store';
 import {Exercise, imageInfo, personaShort, Treino} from './src/data';
 import {MusicProvider} from './src/music/MusicProvider';
 import MiniPlayer from './src/music/MiniPlayer';
+import NowPlaying from './src/music/NowPlaying';
 import MusicHub, {MusicMode} from './src/screens/MusicHub';
 import HomeScreen from './src/screens/HomeScreen';
 import TrainScreen from './src/screens/TrainScreen';
@@ -23,10 +24,13 @@ import {EditSheet, GallerySheet, SettingsSheet} from './src/screens/Sheets';
 import ZoomView from './src/ZoomView';
 import {Bounce, Icon, IconName, Pattern, Press, ToastProvider, useToast} from './src/ui';
 import {useUpdates} from './src/updates';
+import UpdateBanner from './src/UpdateBanner';
 import {useBackup} from './src/backup';
+import {limparTreino, pedirNotificacoes} from './src/notify';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {C, R, useNarrow} from './src/theme';
 
-const APP_VERSION='1.3.0';
+const APP_VERSION='1.3.2';
 
 type Tab = 'home' | 'music' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
@@ -82,8 +86,16 @@ function Shell() {
   const [zoom, setZoom] = useState<{source: ImageSourcePropType; label: string} | null>(null);
   const [settings, setSettings] = useState(false);
   const [gallery, setGallery] = useState(false);
+  const [nowOpen, setNowOpen] = useState(false);
   const updates = useUpdates(APP_VERSION, state.notifyUpdates, app.loaded);
   const backup = useBackup(state, APP_VERSION, app.loaded, (b) => app.update((s) => ({...s, ...b})));
+
+  useEffect(() => { void limparTreino(); }, []); // notificação fixa que sobrou de um treino interrompido
+  // Android 13+: sem a permissão nenhuma notificação aparece (nem a do player). Pede uma vez, na primeira abertura; depois, em Ajustes.
+  useEffect(() => {
+    if (!app.loaded) return;
+    AsyncStorage.getItem('modo-treino-notif-asked').then((v) => { if (!v) { AsyncStorage.setItem('modo-treino-notif-asked', '1').catch(() => {}); void pedirNotificacoes(); } }).catch(() => {});
+  }, [app.loaded]);
 
   useEffect(() => {
     const on = state.keepAwake && !!workout;
@@ -124,6 +136,7 @@ function Shell() {
         </Press>
       </View>
 
+      <UpdateBanner u={updates} current={APP_VERSION} />
       <View style={{flex: 1, backgroundColor: C.paper}}>
         <Animated.View key={tab} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)} style={{flex: 1}}>
           {tab === 'home' && <HomeScreen onOpenTreino={(t) => setOpen(t)} onStart={(t) => setWorkout({t})} />}
@@ -138,7 +151,7 @@ function Shell() {
         )}
       </View>
 
-      {tab !== 'music' && <MiniPlayer onOpen={() => setTab('music')} />}
+      {tab !== 'music' && <MiniPlayer onOpen={() => setNowOpen(true)} />}
       <TabBar tab={tab} onTab={setTab} />
       </View>
 
@@ -149,6 +162,7 @@ function Shell() {
       )}
       <EditSheet exercise={editing} onClose={() => setEditing(null)} onZoom={openZoom} />
       <SettingsSheet visible={settings} onClose={() => setSettings(false)} version={APP_VERSION} status={updates.status} onCheck={() => { void updates.check(true); }} onGallery={() => setGallery(true)} backup={backup} />
+      <NowPlaying visible={nowOpen} onClose={() => setNowOpen(false)} onTapes={() => setTab('music')} />
       <GallerySheet visible={gallery} onClose={() => setGallery(false)} onZoom={openZoom} />
       {zoom && <ZoomView source={zoom.source} label={zoom.label} onClose={() => setZoom(null)} />}
     </SafeAreaView>

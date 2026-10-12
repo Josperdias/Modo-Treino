@@ -4,7 +4,7 @@ export type SessionItem = {id: string; nome: string; series: number; reps: numbe
 export type Session = {date: string; time: string; treino: Treino; sets: number; percent: number; volume?: number; items?: SessionItem[]};
 export type Conf = {series: number | string; reps: number | string; peso: number | string};
 export type ParsedVersion = {major: number; minor: number; patch: number; pre: string[]};
-export type ReleaseLike = {tag_name?: string; draft?: boolean; prerelease?: boolean; html_url?: string; assets?: {name?: string; browser_download_url?: string; size?: number; digest?: string}[]};
+export type ReleaseLike = {tag_name?: string; draft?: boolean; prerelease?: boolean; html_url?: string; body?: string | null; assets?: {name?: string; browser_download_url?: string; size?: number; digest?: string}[]};
 export type UpdateState = {state: 'newer' | 'current' | 'ahead' | 'none'; release: ReleaseLike | null; tag: string};
 export type BackupData = {persona: 'vinho' | 'loira'; rest: number; restExercise: number; restSet: number; sets: Record<string, Record<string, boolean[]>>; override: Record<string, {peso: string; series: number; reps: number}>; sessions: Session[]};
 
@@ -51,3 +51,4 @@ export function resolveTape<X extends TrackLike>(tape: TapeLike, tracks: X[]): {
 export function nextTrackId(ids: string[], currentId: string | null | undefined, dir: number, opts?: {shuffle?: boolean; repeat?: boolean; rand?: () => number}): string | null;
 export function searchTracks<X extends TrackLike>(tracks: X[], query: string): X[];
 export function formatClock(seconds: number): string;
+export function releaseNotes(body: string | null | undefined, max?: number): string[];

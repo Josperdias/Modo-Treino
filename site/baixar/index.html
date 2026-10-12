@@ -29,7 +29,7 @@
 
   <section class="grid">
    <article class="card apk" aria-labelledby="apk-title">
-    <p class="micro">ANDROID · APK DE TESTE</p>
+    <p class="micro">ANDROID · APK</p>
     <h2 id="apk-title">Baixar para Android</h2>
     <div id="apk-box" aria-live="polite">
      <p class="status" id="apk-status">Consultando a última versão publicada…</p>
@@ -69,10 +69,22 @@
    </ol>
   </section>
 
+  <section class="steps" aria-labelledby="pp-title">
+   <h2 id="pp-title">O ANDROID BLOQUEOU? “APP BLOCKED TO PROTECT YOUR DEVICE”</h2>
+   <p>Esse aviso do <strong>Play Protect</strong> diz “o Play Protect nunca viu um app deste desenvolvedor”. <strong>Não é aviso de vírus</strong>: desde <strong>30/09/2026</strong> o Google exige, no Brasil, que apps instalados fora da Play Store venham de um <strong>desenvolvedor verificado</strong>, e o Modo Treino ainda não foi registrado lá.</p>
+   <ol>
+    <li>Toque em <strong>More details / Mais detalhes</strong> e procure <strong>Install anyway / Instalar mesmo assim</strong>.</li>
+    <li>Se essa opção não aparecer: na Play Store, toque na sua foto → <strong>Play Protect</strong> → ⚙ e desligue <strong>“Scan apps with Play Protect”</strong> só durante a instalação; depois ligue de novo.</li>
+    <li>Segundo o Google, apps sem registro ainda podem ser instalados pelo <strong>fluxo avançado</strong> (para usuários experientes, nas opções de desenvolvedor) ou por <strong>ADB</strong>.</li>
+    <li>Confira o <strong>SHA-256</strong> do arquivo (acima). O app é assinado com a <strong>chave própria do projeto</strong>, a mesma em todas as versões.</li>
+   </ol>
+   <p>Para o bloqueio <strong>acabar de vez</strong>, quem publica o app (Josperd) precisa registrar o pacote <code>art.josperd.modotreino</code> no <strong>Android Developer Console</strong> (o Google prevê uma conta gratuita para hobby/estudantes, até 20 aparelhos). Enquanto isso não acontece, use as saídas acima.</p>
+  </section>
+
   <section class="note" aria-labelledby="note-title">
    <h2 id="note-title">LEIA ANTES</h2>
    <ul>
-    <li>É um <strong>APK de teste</strong> (debug), feito para avaliação. Não é a versão da Play Store e pode ter falhas.</li>
+    <li>É um <strong>APK de teste</strong> (versão release com JavaScript embutido, assinada com a chave do projeto), feito para avaliação. Não é a versão da Play Store e pode ter falhas.</li>
     <li>O app <strong>não se instala nem se atualiza sozinho</strong>. Ele só avisa quando há uma versão nova publicada; você decide baixar.</li>
     <li>Esta página faz uma única consulta pública à API do GitHub para achar a última versão. Não há rastreamento nem cookies.</li>
     <li>Antes de trocar de versão, <strong>exporte um backup</strong> (Ajustes → Exportar). Se o Android recusar a atualização por cima (conflito de assinatura), desinstale, instale a nova versão e importe o backup.</li>

@@ -128,9 +128,44 @@ test('ajustes: sons desligados por padrão; ativar sons e manter a tela ligada p
   await context.close();
 });
 
+test('ajustes: notificação do exercício vem ligada e dá para desligar (persiste); abrir o treino não quebra sem suporte a notificações', {skip}, async () => {
+  const {context, page, errors} = await open();
+  await openSettings(page);
+  assert.equal(await page.getByRole('switch', {name: 'Notificação do exercício'}).getAttribute('aria-checked'), 'true');
+  await page.getByRole('switch', {name: 'Notificação do exercício'}).click();
+  assert.equal((await store(page)).notifyWorkout, false);
+  await page.reload(); await page.getByText('MODO', {exact: false}).first().waitFor();
+  await openSettings(page);
+  assert.equal(await page.getByRole('switch', {name: 'Notificação do exercício'}).getAttribute('aria-checked'), 'false');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('aviso de versão no topo do app: novidades, "depois" some e não volta, atualizar disponível', {skip}, async () => {
+  const apk = {name: 'modo-treino-9.0.0.apk', browser_download_url: `https://github.com/${REPO}/releases/download/v9.0.0/modo-treino-9.0.0.apk`, size: 58000000, digest: 'sha256:' + 'a'.repeat(64)};
+  const release = rel('v9.0.0', {prerelease: false, body: '### Rádio\n- **Planeta neon** com `países`\n- Pinos menores\n\n---\n\nModo Treino 9.0.0 para Android', assets: [apk]});
+  const {context, page, errors} = await open({releases: [release]});
+  await page.getByRole('alert', {name: /Nova versão 9\.0\.0 disponível/}).waitFor();
+  const t = await body(page);
+  assert.match(t, /9\.0\.0 CHEGOU!/); assert.match(t, new RegExp(`você está na ${INSTALLED.replace(/\./g, '\\.')}`)); assert.match(t, /55,3 MB/);
+  assert.equal(await page.getByLabel('Atualizar agora').count(), 1);
+  await page.getByLabel('Ver novidades').click();
+  assert.match(await body(page), /Planeta neon com países/); assert.match(await body(page), /Pinos menores/);
+  assert.doesNotMatch(await body(page), /para Android/, 'só o trecho antes do "---" aparece');
+  await page.getByLabel('Depois').click();
+  await page.getByRole('alert').waitFor({state: 'detached'});
+  await page.reload(); await page.getByText('MODO', {exact: false}).first().waitFor(); await settle(page, 800);
+  assert.equal(await page.getByRole('alert').count(), 0, 'dispensada: não volta ao reabrir');
+  await openSettings(page);
+  await page.getByLabel('VERIFICAR AGORA').click();
+  await page.getByRole('alert', {name: /Nova versão 9\.0\.0/}).waitFor();   // verificar à mão mostra de novo
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('avisos de versão: estado correto (mais nova, igual, mais antiga, nenhuma, offline)', {skip}, async () => {
   const cases = [
-    [{releases: [rel('v1.0.0'), rel('v9.0.0'), rel('v1.5.0')]}, /Versão 9\.0\.0 publicada\. Baixe e instale manualmente\./],
+    [{releases: [rel('v1.0.0'), rel('v9.0.0'), rel('v1.5.0')]}, /Versão 9\.0\.0 disponível\./],
     [{releases: [rel('v' + INSTALLED)]}, /tudo em dia/],
     [{releases: [rel('v' + bump(INSTALLED, -1))]}, new RegExp('mais nova que a última release \\(' + bump(INSTALLED, -1).replace(/\./g, '\\.') + '\\)')],
     [{releases: []}, /nenhuma release publicada/],
@@ -518,6 +553,47 @@ test('biblioteca antiga (arquivos copiados, sem "source") continua funcionando c
   await page.getByLabel('Tocar Minha música', {exact: true}).waitFor();
   assert.match(await body(page), /Arquivo copiado para o app/);
   assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('rádio: estações do diretório, estilos em português e lista de países com contagem', {skip}, async () => {
+  const {context, page} = await open();
+  const mk = (i, cc, co, tags) => ({stationuuid: 'u' + i, name: `Rádio ${co} ${i}`, url_resolved: 'https://example.com/s' + i, countrycode: cc, country: co, state: '', tags, geo_lat: -10 + i, geo_long: -50 + i, clickcount: 100 - i, bitrate: 128});
+  const radios = [...[1, 2, 3, 4, 5, 6].map((i) => mk(i, 'BR', 'Brazil', 'pop,hits')), ...[7, 8].map((i) => mk(i, 'PT', 'Portugal', 'rock')), mk(9, 'FR', 'France', 'jazz')];
+  await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
+  await tab(page, 'Músicas'); await musicTab(page, 'Rádio do mundo');
+  await page.getByText('9 estações').waitFor();
+  for (const g of ['Pop', 'Eletrônica', 'Clássica', 'Notícias', 'Esportes']) await page.getByLabel(`Estilo ${g}`, {exact: true}).waitFor();
+  await page.getByLabel('Ver rádios por país').click();
+  await page.getByLabel(/^(Brazil|Brasil), 6 rádios$/).waitFor();
+  await page.getByLabel(/^(Portugal), 2 rádios$/).waitFor();
+  await context.close();
+});
+
+test('"Tocando agora": o mini player abre o cartão do player; sem nada tocando oferece as fitas', {skip}, async () => {
+  const {context, page, errors} = await open({seed: {[MUSIC]: musicLib()}});
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByText('Nada tocando. Escolha uma fita ou uma rádio.').waitFor();
+  await page.getByLabel('VER FITAS').click();
+  await page.getByText('Suas fitas,', {exact: false}).waitFor();
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('"Tocando agora": tocando uma fita, o cartão mostra o nome, os controles e o coração guarda em Favoritas', {skip}, async () => {
+  const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click();
+  await settle(page, 500);
+  await tab(page, 'Início');
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByLabel('Faixa anterior').waitFor(); await page.getByLabel('Próxima faixa').last().waitFor(); await page.getByLabel('Ligar repetir').waitFor();
+  assert.match(await body(page), /Lose Yourself/);
+  await page.getByLabel('Favoritar').click();
+  const m = await store(page, MUSIC);
+  assert.ok(m.tapes.find((x) => x.id === 'fav').ids.includes('dev:1'), 'a fita foi para a bag Favoritas');
+  await page.getByLabel('Tirar das favoritas').click();
+  assert.ok(!(await store(page, MUSIC)).tapes.find((x) => x.id === 'fav').ids.includes('dev:1'));
   await context.close();
 });
 

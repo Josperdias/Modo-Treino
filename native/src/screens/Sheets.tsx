@@ -6,6 +6,7 @@ import {EXERCISES, Exercise, file, imageInfo, Persona, personaName, Treino} from
 import {useApp} from '../store';
 import {BackupApi, shareBackup, shareCsv} from '../backup';
 import {GITHUB_REPO} from '../updates';
+import {estadoNotificacoes, NotifState, pedirNotificacoes} from '../notify';
 import {Btn, Card, Chips, Icon, Kicker, Pop, Press, Sheet, Switch} from '../ui';
 import {Glyph} from '../glyphs';
 import {C, INK, R, shadow, T} from '../theme';
@@ -47,6 +48,23 @@ const Section = ({title, children}: {title: string; children: React.ReactNode}) 
   <View style={{marginBottom: 24}}><Text style={[T.kicker, {marginBottom: 10}]}>{title}</Text>{children}</View>
 );
 
+function NotifPermission({visible}: {visible: boolean}) {
+  const [st, setSt] = useState<NotifState>('unavailable');
+  useEffect(() => { if (visible) void estadoNotificacoes().then(setSt); }, [visible]);
+  if (st === 'unavailable') return null;
+  const ok = st === 'granted';
+  return (
+    <View style={{marginTop: 4, paddingVertical: 10}}>
+      <Text style={T.h3}>{ok ? 'Notificações permitidas ✓' : 'Notificações desligadas'}</Text>
+      <Text style={[T.small, {marginTop: 2, marginBottom: ok ? 0 : 10}]}>
+        {ok ? 'A notificação do player (fita ou rádio) e a do exercício podem aparecer na barra do celular.'
+          : 'Sem esta permissão o Android esconde TODAS as notificações do app: a do player de música e a do exercício.'}
+      </Text>
+      {!ok && <Btn small icon="notifications" text={st === 'ask' ? 'PERMITIR NOTIFICAÇÕES' : 'ABRIR AJUSTES DO ANDROID'} onPress={() => { if (st === 'ask') void pedirNotificacoes().then(setSt); else void Linking.openSettings(); }} />}
+    </View>
+  );
+}
+
 export function SettingsSheet({visible, onClose, version, status, onCheck, onGallery, backup}: {visible: boolean; onClose: () => void; version: string; status: string; onCheck: () => void; onGallery: () => void; backup: BackupApi}) {
   const {state, update} = useApp();
   const snd = state.sounds || DEFAULT_SOUNDS;
@@ -67,6 +85,8 @@ export function SettingsSheet({visible, onClose, version, status, onCheck, onGal
 
         <Section title="Tela">
           <Switch value={state.keepAwake} onChange={(v) => update((s) => ({...s, keepAwake: v}))} title="Manter a tela ligada no treino" desc="Evita apagar durante o modo execução. Gasta mais bateria." />
+          <Switch value={state.notifyWorkout} onChange={(v) => update((s) => ({...s, notifyWorkout: v}))} title="Notificação do exercício" desc="Mostra o exercício atual na barra do celular durante o treino; toque nela para voltar ao app." />
+          <NotifPermission visible={visible} />
         </Section>
 
         <Section title="Sons do app">

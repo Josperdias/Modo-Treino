@@ -66,13 +66,13 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="color-scheme" content="dark">
 <title>Globo de rádios</title>
 <style>${css}</style>
 </head>
 <body>
 <div id="globe"></div>
 <div id="tip"></div>
+<div id="rotulos"></div>
 <script>window.__GLOBE_DATA__=${dadosJson};</script>
 <script>${js}</script>
 </body>

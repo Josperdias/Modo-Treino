@@ -14,7 +14,9 @@ const json = (file, fn) => edit(file, (t) => { const o = JSON.parse(t); fn(o); r
 
 json('package.json', (o) => { o.version = next; });
 json('native/package.json', (o) => { o.version = next; });
-json('native/app.json', (o) => { o.expo.version = next; });
+// versionCode do Android: sempre cresce (X*10000 + Y*100 + Z). O 1.3.0 saiu com versionCode 1 (padrão do Expo); a partir do 1.3.1 ele sobe a cada versão.
+const [maj, min, pat] = next.split('.').map(Number);
+json('native/app.json', (o) => { o.expo.version = next; o.expo.android.versionCode = maj * 10000 + min * 100 + pat; });
 edit('native/App.tsx', (t) => t.replace(/APP_VERSION='[^']+'/, `APP_VERSION='${next}'`));
 edit('site/updates.js', (t) => t.replace(/APP_VERSION='[^']+'/, `APP_VERSION='${next}'`));
 edit('site/sw.js', (t) => t.replace(/VERSION = '[^']+'/, `VERSION = '${next}'`));

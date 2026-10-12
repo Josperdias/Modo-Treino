@@ -7,7 +7,7 @@ O aviso só aparece quando o número da release é **maior** que o instalado, en
 1. `node scripts/bump-version.mjs 1.3.0` (muda os 6 lugares: `package.json`, `native/package.json`, `native/app.json`, `native/App.tsx`, `site/updates.js`, `site/sw.js`).
 2. `python3 tests/verify.py` (confere que a versão é única) e atualize o `CHANGELOG.md`.
 3. Abra o PR e espere o CI ficar verde. Dê o merge (o site é republicado sozinho pelo `pages.yml`).
-4. **Actions → "Android - APK de teste" → Run workflow**, marcando **publicar**. O workflow compila o APK, confere pacote/assinatura, calcula o **SHA-256** e cria a **pré-release `v1.2.0`** com o APK anexado. (Empurrar uma tag `v*` faz o mesmo.)
+4. **Actions → "Android - APK" → Run workflow**, marcando **publicar**. O workflow compila o APK (`modo-treino-X.Y.Z.apk`), confere pacote/assinatura, calcula o **SHA-256** e cria a **release `vX.Y.Z`** com o APK anexado e as **novidades** (a seção da versão no `CHANGELOG.md`, antes da linha `---`; o app mostra esse trecho no aviso). (Empurrar uma tag `v*` faz o mesmo.)
 5. Pronto: a página `/baixar/` passa a mostrar o novo APK e o app/site avisam quem estiver numa versão menor.
 
 ## Ativar o site (GitHub Pages), uma vez só
@@ -50,8 +50,18 @@ Veja [CLAUDE.md](../CLAUDE.md).
 - Estações vêm do **Radio Browser** (`native/src/radio/api.ts`): servidores `de1/de2/fi1/nl1/at1.api.radio-browser.info`, cópia local por 3 dias. O app avisa o diretório de cada estação ouvida (boa prática do serviço).
 - `app.json` libera tráfego `http` (`usesCleartextTraffic`) porque muitas rádios ainda não têm https.
 - Para testar sem internet: abra `globe.html?demo=1` no navegador.
+- **Nome da faixa (ICY)**: a própria página do globo (`scripts/globe/icy.js`) abre uma conexão curta ao stream com `Icy-MetaData: 1`, lê 1–3 blocos de metadados e fecha. No Android a página é aberta como `file://` (cópia em cache) com `allowUniversalAccessFromFileURLs`, senão o CORS das rádios bloquearia a leitura. Rádios sem ICY (HLS, alguns AAC) não têm nome de faixa; isso é esperado. Teste: `node --test tests/icy.test.mjs`.
+- **Desempenho**: a aba Rádio manda `pause`/`resume` ao globo ao entrar/sair; sem isso o WebGL continua desenhando escondido e trava as outras abas.
+- **versionCode**: `node scripts/bump-version.mjs X.Y.Z` também grava `android.versionCode` (X*10000+Y*100+Z).
 - Fontes (Barlow Condensed e DM Sans, OFL) vêm dos pacotes `@expo-google-fonts/*`.
 
 ## Vocabulário da música (app)
 - **Fita** = cada música do celular (um cassete por música). **Bag** = playlist de fitas e/ou rádios. **Rádio** = globo 3D; rádios entram nas bags.
 - No código, a bag é o tipo `Tape` em `native/src/music/MusicProvider.tsx` (nome histórico, guardado no armazenamento; não renomear sem migração).
+
+## Atualização dentro do app
+- O app consulta `api.github.com/.../releases`, mostra o aviso no topo (`native/src/UpdateBanner.tsx`) e, no Android, baixa o APK para o cache e abre o instalador (`expo-intent-launcher`, permissão `REQUEST_INSTALL_PACKAGES`). Confere só o **tamanho**; quem garante a autenticidade é o Android, que só aceita atualização assinada com a mesma chave.
+- **Não renomeie o APK** de forma que o app deixe de achá-lo: ele procura o primeiro asset `*.apk` da release.
+
+## Verificação de desenvolvedor do Google (Play Protect "App blocked")
+- Desde 30/09/2026 (Brasil, Indonésia, Singapura e Tailândia) o Google bloqueia nos aparelhos certificados apps de desenvolvedores não verificados. Para registrar: **Android Developer Console** → verificar a conta → registrar o pacote **`art.josperd.modotreino`** com o certificado de assinatura (SHA-256 `5F:68:FF:14:07:2B:0E:C2:81:BE:B6:DA:27:30:58:64:75:E6:C3:68:02:72:23:64:7A:B1:B5:E2:46:1D:44:73`). Isso depende da conta Google do dono; não dá para resolver só no código.
