@@ -14,6 +14,8 @@ const {chromium} = (() => { try { return require('playwright'); } catch { return
 const SITE = join(dirname(fileURLToPath(import.meta.url)), '../../site');
 const BASE_PATH = '/Modo-Treino/';
 const MIME = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.wav': 'audio/wav', '.woff2': 'font/woff2'};
+// A API do GitHub não é parte do que se testa aqui: no CI ela responde 403 (limite de requisições) e o teste ficaria instável.
+const mockGithub = (ctx) => ctx.route('https://api.github.com/**', (r) => r.fulfill({status: 200, contentType: 'application/json', body: r.request().url().includes('/releases') ? '[]' : '{}'}));
 let server, origin, browser;
 test.before(async () => {
   server = http.createServer((req, res) => {
@@ -32,7 +34,7 @@ test.before(async () => {
 test.after(async () => { await browser?.close(); await new Promise((ok) => server.close(ok)); });
 
 test('site em subcaminho: carrega sem 404, com fontes locais, e o service worker assume o escopo certo', async () => {
-  const ctx = await browser.newContext(); const page = await ctx.newPage();
+  const ctx = await browser.newContext(); await mockGithub(ctx); const page = await ctx.newPage();
   const bad = []; page.on('response', (r) => { if (r.status() >= 400) bad.push(`${r.status()} ${r.url()}`); });
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(origin + BASE_PATH); await page.waitForSelector('#main > *');
@@ -46,7 +48,7 @@ test('site em subcaminho: carrega sem 404, com fontes locais, e o service worker
 });
 
 test('site em subcaminho: links, rotas, imagens e a página /baixar/ funcionam', async () => {
-  const ctx = await browser.newContext(); const page = await ctx.newPage();
+  const ctx = await browser.newContext(); await mockGithub(ctx); const page = await ctx.newPage();
   const bad = []; page.on('response', (r) => { if (r.status() >= 400) bad.push(`${r.status()} ${r.url()}`); });
   await page.goto(origin + BASE_PATH + '#/treino/A'); await page.waitForSelector('.exercise-row');
   await page.waitForFunction(() => { const vis = [...document.images].filter((i) => i.getBoundingClientRect().top < innerHeight); return vis.length > 0 && vis.every((i) => i.complete && i.naturalWidth > 0); }); // imagens lazy fora da tela só carregam ao rolar
@@ -62,7 +64,7 @@ test('site em subcaminho: links, rotas, imagens e a página /baixar/ funcionam',
 });
 
 test('site em subcaminho: depois da primeira visita abre offline, inclusive a página de download', async () => {
-  const ctx = await browser.newContext(); const page = await ctx.newPage();
+  const ctx = await browser.newContext(); await mockGithub(ctx); const page = await ctx.newPage();
   await page.goto(origin + BASE_PATH + '#/treino/B'); await page.waitForSelector('.exercise-row');
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.waitForFunction(async () => { const ks = await caches.keys(); const m = ks.find((k) => k.includes('media')); return m && (await (await caches.open(m)).keys()).length >= 40; }, null, {timeout: 20000});
