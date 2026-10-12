@@ -7,9 +7,9 @@ import {doneCount, nextStep, restPlan, snapshotSession, tapSeries} from '../../l
 import {playCount, playSound} from '../../SoundFX';
 import {EXERCISES, Exercise, imageInfo, Treino} from '../data';
 import {todayKey, useApp} from '../store';
-import {AText, Btn, Confetti, Float, Icon, Pattern, Pop, Press, Pulse, Ring, useToast} from '../ui';
+import {AText, Btn, Confetti, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, useToast} from '../ui';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {C, INK, R, T} from '../theme';
+import {C, INK, R, T, useNarrow} from '../theme';
 import MiniPlayer from '../music/MiniPlayer';
 
 type Props = {
@@ -54,6 +54,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const app = useApp();
   const toast = useToast();
   const insets = useSafeAreaInsets();
+  const narrow = useNarrow();
   const {state} = app;
   const list = EXERCISES.filter((x) => x.treino === treino);
   const p = app.progress(treino);
@@ -240,7 +241,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
       <View style={[W.controls, {paddingBottom: insets.bottom + 12}]}>
         <Pop accessibilityRole="button" accessibilityLabel="Exercício anterior" disabled={i === 0} onPress={() => { setI(i - 1); setHelp(false); }} quiet radius={22} offset={4} color={C.card} innerStyle={W.nav}><Icon name="play-skip-back" size={24} color={i === 0 ? C.muted : C.ink} /></Pop>
         <Pop accessibilityRole="button" accessibilityLabel={label} onPress={() => { if (cur < total) tap(ex, cur + 1); else goNext(i); }} radius={22} offset={5} style={{flex: 1}} innerStyle={W.main}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={W.mainText}>{label}</Text><Icon name={cur < total ? 'checkmark' : 'arrow-forward'} size={22} color={C.ink} />
+          <FitText style={W.mainText}>{label}</FitText><Icon name={cur < total ? 'checkmark' : 'arrow-forward'} size={22} color={C.ink} />
         </Pop>
         <Pop accessibilityRole="button" accessibilityLabel="Próximo exercício" disabled={i === list.length - 1} onPress={() => { setI(i + 1); setHelp(false); }} quiet radius={22} offset={4} color={C.card} innerStyle={W.nav}><Icon name="play-skip-forward" size={24} /></Pop>
       </View>
@@ -280,8 +281,8 @@ const W = StyleSheet.create({
   stepBtn: {width: 42, height: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: C.yellow},
   stepNum: {minWidth: 24, textAlign: 'center', fontSize: 18, fontWeight: '900', color: C.ink},
   controls: {flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, backgroundColor: C.paper, borderTopWidth: 1.5, borderTopColor: C.line},
-  nav: {width: 56, height: 58, alignItems: 'center', justifyContent: 'center'},
-  main: {height: 58, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10},
+  nav: {width: 50, height: 58, alignItems: 'center', justifyContent: 'center'},
+  main: {height: 58, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12},
   mainText: {color: C.ink, fontSize: 18, fontWeight: '900', letterSpacing: 0.6, flexShrink: 1},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
   burst: {width: 110, height: 110, borderRadius: 55, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...INK},

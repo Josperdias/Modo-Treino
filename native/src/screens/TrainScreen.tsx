@@ -5,7 +5,7 @@ import Animated, {FadeIn, FadeInDown, LinearTransition} from 'react-native-reani
 import {EXERCISES, Exercise, imageInfo, personaShort, Treino, treinoTitle} from '../data';
 import {useApp} from '../store';
 import {Btn, Card, Float, Icon, Pattern, Pop, Press, Ring, Twinkle} from '../ui';
-import {C, R, T} from '../theme';
+import {C, R, T, useNarrow} from '../theme';
 
 const TONE: Record<Treino, string> = {A: C.pink, B: C.sky};
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -15,6 +15,7 @@ type Props = {treino: Treino; onBack: () => void; onTreino: (t: Treino) => void;
 
 export default function TrainScreen({treino, onBack, onTreino, onStart, onEdit, onFinished}: Props) {
   const app = useApp();
+  const narrow = useNarrow();
   const {state} = app;
   const p = app.progress(treino);
   const list = EXERCISES.filter((x) => x.treino === treino);
@@ -36,17 +37,17 @@ export default function TrainScreen({treino, onBack, onTreino, onStart, onEdit, 
           <Twinkle size={16} color={C.white} delay={300} style={{top: 14, right: 150}} />
           <View style={{flex: 1, zIndex: 2}}>
             <Text style={S.date}>{longDate().toUpperCase()}</Text>
-            <Text style={S.heroTitle} accessibilityRole="header">TREINO {treino}</Text>
+            <Text style={[S.heroTitle, narrow && {fontSize: 29, lineHeight: 29}]} accessibilityRole="header" numberOfLines={1}>TREINO {treino}</Text>
             <Text style={S.heroSub}>{treinoTitle(treino)}</Text>
             <View style={S.ringRow}>
-              <Ring size={64} stroke={8} progress={p.percent / 100} color={C.ink} track="rgba(20,27,52,.16)">
+              <Ring size={narrow ? 52 : 64} stroke={8} progress={p.percent / 100} color={C.ink} track="rgba(20,27,52,.16)">
                 <Text style={S.ringText}>{p.percent}%</Text>
               </Ring>
-              <Text style={S.ringCaption}>{started ? `${p.sets} de ${p.total} séries hoje` : `${p.total} séries · ${list.length} exercícios`}</Text>
+              <Text style={[S.ringCaption, narrow && {fontSize: 11}]}>{started ? `${p.sets} de ${p.total} séries hoje` : `${p.total} séries · ${list.length} exercícios`}</Text>
             </View>
             <Btn icon={all ? 'eye' : 'play'} small text={all ? 'REVER' : started ? 'CONTINUAR' : 'COMEÇAR'} label={all ? 'Rever o treino' : started ? 'Continuar o treino' : `Começar treino ${treino}`} onPress={() => onStart(treino)} style={{alignSelf: 'flex-start', marginTop: 16, minWidth: 150}} />
           </View>
-          <Float amplitude={4} rotate={5} style={S.heroArtBox}><Image source={art.image} resizeMode="contain" style={{width: '100%', height: '100%'}} accessibilityLabel={`Ilustração de ${personaShort(state.persona)}`} /></Float>
+          <Float amplitude={4} rotate={5} style={[S.heroArtBox, narrow && {width: 88, height: 128, marginLeft: 4}]}><Image source={art.image} resizeMode="contain" style={{width: '100%', height: '100%'}} accessibilityLabel={`Ilustração de ${personaShort(state.persona)}`} /></Float>
         </Card>
       </Animated.View>
 
@@ -112,7 +113,7 @@ const S = StyleSheet.create({
   segText: {fontSize: 20, fontWeight: '900', letterSpacing: 0.6, color: C.ink},
   segSub: {fontSize: 11, color: C.muted, marginTop: 1, fontWeight: '500'},
   row: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10},
-  thumb: {width: 74, height: 74, borderRadius: R.md, backgroundColor: '#F4F0E6', padding: 3, borderWidth: 2, borderColor: C.ink},
+  thumb: {width: 92, height: 92, borderRadius: R.md, backgroundColor: '#F4F0E6', padding: 3, borderWidth: 2, borderColor: C.ink},
   rowName: {fontSize: 16, fontWeight: '700', color: C.ink, marginBottom: 2},
   badge: {minWidth: 46, height: 36, paddingHorizontal: 8, borderRadius: 18, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink},
   badgeDone: {backgroundColor: C.mint},

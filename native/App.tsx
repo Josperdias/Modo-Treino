@@ -24,7 +24,7 @@ import ZoomView from './src/ZoomView';
 import {Bounce, Icon, IconName, Pattern, Press, ToastProvider, useToast} from './src/ui';
 import {useUpdates} from './src/updates';
 import {useBackup} from './src/backup';
-import {C, R} from './src/theme';
+import {C, R, useNarrow} from './src/theme';
 
 const APP_VERSION='1.3.0';
 
@@ -73,6 +73,7 @@ function Shell() {
   const app = useApp();
   const {state} = app;
   const toast = useToast();
+  const narrow = useNarrow();
   const [tab, setTab] = useState<Tab>('home');
   const [musicMode, setMusicMode] = useState<MusicMode>('bags');
   const [open, setOpen] = useState<Treino | null>(null);
@@ -113,12 +114,12 @@ function Shell() {
       <View style={S.header}>
         <Pattern kind="dots" color="#FFFFFF" opacity={0.07} size={16} />
         <View>
-          <Text style={S.sub}>BY JOSPERD  /  EDIÇÃO 001</Text>
-          <Text style={S.brand} accessibilityRole="header">MODO <Text style={{color: C.yellow}}>TREINO.</Text></Text>
+          <Text style={[S.sub, narrow && {fontSize: 9, letterSpacing: 1.4}]}>BY JOSPERD  /  EDIÇÃO 001</Text>
+          <Text style={[S.brand, narrow && {fontSize: 23}]} accessibilityRole="header">MODO <Text style={{color: C.yellow}}>TREINO.</Text></Text>
         </View>
         <Press accessibilityRole="button" accessibilityLabel="Abrir ajustes" onPress={() => setSettings(true)} style={S.chip}>
-          <Glyph persona={state.persona} size={26} spin />
-          <Text style={S.chipText}>{personaShort(state.persona).toUpperCase()}</Text>
+          <Glyph persona={state.persona} size={narrow ? 22 : 26} spin />
+          {!narrow && <Text style={S.chipText}>{personaShort(state.persona).toUpperCase()}</Text>}
           <Icon name="settings-sharp" size={15} color="#B7C1E3" />
         </Press>
       </View>

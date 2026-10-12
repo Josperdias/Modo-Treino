@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {StyleSheet, useWindowDimensions} from 'react-native';
 
 export const C = {
   ink: '#141B34',
@@ -36,3 +36,6 @@ export const T = StyleSheet.create({
   body: {fontSize: 14, lineHeight: 21, color: C.muted},
   small: {fontSize: 12, color: C.muted},
 });
+
+/** Celulares estreitos (≤ 360 dp): telas encolhem títulos e botões para nada ser cortado. */
+export const useNarrow = () => useWindowDimensions().width <= 360;

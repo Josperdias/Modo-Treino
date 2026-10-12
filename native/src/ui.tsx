@@ -1,5 +1,5 @@
 import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
-import {Modal, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
+import {Modal, Pressable, PressableProps, StyleProp, StyleSheet, TextStyle, View, ViewStyle} from 'react-native';
 import {Text} from './text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, FadeInDown, FadeOutDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, Defs, G, Line, Pattern as SvgPattern, Rect} from 'react-native-svg';
@@ -45,6 +45,22 @@ export function Press({style, scaleTo = 0.96, quiet = false, haptic = true, onPr
   );
 }
 
+/** Texto de uma linha que encolhe para caber na largura disponível (react-native-web não tem adjustsFontSizeToFit). */
+export function FitText({children, style, minScale = 0.62}: {children: string; style: StyleProp<TextStyle>; minScale?: number}) {
+  const [w, setW] = useState(0);
+  const flat = StyleSheet.flatten(style) || {};
+  const base = Number(flat.fontSize ?? 14);
+  const display = String(flat.fontWeight) === '900';
+  const em = base * (display ? 1.2 : 1);
+  const est = children.length * (em * (display ? 0.52 : 0.58) + Number(flat.letterSpacing ?? 0));
+  const scale = w > 0 && est > w ? Math.max(minScale, w / est) : 1;
+  return (
+    <View style={{flex: 1, minWidth: 0}} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      <Text numberOfLines={1} style={[style, {fontSize: base * scale, textAlign: 'center'}]}>{children}</Text>
+    </View>
+  );
+}
+
 /** Botão "adesivo": borda de tinta + sombra dura. Ao apertar, a frente afunda na sombra (como um botão físico). */
 type PopProps = Omit<PressableProps, 'style'> & {color?: string; radius?: number; offset?: number; shadowColor?: string; style?: StyleProp<ViewStyle>; innerStyle?: StyleProp<ViewStyle>; quiet?: boolean; border?: boolean; children?: React.ReactNode};
 export function Pop({color = C.yellow, radius = R.pill, offset = 4, shadowColor = C.ink, style, innerStyle, quiet = false, border = true, onPress, children, disabled, ...rest}: PopProps) {
@@ -85,7 +101,9 @@ export function Btn({lines = 1, text, onPress, icon, kind = 'primary', disabled,
     <Pop accessibilityRole="button" accessibilityLabel={label || text} accessibilityState={{disabled: !!disabled}} disabled={disabled} onPress={onPress} color={bg} offset={small ? 3 : 4}
       shadowColor={kind === 'dark' ? C.yellow : C.ink} style={[{alignSelf: 'stretch'}, style]} innerStyle={[B.btn, small && B.small]}>
       {icon && <Icon name={icon} size={small ? 17 : 20} color={fg} />}
-      <Text numberOfLines={lines} adjustsFontSizeToFit minimumFontScale={0.7} style={[B.text, lines > 1 && {textAlign: 'center'}, small && {fontSize: 12}, {color: fg}]}>{text}</Text>
+      {lines > 1
+        ? <Text numberOfLines={lines} style={[B.text, {textAlign: 'center'}, small && {fontSize: 12}, {color: fg}]}>{text}</Text>
+        : <FitText style={[B.text, small && {fontSize: 12}, {color: fg}]}>{text}</FitText>}
     </Pop>
   );
 }

@@ -5,7 +5,7 @@ import Animated, {FadeIn, FadeInDown, LinearTransition} from 'react-native-reani
 import {formatClock} from '../../logic';
 import {flag} from '../data';
 import {AText, Btn, Card, Chips, Equalizer, Icon, Kicker, Pattern, Pop, Press, Pulse, Sheet, useToast} from '../ui';
-import {C, R, T} from '../theme';
+import {C, R, T, useNarrow} from '../theme';
 import BagArt, {bagColor} from '../music/BagArt';
 import AddMusicSheet from '../music/AddMusicSheet';
 import {useMusic} from '../music/MusicProvider';
@@ -28,14 +28,40 @@ function SeekBar() {
   );
 }
 
+function VolumeBar() {
+  const m = useMusic();
+  const [w, setW] = useState(0);
+  const v = m.lib.volume ?? 1;
+  return (
+    <View style={P.volRow}>
+      <Press accessibilityRole="button" accessibilityLabel={v === 0 ? 'Ativar som' : 'Silenciar'} onPress={() => m.setVolume(v === 0 ? 1 : 0)} quiet haptic={false} style={{padding: 4}}>
+        <Icon name={v === 0 ? 'volume-mute' : v < 0.5 ? 'volume-low' : 'volume-high'} size={20} color={C.ink} />
+      </Press>
+      <Press accessibilityRole="adjustable" accessibilityLabel="Volume" accessibilityValue={{text: `${Math.round(v * 100)} por cento`}} quiet haptic={false} scaleTo={1} style={[P.seek, {flex: 1}]}
+        onLayout={(e) => setW(e.nativeEvent.layout.width)} onPress={(e) => { if (w > 0) m.setVolume(e.nativeEvent.locationX / w); }}>
+        <View style={P.seekTrack}><View style={[P.seekFill, {width: `${v * 100}%`, backgroundColor: C.sky}]} /></View>
+        <View style={[P.seekKnob, {left: `${v * 100}%`}]} />
+      </Press>
+      <Text style={P.volPct}>{Math.round(v * 100)}%</Text>
+    </View>
+  );
+}
+
+const TIMERS = [0, 15, 30, 45, 60];
+const RATES = [0.75, 1, 1.25, 1.5];
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
 export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
   const m = useMusic();
   const toast = useToast();
+  const narrow = useNarrow();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
   const [naming, setNaming] = useState<null | 'new' | 'rename'>(null);
   const [name, setName] = useState('');
   const [settings, setSettings] = useState(false);
+  const [menu, setMenu] = useState<(typeof m.tapeTracks)[number] | null>(null);
+  const [others, setOthers] = useState(false);
   const tape = m.activeTape;
   const tapeIndex = m.lib.tapes.findIndex((t) => t.id === tape.id);
   const tone = bagColor(tapeIndex);
@@ -62,7 +88,7 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
         <Kicker>Sua sonoplastia particular / 001</Kicker>
         <Text style={[T.h1, {marginTop: 4, marginBottom: 16, fontSize: 40, lineHeight: 38}]}>Suas bolsas,{'\n'}seu ritmo.</Text>
         <Card color={tone} offset={6} style={{alignItems: 'center', paddingTop: 22, paddingBottom: 18}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
-          <BagArt color={tone} count={m.tapeTracks.length} open={m.tapeTracks.length > 0} playing={m.playing} size={210} />
+          <BagArt color={tone} count={m.tapeTracks.length} open={m.tapeTracks.length > 0} playing={m.playing} size={narrow ? 168 : 210} />
           <View style={P.nameTag}><Text style={P.nameTagText} numberOfLines={1}>{tape.name.toUpperCase()}</Text></View>
           <Text style={P.heroSub}>{m.tapeTracks.length ? `${m.tapeTracks.length} ${m.tapeTracks.length === 1 ? 'item' : 'itens'} na bolsa` : 'Bolsa vazia: encha com suas músicas'}</Text>
         </Card>
@@ -85,8 +111,9 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
             <Press accessibilityRole="button" accessibilityLabel="Próxima faixa" onPress={() => m.skip(1)} style={P.small} quiet><Icon name="play-skip-forward" size={26} /></Press>
             <Press accessibilityRole="button" accessibilityLabel={m.lib.repeat ? 'Desligar repetir' : 'Ligar repetir'} accessibilityState={{selected: m.lib.repeat}} onPress={() => m.setRepeat(!m.lib.repeat)} style={P.small} quiet><Icon name="repeat" size={22} color={m.lib.repeat ? C.blue : C.muted} /></Press>
           </View>
+          <VolumeBar />
           <Press accessibilityRole="button" accessibilityLabel="Transição entre músicas" onPress={() => setSettings(true)} style={P.fadeRow} quiet>
-            <Icon name="timer-outline" size={16} color={C.muted} /><Text style={T.small}>Transição suave: {m.lib.fade ? `${m.lib.fade} s` : 'desligada'}</Text>
+            <Icon name="options-outline" size={16} color={C.muted} /><Text style={T.small}>Controles · transição {m.lib.fade ? `${m.lib.fade} s` : 'desligada'} · {m.lib.rate}x{m.sleepLeft ? ` · dorme em ${mmss(m.sleepLeft)}` : ''}</Text>
           </Press>
         </Card>
       </View>
@@ -119,6 +146,12 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
       <View style={{flexDirection: 'row', gap: 10, marginBottom: 12}}>
         <Btn text="ADICIONAR MÚSICAS DO CELULAR" icon="add-circle" label="Adicionar músicas do celular" onPress={() => setAdding(true)} style={{flex: 1}} />
       </View>
+      {m.tapeTracks.length > 0 && (
+        <View style={{flexDirection: 'row', gap: 10, marginBottom: 12}}>
+          <Btn small icon="play" text="TOCAR BOLSA" label="Tocar a bolsa toda" onPress={() => m.playBag(false)} style={{flex: 1}} />
+          <Btn small kind="ghost" icon="shuffle" text="ALEATÓRIO" label="Tocar a bolsa em ordem aleatória" onPress={() => m.playBag(true)} style={{flex: 1}} />
+        </View>
+      )}
       {onRadio && <Btn kind="pink" small text="ACHAR UMA RÁDIO NO GLOBO" icon="earth" onPress={onRadio} style={{marginBottom: 14}} />}
 
       {m.tapeTracks.length === 0 ? (
@@ -139,6 +172,7 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
                 <Text numberOfLines={1} style={P.rowTitle}>{t.title}</Text>
                 <Text style={T.small} numberOfLines={1}>{current ? (m.playing ? 'Tocando agora' : 'Pausada') : sub(t)}</Text>
               </View>
+              {!editing && <Press accessibilityRole="button" accessibilityLabel={`Mais opções de ${t.title}`} onPress={() => { setOthers(false); setMenu(t); }} style={P.iconBtn} quiet><Icon name="ellipsis-horizontal" size={20} /></Press>}
               {editing && <>
                 <Press accessibilityRole="button" accessibilityLabel={`Subir ${t.title}`} disabled={i === 0} onPress={() => m.moveInTape(t.id, -1)} style={[P.iconBtn, i === 0 && {opacity: 0.3}]} quiet><Icon name="arrow-up" size={18} /></Press>
                 <Press accessibilityRole="button" accessibilityLabel={`Descer ${t.title}`} disabled={i === m.tapeTracks.length - 1} onPress={() => m.moveInTape(t.id, 1)} style={[P.iconBtn, i === m.tapeTracks.length - 1 && {opacity: 0.3}]} quiet><Icon name="arrow-down" size={18} /></Press>
@@ -165,9 +199,37 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
         <Btn text="SALVAR" icon="checkmark" disabled={!name.trim()} onPress={saveName} />
       </Sheet>
 
-      <Sheet visible={settings} onClose={() => setSettings(false)} title="Transição entre músicas">
-        <Text style={[T.body, {marginBottom: 14}]}>Quanto tempo uma música leva para sumir enquanto a próxima entra.</Text>
+      <Sheet visible={settings} onClose={() => setSettings(false)} title="Controles do player">
+        <Text style={[T.h3, {marginBottom: 4}]}>Transição entre músicas</Text>
+        <Text style={[T.small, {marginBottom: 10}]}>Quanto tempo uma música leva para sumir enquanto a próxima entra.</Text>
         <Chips options={FADES} value={m.lib.fade} onChange={m.setFade} format={(n) => (n ? `${n} s` : 'Sem')} label={(n) => `Transição de ${n} segundos`} />
+        <Text style={[T.h3, {marginTop: 20, marginBottom: 4}]}>Velocidade</Text>
+        <Text style={[T.small, {marginBottom: 10}]}>Não vale para rádio ao vivo.</Text>
+        <Chips options={RATES} value={m.lib.rate} onChange={m.setRate} format={(n) => `${n}x`} label={(n) => `Velocidade ${n} vezes`} />
+        <Text style={[T.h3, {marginTop: 20, marginBottom: 4}]}>Timer para dormir</Text>
+        <Text style={[T.small, {marginBottom: 10}]}>{m.sleepLeft ? `Pausa em ${mmss(m.sleepLeft)}.` : 'A música pausa sozinha depois do tempo escolhido.'}</Text>
+        <Chips options={TIMERS} value={m.sleepLeft ? -1 : 0} onChange={(n) => m.setSleep(n)} format={(n) => (n ? `${n} min` : 'Desligado')} label={(n) => (n ? `Pausar em ${n} minutos` : 'Desligar o timer')} />
+      </Sheet>
+
+      <Sheet visible={!!menu} onClose={() => setMenu(null)} title={menu?.title || ''}>
+        {menu && (
+          <View style={{gap: 10, paddingBottom: 10}}>
+            <Btn small icon="play" text="TOCAR AGORA" onPress={() => { void m.playTrack(menu.id); setMenu(null); }} />
+            <Btn small kind="ghost" icon="arrow-redo" text="TOCAR A SEGUIR" onPress={() => { m.playNext(menu.id); toast.show('Vai tocar a seguir'); setMenu(null); }} />
+            <Btn small kind="ghost" icon="bag-add" text={others ? 'ESCOLHA A BOLSA' : 'COLOCAR EM OUTRA BOLSA'} onPress={() => setOthers(!others)} />
+            {others && (
+              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10}}>
+                {m.lib.tapes.filter((t) => t.id !== tape.id).map((t) => (
+                  <Pop key={t.id} accessibilityRole="button" accessibilityLabel={`Colocar na bolsa ${t.name}`} onPress={() => { m.copyToTape(menu, t.id); toast.show(`Também na bolsa ${t.name}`); setMenu(null); }} offset={3} quiet innerStyle={{paddingHorizontal: 16, minHeight: 40, alignItems: 'center', justifyContent: 'center'}}>
+                    <Text style={{fontSize: 16, fontWeight: '900', color: C.ink}}>{t.name}</Text>
+                  </Pop>
+                ))}
+                {m.lib.tapes.length < 2 && <Text style={T.small}>Crie outra bolsa para mover faixas entre elas.</Text>}
+              </View>
+            )}
+            <Btn small kind="danger" icon="remove-circle-outline" text="TIRAR DESTA BOLSA" onPress={() => { remove(menu.id, menu.title); setMenu(null); }} />
+          </View>
+        )}
       </Sheet>
     </ScrollView>
   );
@@ -190,6 +252,8 @@ const P = StyleSheet.create({
   controls: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingRight: 4},
   small: {width: 46, height: 46, alignItems: 'center', justifyContent: 'center'},
   play: {width: 68, height: 68, alignItems: 'center', justifyContent: 'center'},
+  volRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4},
+  volPct: {width: 40, textAlign: 'right', fontSize: 12, fontWeight: '700', color: C.muted},
   fadeRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'center', padding: 8},
   sectionHead: {flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 10},
   bagCard: {width: 130, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center', minHeight: 150},

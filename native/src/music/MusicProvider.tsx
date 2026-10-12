@@ -13,7 +13,7 @@ import {askPermission, DeviceTrack, Permission, pickMusicFolder, readPermission,
 
 export type Track = {id: string; title: string; artist?: string; uri: string; duration?: number; source: 'device' | 'file' | 'radio'; cc?: string; country?: string};
 export type Tape = {id: string; name: string; ids: string[]};
-type Library = {tracks: Track[]; tapes: Tape[]; selected: string; fade: number; shuffle: boolean; repeat: boolean; folders: string[]};
+type Library = {tracks: Track[]; tapes: Tape[]; selected: string; fade: number; shuffle: boolean; repeat: boolean; folders: string[]; volume: number; rate: number};
 
 export type MusicAPI = {
   lib: Library;
@@ -48,13 +48,20 @@ export type MusicAPI = {
   setFade: (seconds: number) => void;
   setShuffle: (value: boolean) => void;
   setRepeat: (value: boolean) => void;
+  setVolume: (v: number) => void;
+  setRate: (r: number) => void;
+  sleepLeft: number;
+  setSleep: (minutes: number) => void;
+  playNext: (id: string) => void;
+  copyToTape: (track: Track, tapeId: string) => void;
+  playBag: (shuffle: boolean) => void;
 };
 
 const KEY = 'modotreino-native-music-v1';
 const createDefault = (): Library => ({
   tracks: [],
   tapes: [{id: 'a', name: 'Treino A', ids: []}, {id: 'b', name: 'Treino B', ids: []}, {id: 'fav', name: 'Favoritas', ids: []}],
-  selected: 'a', fade: 3, shuffle: false, repeat: false, folders: [],
+  selected: 'a', fade: 3, shuffle: false, repeat: false, folders: [], volume: 1, rate: 1,
 });
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 const cleanName = (name: string) => name.replace(/\.[^.]+$/, '').trim().slice(0, 100) || 'Minha música';
@@ -74,6 +81,8 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   const [device, setDevice] = useState<DeviceTrack[]>([]);
   const [scanning, setScanning] = useState(false);
   const [permission, setPermission] = useState<Permission>('unknown');
+  const [sleepAt, setSleepAt] = useState<number | null>(null);
+  const [clock, setClock] = useState(0);
 
   const one = useAudioPlayer(null, {updateInterval: 300});
   const two = useAudioPlayer(null, {updateInterval: 300});
@@ -97,7 +106,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       try {
         const d = JSON.parse(raw);
         if (Array.isArray(d.tapes) && Array.isArray(d.tracks) && d.tapes.length) {
-          setLib({...createDefault(), ...d, folders: Array.isArray(d.folders) ? d.folders : [], tracks: d.tracks.map((t: Track) => ({...t, source: t.source === 'device' ? 'device' : t.source === 'radio' ? 'radio' : 'file'}))});
+          setLib({...createDefault(), ...d, folders: Array.isArray(d.folders) ? d.folders : [], volume: typeof d.volume === 'number' ? d.volume : 1, rate: typeof d.rate === 'number' ? d.rate : 1, tracks: d.tracks.map((t: Track) => ({...t, source: t.source === 'device' ? 'device' : t.source === 'radio' ? 'radio' : 'file'}))});
         }
       } catch { /* biblioteca antiga ilegível: começa vazia */ }
     }).finally(() => setLoaded(true));
@@ -106,6 +115,18 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   }, []);
   useEffect(() => { if (loaded) AsyncStorage.setItem(KEY, JSON.stringify(lib)).catch(() => {}); }, [lib, loaded]);
   useEffect(() => () => { if (fadeTimer.current) clearInterval(fadeTimer.current); }, []);
+
+  // timer para dormir: pausa quando chega a hora
+  useEffect(() => {
+    if (!sleepAt) return;
+    const t = setInterval(() => {
+      setClock(Date.now());
+      if (Date.now() >= sleepAt) {
+        one.pause(); two.pause(); setPlaying(false); playingRef.current = false; setSleepAt(null);
+      }
+    }, 1000);
+    return () => clearInterval(t);
+  }, [sleepAt, one, two]);
 
   const activeTape = useMemo(() => lib.tapes.find((t) => t.id === lib.selected) || lib.tapes[0], [lib]);
   const resolved = useMemo(() => resolveTape(activeTape, lib.tracks), [activeTape, lib.tracks]);
@@ -129,7 +150,9 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       const hadSound = Boolean(nowRef.current && playingRef.current);
       const seconds = hadSound && withFade && src.source !== 'radio' ? Math.min(8, Math.max(0, libRef.current.fade)) : 0;
       if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
-      other.pause(); other.replace({uri: src.uri}); other.volume = seconds ? 0 : 1; other.play();
+      const vol = Math.max(0, Math.min(1, libRef.current.volume ?? 1));
+      other.pause(); other.replace({uri: src.uri}); other.volume = seconds ? 0 : vol; other.play();
+      try { other.setPlaybackRate?.(src.source === 'radio' ? 1 : libRef.current.rate || 1); } catch { /* velocidade é um extra */ }
       try {
         old.clearLockScreenControls?.();
         other.setActiveForLockScreen?.(true, {title: src.title, artist: src.source === 'radio' ? `Rádio · ${src.country || 'ao vivo'}` : libRef.current.tapes.find((t) => t.id === libRef.current.selected)?.name || 'Modo Treino', albumTitle: 'Modo Treino'});
@@ -139,10 +162,10 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
         const started = Date.now();
         fadeTimer.current = setInterval(() => {
           const t = Math.min(1, (Date.now() - started) / (seconds * 1000));
-          old.volume = Math.cos(t * Math.PI / 2); other.volume = Math.sin(t * Math.PI / 2);
-          if (t >= 1) { old.pause(); old.volume = 1; if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; } }
+          old.volume = Math.cos(t * Math.PI / 2) * vol; other.volume = Math.sin(t * Math.PI / 2) * vol;
+          if (t >= 1) { old.pause(); old.volume = vol; if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; } }
         }, 60);
-      } else { old.pause(); old.volume = 1; }
+      } else { old.pause(); old.volume = vol; }
     } catch {
       Alert.alert('Não foi possível tocar', src.source === 'radio' ? 'Esta rádio não respondeu agora. Tente outra.' : 'Confira se a música ainda está no celular.');
       setPlaying(false); playingRef.current = false;
@@ -274,6 +297,34 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     setFade: (seconds) => setLib((v) => ({...v, fade: Math.max(0, Math.min(8, seconds))})),
     setShuffle: (value) => setLib((v) => ({...v, shuffle: value})),
     setRepeat: (value) => setLib((v) => ({...v, repeat: value})),
+    setVolume: (v) => {
+      const vol = Math.max(0, Math.min(1, v));
+      libRef.current = {...libRef.current, volume: vol};
+      setLib((l) => ({...l, volume: vol}));
+      if (!fadeTimer.current) { one.volume = vol; two.volume = vol; }
+    },
+    setRate: (r) => {
+      setLib((l) => ({...l, rate: r}));
+      if (!live) { try { one.setPlaybackRate?.(r); two.setPlaybackRate?.(r); } catch { /* extra */ } }
+    },
+    sleepLeft: sleepAt ? Math.max(0, Math.ceil((sleepAt - (clock || Date.now())) / 1000)) : 0,
+    setSleep: (minutes) => setSleepAt(minutes > 0 ? Date.now() + minutes * 60000 : null),
+    // "Tocar a seguir": move a faixa para logo depois da que está tocando
+    playNext: (id) => setLib((v) => ({...v, tapes: v.tapes.map((t) => {
+      if (t.id !== v.selected) return t;
+      const rest = t.ids.filter((x) => x !== id);
+      const at = nowRef.current ? rest.indexOf(nowRef.current.id) : -1;
+      rest.splice(at + 1, 0, id);
+      return {...t, ids: rest};
+    })})),
+    copyToTape: (track, tapeId) => setLib((v) => ({...v, tracks: v.tracks.some((x) => x.id === track.id) ? v.tracks : [...v.tracks, track], tapes: tapeAdd(v.tapes, tapeId, [track.id])})),
+    playBag: (shuffle) => {
+      const ids = resolved.tracks.map((t) => t.id);
+      if (!ids.length) { Alert.alert('Sua bolsa está vazia', 'Adicione músicas ou uma rádio para tocar a bolsa.'); return; }
+      setLib((v) => ({...v, shuffle}));
+      libRef.current = {...libRef.current, shuffle};
+      void playById(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], false);
+    },
   };
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

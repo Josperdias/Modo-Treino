@@ -14,6 +14,11 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - **Importar músicas por três caminhos**: lista do celular, **uma pasta** (sem permissão de áudio) ou **arquivos** (agora o seletor mostra qualquer arquivo; filtramos MP3/M4A/etc. por extensão).
 - **★ Josperd e ✿ Camila**: estrela e flor como símbolos dos personagens (perfil e escolha), e **estrelinhas** que piscam no cartão inicial.
 
+### Mais controle sobre a música
+- **Tocar bolsa** e **Aleatório** com um toque; **volume** com barra e mudo; **velocidade** (0,75x a 1,5x); **timer para dormir** (15 a 60 min).
+- Menu de cada faixa (⋯): **tocar agora**, **tocar a seguir**, **colocar em outra bolsa** (a mesma música pode estar em várias) e tirar da bolsa.
+- Telas pensadas também para celulares estreitos (320 dp): títulos e botões encolhem em vez de cortar; miniaturas dos exercícios maiores.
+
 ### Visual refeito (estilo "adesivo")
 - Tipografia **Barlow Condensed + DM Sans** (OFL), botões e cartões com borda de tinta e **sombra dura que afunda ao tocar**, texturas, animações escalonadas.
 - Botões com texto que **cabe na tela** (encolhe em vez de cortar).
