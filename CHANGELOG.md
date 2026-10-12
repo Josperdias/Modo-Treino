@@ -2,6 +2,29 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.0] — 2026-10-12
+
+### Duas notificações novas, no visual do app
+- **Música (azul-céu pontilhado)**: fita colorida ilustrada, nome, "Bag Treino A · …", barra amarela com tempo, e botões redondos **♥ favoritar · ⏮ anterior · ⏯ tocar/pausar · ⏭ próxima** + botão rosa que abre o app. **Rádio ao vivo** usa o cartão rosa com o globo e o selo **AO VIVO**. Aparece também com a **tela bloqueada**.
+- **Treino (verde-menta pontilhado)**: a **ilustração do exercício** (Josperd ou Camila, a ruivinha), "A1 · BÍCEPS", o nome grande e o selo **"Séries feitas: 2/5"**. Botões: **✓ concluir série**, **⏭ próximo exercício** e **⋯ abrir o app**. No **descanso** o selo vira a **contagem regressiva** (o Android conta sozinho) e os botões viram **⏸ pausar/retomar o descanso** e **⏭ pular o descanso**.
+- Cada uma é uma notificação **própria e separada** (canais "Música tocando" e "Treino em andamento"). A de música roda como serviço em primeiro plano, então a música **não morre em segundo plano**, e responde aos botões do **fone e do Bluetooth**. Deslizar o cartão pausado (ou fechar o app) encerra o player.
+- Implementado como módulo nativo próprio (`native/modules/modo-notif`, Kotlin). Saem o `expo-notifications` (e com ele o Firebase) e os controles genéricos de tela de bloqueio do `expo-audio`.
+- **Ajustes → Notificações** agora mostra o estado real no seu Android (permissão, canais, aparelho), abre **direto** a tela de notificações do app e tem **TESTAR AS DUAS** (mostra os dois cartões de exemplo por 20 s).
+- **Novo no descanso do app**: botão **PAUSAR / RETOMAR** (a contagem congela e continua de onde parou).
+
+### Nova aba BUSCAR
+- Uma caixa só para achar **exercícios** (nome, grupo, código A1, treino, nota — sem acento), **fitas**, **bags**, **rádios** (do cache e do diretório online) e **treinos já feitos** (por exercício ou data, ex.: `01/10`). Tocar num exercício **começa o treino naquele exercício**; tocar numa fita ou rádio **toca na hora**. Atalhos de grupo muscular e **buscas recentes**.
+
+### Barra do player com bolinha
+- **Segure a bolinha e arraste** até o ponto exato (o tempo acompanha o dedo e a música só pula ao soltar); toque direto também continua valendo. O volume ganhou o mesmo arrasto. Área de toque maior (40 dp).
+
+### Extras
+- **Meu vídeo de execução**: em *Ajustar* de cada exercício dá para guardar **o seu próprio vídeo** (da galeria); aparece como **VER MEU VÍDEO** no modo execução. Fica só no celular (cópia dentro do app); remover apaga só a cópia.
+- **Voz do treino** (desligada por padrão): o Android fala o exercício, a série concluída e o descanso.
+
+### Honestidade
+- Verificado: lógica (44 testes), interface (41 testes no navegador), typecheck, bundle Android, XML dos layouts das notificações (aapt2) e uma **prévia renderizada dos cartões**. **Não** verificado em aparelho real: como o seu Android/HyperOS desenha os cartões (o sistema desenha o cabeçalho "Modo Treino · … · agora" e pode limitar altura/cor), botões do fone e vídeo. Use **Ajustes → TESTAR AS DUAS** e me conte o que apareceu.
+
 ## [1.3.4] — 2026-10-12
 
 ### Manifesto enxuto (menos "ruído" para o Play Protect)

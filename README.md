@@ -14,10 +14,10 @@
 
 <br>
 
-<img src="screenshots/v1.3.2/app-01-inicio.png" width="190" alt="App Android: tela inicial">
-<img src="screenshots/v1.3.2/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
-<img src="screenshots/v1.3.2/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
-<img src="screenshots/v1.3.2/app-10b-tocando-agora.png" width="190" alt="App Android: Tocando agora, com a fita girando">
+<img src="screenshots/v1.4.0/app-01-inicio.png" width="190" alt="App Android: tela inicial">
+<img src="screenshots/v1.4.0/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
+<img src="screenshots/v1.4.0/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
+<img src="screenshots/v1.4.0/app-10b-tocando-agora.png" width="190" alt="App Android: Tocando agora, com a fita girando">
 
 </div>
 
@@ -41,11 +41,20 @@
 
 <div align="center">
 
-<img src="screenshots/v1.3.2/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
-<img src="screenshots/v1.3.2/app-14-radio-globo.png" width="170" alt="Rádio do mundo: globo 3D com países">
-<img src="screenshots/v1.3.2/app-08-treino-completo.png" width="170" alt="Treino completo">
-<img src="screenshots/v1.3.2/app-12-bags.png" width="170" alt="Bags: playlists de fitas e rádios">
-<img src="screenshots/v1.3.2/app-09-historico.png" width="170" alt="Histórico com recordes">
+<img src="screenshots/v1.4.0/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
+<img src="screenshots/v1.4.0/app-14-radio-globo.png" width="170" alt="Rádio do mundo: globo 3D com países">
+<img src="screenshots/v1.4.0/app-08-treino-completo.png" width="170" alt="Treino completo">
+<img src="screenshots/v1.4.0/app-12-bags.png" width="170" alt="Bags: playlists de fitas e rádios">
+<img src="screenshots/v1.4.0/app-09-historico.png" width="170" alt="Histórico com recordes">
+
+**Novo no 1.4.0**: notificações no visual do app (prévia dos cartões, renderizada dos layouts reais; não é print de aparelho) e a aba Buscar.
+
+<img src="screenshots/v1.4.0/notif-musica.png" width="300" alt="Notificação de música: fita, barra e botões">
+<img src="screenshots/v1.4.0/notif-radio.png" width="300" alt="Notificação da rádio ao vivo: planeta no espaço estrelado">
+<img src="screenshots/v1.4.0/notif-treino.png" width="300" alt="Notificação do treino: ilustração do exercício e séries feitas">
+<img src="screenshots/v1.4.0/notif-treino-descanso.png" width="300" alt="Notificação do treino durante o descanso">
+<img src="screenshots/v1.4.0/app-19-buscar-atalhos.png" width="170" alt="Aba Buscar com atalhos">
+<img src="screenshots/v1.4.0/app-20-buscar-resultados.png" width="170" alt="Resultados da busca por exercício">
 
 <sub>Capturas do app geradas com react-native-web (mesmo código do app); as músicas do "celular" nelas são simuladas. Prints do site: <code>screenshots/v1.1.0/</code>.</sub>
 

@@ -76,12 +76,12 @@ const A = [['Rosca direta na barra W', 5], ['Rosca concentrada', 3], ['Rosca mar
 const musicLib = (extra = {}) => ({tracks: TRACKS.slice(0, 3), tapes: [{id: 'a', name: 'Treino A', ids: ['dev:0', 'dev:1', 'dev:2']}, {id: 'b', name: 'Treino B', ids: []}, {id: 'fav', name: 'Favoritas', ids: []}], selected: 'a', fade: 3, shuffle: false, repeat: false, ...extra});
 
 /* ================= identidade e estrutura ================= */
-test('app abre sem erro, com a identidade e 3 abas', {skip}, async () => {
+test('app abre sem erro, com a identidade e 4 abas (Início, Músicas, Buscar, Progresso)', {skip}, async () => {
   const {context, page, errors} = await open();
   const t = await body(page);
   assert.match(t, /BY JOSPERD\s*\/\s*EDIÇÃO 001/);
   assert.match(t, /VAI LÁ\.\s*FAZ VALER\./);
-  assert.deepEqual(await page.getByRole('tab').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))), ['Início', 'Músicas', 'Progresso']);
+  assert.deepEqual(await page.getByRole('tab').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))), ['Início', 'Músicas', 'Buscar', 'Progresso']);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -611,5 +611,137 @@ test('player compacto: aparece nas telas, some na aba Músicas e fica no modo ex
   await page.getByLabel('Pular descanso').click();
   await page.getByRole('button', {name: /^Abrir músicas/}).click();
   await page.getByText('Suas fitas,', {exact: false}).waitFor();
+  await context.close();
+});
+
+/* ================= buscar, descanso pausável, voz e vídeo ================= */
+const search = (page) => page.getByLabel('Campo de busca', {exact: true});
+
+test('buscar: sem acento e por grupo; tocar no exercício começa o treino naquele exercício', {skip}, async () => {
+  const {context, page, errors} = await open();
+  await tab(page, 'Buscar');
+  assert.match(await body(page), /ATALHOS/);
+  await search(page).fill('trapezio');
+  await page.getByText('EXERCÍCIOS', {exact: true}).waitFor();
+  assert.equal(await page.getByLabel('Fazer Encolhimento para trapézio agora').count(), 1);
+  assert.equal(await page.getByLabel('Fazer Remada alta na barra W agora').count(), 1);
+  assert.equal(await page.getByLabel('Fazer Supino reto com halteres agora').count(), 0);
+  await page.getByLabel('Fazer Encolhimento para trapézio agora').click();
+  await page.getByText(/EXERCÍCIO 5\/6/).first().waitFor();
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('buscar: atalho de grupo, sem resultado explica, e as buscas recentes ficam guardadas', {skip}, async () => {
+  const {context, page} = await open();
+  await tab(page, 'Buscar');
+  await page.getByLabel('Buscar Ombro', {exact: true}).click();
+  await page.getByLabel('Fazer Elevação lateral com halteres agora').waitFor();
+  assert.equal(await search(page).inputValue(), 'Ombro');
+  await search(page).fill('zzzxyz');
+  await page.getByText('Nada com “zzzxyz”').waitFor();
+  await search(page).fill('Remada alta'); await search(page).press('Enter');
+  await page.getByLabel('Fazer Remada alta na barra W agora').click();
+  await page.getByText(/EXERCÍCIO 6\/6/).first().waitFor();
+  await page.getByLabel('Sair do modo execução').click();
+  await search(page).fill('');
+  await page.getByLabel('Buscar de novo Remada alta').waitFor();
+  await context.close();
+});
+
+test('buscar: fitas, bags e rádios em seções; tocar uma fita toca na hora', {skip}, async () => {
+  const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}, seed: {[MUSIC]: musicLib()}});
+  const radios = [{stationuuid: 'u1', name: 'Rádio Lose Control', url_resolved: 'https://example.com/s1', countrycode: 'BR', country: 'Brazil', state: '', tags: 'pop', geo_lat: -10, geo_long: -50, clickcount: 5, bitrate: 128}];
+  await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
+  await tab(page, 'Buscar');
+  await search(page).fill('lose');
+  await page.getByText('FITAS', {exact: true}).waitFor();
+  assert.equal(await page.getByLabel('Tocar Lose Yourself', {exact: true}).count(), 1);
+  assert.equal(await page.getByLabel('Tocar Stronger', {exact: true}).count(), 0);
+  await page.getByLabel('Ouvir a rádio Rádio Lose Control').waitFor();
+  await search(page).fill('treino a');
+  await page.getByLabel('Abrir a bag Treino A').waitFor();
+  await search(page).fill('lose');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click();
+  await settle(page, 500);
+  await page.getByRole('toolbar', {name: 'Player de música'}).waitFor();
+  assert.match(await body(page), /Lose Yourself/);
+  await context.close();
+});
+
+test('buscar: treinos já feitos aparecem por exercício e por data, e levam ao Progresso', {skip}, async () => {
+  const sessions = [{date: '2026-10-01', time: '07:30', treino: 'A', sets: 6, percent: 40, volume: 480, items: [{id: 'a1', nome: 'Rosca direta na barra W', series: 6, reps: 12, peso: 20}]}];
+  const {context, page} = await open({seed: {[APP]: {sessions}}});
+  await tab(page, 'Buscar');
+  await search(page).fill('rosca direta');
+  await page.getByText('TREINOS FEITOS', {exact: true}).waitFor();
+  await page.getByLabel('Ver o treino A de 01/10 no progresso').waitFor();
+  await search(page).fill('01/10');
+  await page.getByLabel('Ver o treino A de 01/10 no progresso').click();
+  await page.getByRole('tab', {name: 'Progresso', exact: true}).waitFor();
+  assert.match(await body(page), /Rosca direta na barra W|Treino A|PROGRESSO/i);
+  await context.close();
+});
+
+test('descanso: PAUSAR congela a contagem e RETOMAR continua de onde parou', {skip}, async () => {
+  const {context, page} = await open({clock: true});
+  await startWorkout(page);
+  await setBtn(page, 5).click();
+  await page.getByText('ENTRE EXERCÍCIOS', {exact: true}).waitFor();
+  await page.clock.fastForward(10000);
+  await page.getByLabel('Pausar o descanso').click();
+  const frozen = (await body(page)).match(/\b0(\d):(\d\d)\b/);
+  await page.clock.fastForward(30000);
+  assert.equal((await body(page)).match(/\b0(\d):(\d\d)\b/)[0], frozen[0], 'pausado: o relógio não anda');
+  assert.equal(await page.getByLabel('Retomar o descanso').count(), 1);
+  await page.getByLabel('Retomar o descanso').click();
+  await page.clock.fastForward(5000);
+  assert.notEqual((await body(page)).match(/\b0(\d):(\d\d)\b/)[0], frozen[0], 'retomado: volta a contar');
+  await page.getByLabel('Pular descanso').click();
+  await page.getByText(/EXERCÍCIO 2\/6/).first().waitFor();
+  await context.close();
+});
+
+test('ajustes: voz do treino vem desligada e persiste; edição do exercício oferece o vídeo próprio', {skip}, async () => {
+  const {context, page, errors} = await open();
+  await openSettings(page);
+  assert.equal(await page.getByRole('switch', {name: 'Voz do treino'}).getAttribute('aria-checked'), 'false');
+  assert.equal((await store(page)).voice === true, false);
+  await page.getByRole('switch', {name: 'Voz do treino'}).click();
+  assert.equal((await store(page)).voice, true);
+  await closeSheet(page);
+  await tab(page, 'Buscar');
+  await search(page).fill('martelo');
+  await page.getByLabel('Ver e ajustar Rosca martelo', {exact: true}).click();
+  await page.getByText('Meu vídeo de execução', {exact: true}).waitFor();
+  await page.getByLabel('ESCOLHER UM VÍDEO').waitFor();
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('barra do player: a bolinha acompanha o dedo ao arrastar (volume muda na hora, com toque e com arrasto)', {skip}, async () => {
+  const {context, page, errors} = await open({device: {permission: 'granted', tracks: TRACKS}, touch: false});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click();
+  await settle(page, 400);
+  const bar = page.getByLabel('Volume', {exact: true});
+  await bar.waitFor();
+  await bar.scrollIntoViewIfNeeded(); await settle(page, 200);
+  const box = await bar.boundingBox();
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width * 0.95, y); await page.mouse.down();       // segura perto da bolinha (volume 100%)
+  await page.mouse.move(box.x + box.width * 0.6, y, {steps: 6});
+  await page.mouse.move(box.x + box.width * 0.25, y, {steps: 6});
+  const during = (await store(page, MUSIC)) ? 1 : 0;                                  // (o volume é gravado enquanto arrasta)
+  await page.mouse.up();
+  await settle(page, 300);
+  const vol = (await store(page, MUSIC)).volume;
+  assert.ok(vol > 0.15 && vol < 0.4, `volume ficou perto de 25% depois do arrasto (veio ${vol})`);
+  await page.mouse.click(box.x + box.width * 0.8, y);                                  // toque direto no ponto
+  await settle(page, 300);
+  const v2 = (await store(page, MUSIC)).volume;
+  assert.ok(v2 > 0.7 && v2 < 0.9, `toque em 80% (veio ${v2})`);
+  assert.ok(during >= 0);
+  assert.deepEqual(errors.filter((e) => !/no supported source/.test(e)), []);   // o navegador não toca file:// de mentira
   await context.close();
 });

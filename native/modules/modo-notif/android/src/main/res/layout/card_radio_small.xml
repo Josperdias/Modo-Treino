@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rádio (recolhida): planeta, nome e tocar/pausar. Máx. 48 dp de altura (limite do Android 12+). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/card"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingLeft="8dp"
+    android:paddingTop="4dp"
+    android:paddingRight="11dp"
+    android:paddingBottom="7dp"
+    android:background="@drawable/bg_card_space">
+
+  <ImageView
+      android:id="@+id/art"
+      android:layout_width="38dp"
+      android:layout_height="38dp"
+      android:scaleType="fitCenter"
+      android:contentDescription="@null" />
+
+  <LinearLayout
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:layout_marginLeft="8dp"
+      android:layout_marginRight="4dp"
+      android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/barlow_black"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:textColor="#FFFFFFFF"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/dmsans_bold"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:textColor="@color/mt_lilac"
+        android:textSize="11sp" />
+  </LinearLayout>
+
+  <ImageView
+      android:id="@+id/play"
+      android:layout_width="36dp"
+      android:layout_height="36dp"
+      android:layout_marginLeft="4dp"
+      android:layout_marginRight="4dp"
+      android:padding="8dp"
+      android:scaleType="fitCenter"
+      android:background="@drawable/bg_circle_yellow"
+      android:src="@drawable/ic_play"
+      android:contentDescription="Tocar ou pausar" />
+</LinearLayout>

@@ -1,63 +1,52 @@
-/** Notificação do exercício em andamento (separada da notificação de música, que é a do player do sistema).
- * Fica fixa enquanto o modo execução está aberto, mostra o exercício atual e, ao tocar nela, volta para o app.
- * Falhas (sem permissão, aparelho sem suporte) nunca atrapalham o treino. */
-import {Platform} from 'react-native';
-import * as Notifications from 'expo-notifications';
-
-const CANAL = 'treino';
-const ID = 'treino-ativo';
-let pronto: Promise<boolean> | null = null;
+/** Notificações do Modo Treino (Android), todas nativas e no visual do app:
+ * - MÚSICA: cartão azul-céu com a fita (ou o globo da rádio), anterior / tocar / próxima. Vive no player (MusicProvider).
+ * - TREINO: cartão verde-menta com a ilustração do exercício, "Séries feitas" (ou o descanso) e botões. Vive no modo execução.
+ * Falhas (sem permissão, aparelho sem suporte, navegador) nunca atrapalham o treino nem a música. */
+import {Image, ImageSourcePropType, Platform} from 'react-native';
+import {ModoNotif, WorkoutCard} from '../modules/modo-notif';
 
 export type NotifState = 'granted' | 'ask' | 'blocked' | 'unavailable';
-const toState = (p: {granted: boolean; canAskAgain: boolean}): NotifState => (p.granted ? 'granted' : p.canAskAgain ? 'ask' : 'blocked');
 
-/** O canal precisa existir ANTES de pedir a permissão (no Android 13+ o diálogo só aparece assim). */
-async function criarCanal() {
-  if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CANAL, {
-    name: 'Treino em andamento', description: 'Mostra o exercício atual enquanto você treina.',
-    importance: Notifications.AndroidImportance.LOW, enableVibrate: false, showBadge: false, lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-  });
-}
-
-/** Estado da permissão de notificações (vale também para a notificação do player de música). */
+/** Estado das notificações do app: permissão do Android + o interruptor geral de notificações do app. */
 export async function estadoNotificacoes(): Promise<NotifState> {
-  if (Platform.OS === 'web') return 'unavailable';
-  try { return toState(await Notifications.getPermissionsAsync()); } catch { return 'unavailable'; }
+  if (Platform.OS !== 'android' || !ModoNotif.available) return 'unavailable';
+  const p = await ModoNotif.permission();
+  if (!p) return 'unavailable';
+  const d = ModoNotif.diagnose();
+  if (p.granted && d?.enabled !== false) return 'granted';
+  return p.canAskAgain ? 'ask' : 'blocked';
 }
 
-/** Mostra o pedido de permissão do Android (se ainda puder). Sem ela, NENHUMA notificação aparece, nem a do player. */
+/** Mostra o pedido de permissão do Android (se ainda puder). Sem ela NENHUMA notificação aparece. */
 export async function pedirNotificacoes(): Promise<NotifState> {
-  if (Platform.OS === 'web') return 'unavailable';
-  try {
-    Notifications.setNotificationHandler({handleNotification: async () => ({shouldShowBanner: false, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false})});
-    await criarCanal();
-    const atual = await Notifications.getPermissionsAsync();
-    if (atual.granted || !atual.canAskAgain) return toState(atual);
-    return toState(await Notifications.requestPermissionsAsync());
-  } catch { return 'unavailable'; }
+  if (Platform.OS !== 'android' || !ModoNotif.available) return 'unavailable';
+  await ModoNotif.requestPermission();
+  return estadoNotificacoes();
 }
 
-async function preparar(): Promise<boolean> {
-  return (await pedirNotificacoes()) === 'granted';
+/** Abre direto a tela "Notificações" deste app nas configurações do Android. */
+export const abrirAjustesDeNotificacao = () => ModoNotif.openSettings();
+
+/** Importância dos canais, em palavras (para o teste em Ajustes). */
+const nivel = (n: number) => (n < 0 ? 'ainda não criado' : n === 0 ? 'BLOQUEADO' : n === 1 ? 'mínima' : n === 2 ? 'baixa (silenciosa)' : 'normal');
+export function diagnostico(): string[] {
+  const d = ModoNotif.diagnose();
+  if (!d) return [];
+  return [
+    `Aparelho: ${d.device} · Android API ${d.sdk}`,
+    `Notificações do app: ${d.enabled ? 'ligadas' : 'DESLIGADAS no Android'}`,
+    `Canal Música: ${nivel(d.music)}`,
+    `Canal Treino: ${nivel(d.workout)}`,
+  ];
 }
 
-export async function mostrarTreino(title: string, body: string): Promise<void> {
-  pronto ??= preparar();
-  if (!(await pronto)) return;
-  try {
-    await Notifications.scheduleNotificationAsync({
-      identifier: ID,
-      content: {title, body, sticky: true, autoDismiss: false, color: '#162039', priority: Notifications.AndroidNotificationPriority.LOW, data: {tipo: 'treino'}},
-      trigger: Platform.OS === 'android' ? {channelId: CANAL} : null,
-    });
-  } catch { /* notificação é um extra */ }
-}
+export const mostrarTreino = (card: WorkoutCard) => { ModoNotif.workout(card); };
+export const limparTreino = () => { ModoNotif.workoutStop(); };
 
-export async function limparTreino(): Promise<void> {
-  if (Platform.OS === 'web') return;
+/** Nome do recurso (APK de release) ou caminho do arquivo da ilustração, para o cartão nativo carregar a imagem. No navegador não existe: devolve vazio. */
+export function nomeDaImagem(source: ImageSourcePropType): string {
   try {
-    await Notifications.dismissNotificationAsync(ID);
-    await Notifications.cancelScheduledNotificationAsync(ID);
-  } catch { /* nada a limpar */ }
+    if (Platform.OS !== 'android' || typeof Image.resolveAssetSource !== 'function') return '';
+    return Image.resolveAssetSource(source)?.uri ?? '';
+  } catch { return ''; }
 }

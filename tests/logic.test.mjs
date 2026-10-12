@@ -321,6 +321,38 @@ test('searchTracks e formatClock', () => {
   assert.equal(L.searchTracks(tr, '').length, 2);
   assert.equal(L.formatClock(65), '1:05'); assert.equal(L.formatClock(-3), '0:00'); assert.equal(L.formatClock('x'), '0:00');
 });
+test('busca: foldText tira acento/caixa; searchRank exige TODAS as palavras e ordena por relevância', () => {
+  assert.equal(L.foldText('  Bíceps   NA  Barra '), 'biceps na barra');
+  assert.equal(L.foldText(null), '');
+  const it = [{n: 'Rosca martelo', d: 'bíceps'}, {n: 'Bíceps na barra', d: ''}, {n: 'Supino reto', d: 'peito'}];
+  const r = L.searchRank(it, 'biceps', (x) => [x.n, x.d]);
+  assert.deepEqual(r.map((x) => x.n), ['Bíceps na barra', 'Rosca martelo']);   // nome começando com a palavra vem antes de achar só na descrição
+  assert.deepEqual(L.searchRank(it, 'rosca bic', (x) => [x.n, x.d]).map((x) => x.n), ['Rosca martelo']);
+  assert.deepEqual(L.searchRank(it, 'rosca peito', (x) => [x.n, x.d]), []);
+  assert.deepEqual(L.searchRank(it, '   ', (x) => [x.n]), []);
+});
+test('busca: exercícios, bags, fitas e treinos feitos (sem acento, por grupo/código/treino/data)', () => {
+  const ex = [
+    {id: 'a1', treino: 'A', grupo: 'Bíceps', nome: 'Rosca direta na barra W', codigo: 'A1', nota: '', orientacao: 'Mantenha o cotovelo junto ao corpo'},
+    {id: 'b2', treino: 'B', grupo: 'Ombro', nome: 'Elevação lateral', codigo: 'B2', nota: 'leve', orientacao: ''},
+  ];
+  assert.deepEqual(L.searchExercises(ex, 'biceps').map((x) => x.id), ['a1']);
+  assert.deepEqual(L.searchExercises(ex, 'a1').map((x) => x.id), ['a1']);
+  assert.deepEqual(L.searchExercises(ex, 'b2').map((x) => x.id), ['b2']);
+  assert.deepEqual(L.searchExercises(ex, 'cotovelo').map((x) => x.id), ['a1']);
+  assert.deepEqual(L.searchExercises(ex, 'elevacao lat').map((x) => x.id), ['b2']);
+  assert.deepEqual(L.searchExercises(ex, 'xyz'), []);
+  assert.deepEqual(L.searchBags([{id: '1', name: 'Treino A'}, {id: '2', name: 'Favoritas'}], 'fav').map((x) => x.id), ['2']);
+  assert.deepEqual(L.searchTracks([{id: '1', title: 'Pagode do Zé', artist: 'Grupo'}], 'ze pag').map((x) => x.id), ['1']);
+  const ss = [
+    {date: '2026-10-01', treino: 'A', sets: 10, items: [{nome: 'Rosca direta na barra W'}]},
+    {date: '2026-10-05', treino: 'B', sets: 8, items: [{nome: 'Elevação lateral'}]},
+    {date: '2026-10-09', treino: 'A', sets: 12, items: [{nome: 'Rosca direta na barra W'}]},
+  ];
+  assert.deepEqual(L.searchSessions(ss, 'rosca').map((x) => x.date), ['2026-10-09', '2026-10-01']);   // mais recentes primeiro
+  assert.deepEqual(L.searchSessions(ss, '05/10').map((x) => x.date), ['2026-10-05']);
+  assert.deepEqual(L.searchSessions(ss, 'treino a').map((x) => x.date), ['2026-10-09', '2026-10-01']);
+});
 test('tapeInsert: devolve a música à posição original (desfazer) sem duplicar', () => {
   const t = [{id: 'a', name: 'A', ids: ['1', '3']}];
   assert.deepEqual(L.tapeInsert(t, 'a', '2', 1)[0].ids, ['1', '2', '3']);

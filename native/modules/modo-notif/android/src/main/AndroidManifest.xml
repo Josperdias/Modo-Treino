@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- O player de música roda como serviço em primeiro plano (tipo "mediaPlayback") para o Android não matar a música em segundo plano. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Permite pintar o fundo do cartão de azul-marinho (o Android só deixa isso para notificações de serviço, ou com esta permissão). -->
+  <uses-permission android:name="android.permission.USE_COLORIZED_NOTIFICATIONS" />
+
+  <application>
+    <service
+      android:name="art.josperd.modotreino.notif.MusicService"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback" />
+    <receiver
+      android:name="art.josperd.modotreino.notif.ActionReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

@@ -3,7 +3,7 @@
     "name": "Modo Treino",
     "slug": "modo-treino-josperd",
     "scheme": "modotreino",
-    "version": "1.3.4",
+    "version": "1.4.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/brand.png",
@@ -58,7 +58,7 @@
         "me.everything.badger.permission.BADGE_COUNT_WRITE"
       ],
       "allowBackup": true,
-      "versionCode": 10304
+      "versionCode": 10400
     },
     "plugins": [
       [
@@ -88,13 +88,7 @@
           }
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notif/icone.png",
-          "color": "#162039"
-        }
-      ]
+      "expo-video"
     ],
     "extra": {
       "appName": "Modo Treino",

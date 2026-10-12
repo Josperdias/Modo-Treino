@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Música (expandida): o cartão "Tocando agora" do app, em azul-céu pontilhado. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="14dp"
+    android:paddingTop="12dp"
+    android:paddingRight="17dp"
+    android:paddingBottom="16dp"
+    android:background="@drawable/bg_card_sky">
+
+  <FrameLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+      <ImageView
+          android:id="@+id/art"
+          android:layout_width="104dp"
+          android:layout_height="67dp"
+          android:scaleType="fitCenter"
+          android:contentDescription="@null" />
+
+      <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:layout_marginLeft="12dp"
+          android:layout_marginRight="16dp"
+          android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/kicker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/dmsans_bold"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.14"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textAllCaps="true"
+            android:textColor="@color/mt_muted"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/barlow_black"
+            android:includeFontPadding="false"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="@color/mt_ink"
+            android:textSize="25sp" />
+
+        <TextView
+            android:id="@+id/subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:fontFamily="@font/dmsans_bold"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textColor="@color/mt_muted"
+            android:textSize="13sp" />
+      </LinearLayout>
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:layout_gravity="top|end"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_star_small"
+        android:contentDescription="@null" />
+
+    <ImageView
+        android:layout_width="13dp"
+        android:layout_height="13dp"
+        android:layout_gravity="bottom|end"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_sparkle"
+        android:contentDescription="@null" />
+  </FrameLayout>
+
+  <!-- fita: barra com tempo -->
+  <LinearLayout
+      android:id="@+id/progress_row"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical">
+
+    <ProgressBar
+        android:id="@+id/bar"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="11dp"
+        android:layout_marginTop="12dp"
+        android:max="1000"
+        android:progress="0"
+        android:indeterminate="false"
+        android:progressDrawable="@drawable/bar_music" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:orientation="horizontal">
+
+      <TextView
+          android:id="@+id/pos"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:fontFamily="@font/dmsans_bold"
+          android:includeFontPadding="false"
+          android:textColor="@color/mt_ink"
+          android:textSize="12sp" />
+
+      <TextView
+          android:id="@+id/dur"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:fontFamily="@font/dmsans_bold"
+          android:includeFontPadding="false"
+          android:textColor="@color/mt_ink"
+          android:textSize="12sp" />
+    </LinearLayout>
+  </LinearLayout>
+
+  <!-- rádio: selo "ao vivo" no lugar da barra -->
+  <LinearLayout
+      android:id="@+id/live_row"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="12dp"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:visibility="gone">
+
+    <TextView
+        android:id="@+id/live"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingTop="4dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="4dp"
+        android:background="@drawable/bg_pill_rose"
+        android:fontFamily="@font/barlow_black"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.08"
+        android:text="●  AO VIVO"
+        android:textColor="@color/mt_ink"
+        android:textSize="14sp" />
+  </LinearLayout>
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="8dp"
+      android:orientation="horizontal"
+      android:gravity="center">
+
+    <ImageView
+        android:id="@+id/fav"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:background="@drawable/bg_circle_white"
+        android:src="@drawable/ic_heart"
+        android:contentDescription="Favoritar" />
+
+    <ImageView
+        android:id="@+id/prev"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginLeft="7dp"
+        android:padding="12dp"
+        android:scaleType="fitCenter"
+        android:background="@drawable/bg_circle_white"
+        android:src="@drawable/ic_prev"
+        android:contentDescription="Faixa anterior" />
+
+    <ImageView
+        android:id="@+id/play"
+        android:layout_width="62dp"
+        android:layout_height="62dp"
+        android:layout_marginLeft="7dp"
+        android:padding="15dp"
+        android:scaleType="fitCenter"
+        android:background="@drawable/bg_circle_yellow"
+        android:src="@drawable/ic_play"
+        android:contentDescription="Tocar ou pausar" />
+
+    <ImageView
+        android:id="@+id/next"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginLeft="7dp"
+        android:padding="12dp"
+        android:scaleType="fitCenter"
+        android:background="@drawable/bg_circle_white"
+        android:src="@drawable/ic_next"
+        android:contentDescription="Próxima faixa" />
+
+    <ImageView
+        android:id="@+id/open"
+        android:layout_width="54dp"
+        android:layout_height="42dp"
+        android:layout_marginLeft="7dp"
+        android:paddingLeft="13dp"
+        android:paddingTop="9dp"
+        android:paddingRight="15dp"
+        android:paddingBottom="11dp"
+        android:scaleType="fitCenter"
+        android:background="@drawable/bg_pill_pink"
+        android:src="@drawable/ic_list"
+        android:contentDescription="Abrir o app" />
+  </LinearLayout>
+</LinearLayout>
