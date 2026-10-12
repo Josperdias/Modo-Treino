@@ -1,0 +1,90 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    name: Verificações rápidas (estrutura, lógica, JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 tests/verify.py
+      - run: node scripts/sync-shared.mjs --check
+      - name: Sintaxe de todos os scripts do site
+        run: |
+          for f in site/*.js site/baixar/*.js; do node --check "$f" && echo "ok $f"; done
+      - name: Testes unitários da lógica
+        run: node --test "tests/*.test.mjs"
+
+  site-e2e:
+    name: Site/PWA no Chromium (ponta a ponta)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node --test tests/e2e/site.e2e.mjs
+
+  native:
+    name: App Expo (typecheck, bundle Android, testes de interface)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            native/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: native
+      - name: Typecheck (tsc)
+        run: npx tsc --noEmit
+        working-directory: native
+      - name: Dependências alinhadas ao SDK (expo-doctor, parte offline)
+        run: npx expo-doctor 2>&1 | tee /tmp/doctor.txt || true
+        working-directory: native
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+      - name: Falha se houver peer faltando ou módulo nativo duplicado
+        run: |
+          if grep -E "Missing peer dependency|duplicate native module|Found duplicates" /tmp/doctor.txt; then exit 1; fi
+      - name: Bundle JavaScript do Android (Metro + Hermes)
+        run: npx expo export --platform android --output-dir /tmp/android-bundle
+        working-directory: native
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+      - name: Build web do app (react-native-web) para testar a interface
+        run: |
+          npm install --no-save --no-audit --no-fund react-native-web@~0.21.0 react-dom@19.1.0 @expo/metro-runtime@~6.1.2
+          npx expo export --platform web --output-dir ../dist-web
+        working-directory: native
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+      - run: npx playwright install --with-deps chromium
+      - name: Testes de interface do app nativo (react-native-web)
+        run: node --test tests/e2e/native-web.e2e.mjs
+        env:
+          NATIVE_WEB_DIR: dist-web

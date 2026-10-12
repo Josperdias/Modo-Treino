@@ -1,0 +1,38 @@
+// Tipos da fonte única shared/logic.js (copiada para cá por scripts/sync-shared.mjs).
+export type Treino = 'A' | 'B';
+export type SessionItem = {id: string; nome: string; series: number; reps: number; peso: number};
+export type Session = {date: string; time: string; treino: Treino; sets: number; percent: number; volume?: number; items?: SessionItem[]};
+export type Conf = {series: number | string; reps: number | string; peso: number | string};
+export type ParsedVersion = {major: number; minor: number; patch: number; pre: string[]};
+export type ReleaseLike = {tag_name?: string; draft?: boolean; prerelease?: boolean; html_url?: string; assets?: {name?: string; browser_download_url?: string; size?: number; digest?: string}[]};
+export type UpdateState = {state: 'newer' | 'current' | 'ahead' | 'none'; release: ReleaseLike | null; tag: string};
+export type BackupData = {persona: 'vinho' | 'loira'; rest: number; sets: Record<string, Record<string, boolean[]>>; override: Record<string, {peso: string; series: number; reps: number}>; sessions: Session[]};
+
+export const MAX_SETS: number;
+export const MAX_REPS: number;
+export const MAX_WEIGHT: number;
+export const REST_OPTIONS: number[];
+export function toNumber(value: unknown): number;
+export function clampSeries(value: unknown): number;
+export function parseVersion(tag: string): ParsedVersion | null;
+export function compareVersions(a: string, b: string): -1 | 0 | 1;
+export function pickLatestRelease(releases: unknown): ReleaseLike | null;
+export function evaluateUpdate(installed: string, releases: unknown): UpdateState;
+export function safeGithubUrl(url: unknown, repo?: string): string | null;
+export function apkAsset(release: ReleaseLike | null, repo?: string): {name: string; url: string; size: number; sha256: string | null} | null;
+export function snapshotSession(o: {exercises: {id: string; nome: string; treino: Treino}[]; treino: Treino; date: string; time?: string; getConf: (e: any) => Conf; getDone: (e: any) => boolean[]}): Session;
+export function annotateRecords(sessions: Session[]): string[][];
+export function personalBests(sessions: Session[]): Record<string, {peso: number; date: string; nome: string}>;
+export function totalVolume(sessions: Session[]): number;
+export function streak(sessions: {date: string}[], todayKey: string): number;
+export function sessionsToCsv(sessions: Session[]): string;
+export function validateBackup(obj: unknown): BackupData;
+
+export type ProgressItem = {id: string; total: number; done: number; complete: boolean};
+export type WorkoutProgress = {list: ProgressItem[]; sets: number; total: number; percent: number; firstIncomplete: number};
+export type NextStep = {type: 'same' | 'exercise' | 'done'; index: number};
+export function doneCount(done: unknown, total: number): number;
+export function withCount(k: number, total: number): boolean[];
+export function tapSeries(done: unknown, k: number, total: number): boolean[];
+export function workoutProgress(o: {exercises: {id: string; treino: Treino}[]; treino: Treino; getConf: (e: any) => Conf; getDone: (e: any) => boolean[]}): WorkoutProgress;
+export function nextStep(list: ProgressItem[], i: number): NextStep;

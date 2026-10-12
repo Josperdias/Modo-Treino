@@ -1,0 +1,24 @@
+node_modules/
+native/node_modules/
+native/.expo/
+native/android/
+native/ios/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.pem
+id_*
+*.p12
+*.key
+__pycache__/
+*.pyc
+
+# testes / builds locais
+dist-web/
+test-results/
+playwright-report/
+*.apk
+*.aab

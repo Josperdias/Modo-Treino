@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Modo Treino",
+    "slug": "modo-treino-josperd",
+    "scheme": "modotreino",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/brand.png",
+    "backgroundColor": "#F5F2EB",
+    "primaryColor": "#162039",
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "art.josperd.modotreino",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
+    },
+    "android": {
+      "package": "art.josperd.modotreino",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand.png",
+        "backgroundColor": "#F5F2EB"
+      }
+    },
+    "plugins": [
+      "expo-audio"
+    ],
+    "extra": {
+      "appName": "Modo Treino",
+      "author": "Josperd",
+      "description": "Treinos A e B com ilustrações de Josperd e Camila Camomila"
+    }
+  }
+}
