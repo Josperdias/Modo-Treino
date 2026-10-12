@@ -83,8 +83,14 @@ jobs:
             export KS_PASS="$(trim "$KS_PASS")" KS_ALIAS="$(trim "$KS_ALIAS")" KS_KEYPASS="$(trim "$KS_KEYPASS")"
             printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/modo-treino.jks"
             # Confere a chave em segundos (sem imprimir nada secreto), em vez de descobrir só depois de 6 min de Gradle.
-            if ! keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS > /dev/null 2>&1; then
-              echo "::error::A senha do keystore (ANDROID_KEYSTORE_PASSWORD) não abre o arquivo do ANDROID_KEYSTORE_BASE64. Recadastre os dois secrets a partir do mesmo keystore."; exit 1
+            echo "Keystore decodificado: $(stat -c%s "$RUNNER_TEMP/modo-treino.jks") bytes (um keystore .jks pequeno tem ~2 a 4 KB)."
+            if ! OUT=$(keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS 2>&1); then
+              if printf '%s' "$OUT" | grep -qiE "invalid keystore format|not a keystore|EOF"; then
+                echo "::error::O ANDROID_KEYSTORE_BASE64 não é um keystore válido (colado incompleto ou alterado). Gere o base64 de novo do arquivo .jks inteiro."
+              else
+                echo "::error::A senha do keystore (ANDROID_KEYSTORE_PASSWORD) não abre o keystore. Confira o valor (sem espaços) ou recadastre os dois secrets a partir do mesmo keystore."
+              fi
+              exit 1
             fi
             if ! keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS -alias "$KS_ALIAS" > /dev/null 2>&1; then
               echo "::error::O alias (ANDROID_KEY_ALIAS) não existe nesse keystore."; exit 1
