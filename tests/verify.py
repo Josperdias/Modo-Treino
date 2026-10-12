@@ -95,3 +95,20 @@ wf=(ROOT/'.github/workflows/android-apk.yml').read_text()
 assert 'assembleRelease' in wf and 'assembleDebug' not in wf, 'APK de teste deve ser standalone (assembleRelease)'
 for f in ['check.yml','android-apk.yml','pages.yml']: assert (ROOT/'.github/workflows'/f).is_file(), f
 print('OK: workflows de CI, APK e Pages presentes.')
+
+
+# 7) assets do app: a EXTENSÃO tem que ser o formato real. O aapt2 do Android recusa JPEG com nome .png
+#    ("AAPT: error: file failed to compile") e derruba o APK. (Navegadores toleram; o app nativo não.)
+def sniff(path):
+    head=path.read_bytes()[:12]
+    if head[:8]==b'\x89PNG\r\n\x1a\n': return 'png'
+    if head[:3]==b'\xff\xd8\xff': return 'jpg'
+    if head[:4]==b'RIFF' and head[8:12]==b'WAVE': return 'wav'
+    return 'outro'
+wrong=[]
+for path in (ROOT/'native/assets').rglob('*'):
+    if not path.is_file(): continue
+    ext=path.suffix.lower().lstrip('.'); ext='jpg' if ext=='jpeg' else ext
+    if ext in ('png','jpg','wav') and sniff(path)!=ext: wrong.append((str(path.relative_to(ROOT)),ext,sniff(path)))
+assert not wrong, f'extensão não confere com o formato real (quebra o APK): {wrong[:5]}'
+print('OK: extensões dos assets do app conferem com o formato real.')
