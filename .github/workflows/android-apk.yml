@@ -42,9 +42,16 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Componentes do Android SDK
-        run: sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+      # O runner ubuntu-latest já traz o Android SDK em $ANDROID_HOME. (A action android-actions/setup-android@v3
+      # falhava com "Failed to find package 'tools'" nas versões atuais do sdkmanager.)
+      - name: Android SDK (licenças e componentes)
+        run: |
+          set -euo pipefail
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKM" ] || SDKM="$(command -v sdkmanager)"
+          echo "ANDROID_HOME=$ANDROID_HOME  sdkmanager=$SDKM"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
       - name: Dependências JavaScript
         working-directory: native
         run: npm ci --no-audit --no-fund
