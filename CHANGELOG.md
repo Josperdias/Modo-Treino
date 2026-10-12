@@ -12,6 +12,10 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
   O app mostra o mesmo player compacto dentro do modo execução.
 
 ### Corrigido
+- **APK (causa raiz 2)**: as 25 ilustrações de exercício do app eram **JPEG com extensão `.png`**; o `aapt2` do Android recusa isso
+  ("AAPT: error: file failed to compile"). Os arquivos de `native/assets/exercicios/` foram renomeados para `.jpg` (formato real, nenhum
+  pixel alterado); as chaves técnicas `*_loira.png` / `*_vinho.png` no código continuam as mesmas. `tests/verify.py` agora confere que
+  a extensão de cada asset do app bate com o formato real. (No site os arquivos continuam com o nome antigo: navegador não liga.)
 - **Workflow do APK**: `android-actions/setup-android@v3` falhava com "Failed to find package 'tools'". Agora usa o Android SDK que
   já vem no runner (`$ANDROID_HOME`) e aceita as licenças com `sdkmanager`.
 - `setPointerCapture` com ponteiro inválido abortava o gesto; agora é protegido.
