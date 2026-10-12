@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+ <meta name="theme-color" content="#141c36"/>
+ <meta name="description" content="Baixe o Modo Treino para Android (APK de teste) ou instale o site como aplicativo. Treinos A e B ilustrados por Josperd."/>
+ <meta property="og:title" content="Baixar o Modo Treino — by Josperd"/>
+ <meta property="og:description" content="APK de teste para Android e instalação pelo navegador. Sem conta, sem anúncios."/>
+ <link rel="icon" href="../assets/brand/icone.svg" type="image/svg+xml" />
+ <link rel="apple-touch-icon" href="../assets/brand/icon-192.png" />
+ <link rel="manifest" href="../manifest.webmanifest" />
+ <link rel="stylesheet" href="baixar.css"/>
+ <title>Baixar o app — Modo Treino by Josperd</title>
+</head>
+<body>
+ <a class="skip" href="#conteudo">Ir para o conteúdo</a>
+ <header class="top">
+  <a class="brand" href="../" aria-label="Modo Treino — voltar ao site"><span class="mark">MT</span><span class="word">MODO<b>TREINO.</b><small>by Josperd</small></span></a>
+  <a class="back" href="../">← Abrir o site</a>
+ </header>
+
+ <main id="conteudo">
+  <section class="hero">
+   <p class="kicker"><span class="star">✦</span> DOWNLOAD</p>
+   <h1>LEVE O MODO TREINO<br><em>NO BOLSO.</em></h1>
+   <p class="lead">Treinos A e B ilustrados por Josperd e Camila Camomila, a ruivinha. Séries, cargas, descanso e fitas cassete, tudo salvo no seu aparelho. Sem conta e sem anúncios.</p>
+  </section>
+
+  <section class="grid">
+   <article class="card apk" aria-labelledby="apk-title">
+    <p class="micro">ANDROID · APK DE TESTE</p>
+    <h2 id="apk-title">Baixar para Android</h2>
+    <div id="apk-box" aria-live="polite">
+     <p class="status" id="apk-status">Consultando a última versão publicada…</p>
+    </div>
+    <dl class="facts" id="apk-facts" hidden>
+     <div><dt>Versão</dt><dd id="f-version">—</dd></div>
+     <div><dt>Publicado em</dt><dd id="f-date">—</dd></div>
+     <div><dt>Tamanho</dt><dd id="f-size">—</dd></div>
+    </dl>
+    <p class="sha" id="apk-sha" hidden><span>SHA-256</span><code id="f-sha"></code></p>
+    <a class="btn yellow" id="apk-link" href="https://github.com/Josperdias/Modo-Treino/releases" hidden>BAIXAR APK ↓</a>
+    <a class="btn ghost" id="releases-link" href="https://github.com/Josperdias/Modo-Treino/releases" target="_blank" rel="noopener noreferrer">Todas as versões ↗</a>
+    <noscript><p class="status">Ative o JavaScript para ver a versão mais recente, ou abra a página de <a href="https://github.com/Josperdias/Modo-Treino/releases">releases no GitHub</a>.</p></noscript>
+   </article>
+
+   <article class="card pwa" aria-labelledby="pwa-title">
+    <p class="micro">QUALQUER CELULAR OU PC</p>
+    <h2 id="pwa-title">Instalar pelo navegador</h2>
+    <p>O site funciona como aplicativo e <strong>offline</strong>: ilustrações, sons e seus registros ficam no aparelho.</p>
+    <button class="btn pink" id="pwa-install" type="button" hidden>INSTALAR COMO APP</button>
+    <ul class="how">
+     <li><b>Android (Chrome):</b> menu ⋮ → <em>Instalar app</em>.</li>
+     <li><b>iPhone (Safari):</b> Compartilhar → <em>Adicionar à Tela de Início</em>. O app nativo para iOS ainda não existe.</li>
+     <li><b>Computador:</b> ícone de instalar na barra de endereço.</li>
+    </ul>
+    <a class="btn ghost" href="../">ABRIR O SITE →</a>
+   </article>
+  </section>
+
+  <section class="steps" aria-labelledby="steps-title">
+   <h2 id="steps-title">COMO INSTALAR O APK</h2>
+   <ol>
+    <li><strong>Baixe o arquivo</strong> <code>.apk</code> pelo botão acima, no próprio celular.</li>
+    <li><strong>Abra o arquivo.</strong> O Android pedirá para permitir instalar apps <em>desta fonte</em> (o navegador ou o gerenciador de arquivos). Permita só para esta instalação.</li>
+    <li><strong>Confirme a origem:</strong> compare o SHA-256 acima com o do arquivo baixado. No computador: <code>sha256sum arquivo.apk</code> (Linux/Mac) ou <code>certutil -hashfile arquivo.apk SHA256</code> (Windows).</li>
+    <li><strong>Pronto.</strong> Seus treinos e músicas ficam só no aparelho, sem sincronização.</li>
+   </ol>
+  </section>
+
+  <section class="note" aria-labelledby="note-title">
+   <h2 id="note-title">LEIA ANTES</h2>
+   <ul>
+    <li>É um <strong>APK de teste</strong> (debug), feito para avaliação. Não é a versão da Play Store e pode ter falhas.</li>
+    <li>O app <strong>não se instala nem se atualiza sozinho</strong>. Ele só avisa quando há uma versão nova publicada; você decide baixar.</li>
+    <li>Esta página faz uma única consulta pública à API do GitHub para achar a última versão. Não há rastreamento nem cookies.</li>
+    <li>Antes de trocar de versão, <strong>exporte um backup</strong> (Ajustes → Exportar). Se o Android recusar a atualização por cima (conflito de assinatura), desinstale, instale a nova versão e importe o backup.</li>
+   </ul>
+  </section>
+ </main>
+
+ <footer>
+  <span>MODO TREINO © 2026 · Ilustrado por Josperd</span>
+  <a href="https://github.com/Josperdias/Modo-Treino" target="_blank" rel="noopener noreferrer">Código no GitHub ↗</a>
+  <a href="https://github.com/Josperdias/Modo-Treino/issues" target="_blank" rel="noopener noreferrer">Relatar um erro ↗</a>
+ </footer>
+ <script src="../logic.js"></script>
+ <script src="baixar.js"></script>
+</body>
+</html>
