@@ -105,15 +105,18 @@ if (nativeDir) {
   await page.getByText(/COMPLETO!/).waitFor(); await pause(); await shot(page, 'app-08-treino-completo');
   await page.getByLabel('FINALIZAR E SALVAR').click(); await page.getByText('Seu histórico.').waitFor(); await pause();
   await page.getByLabel(/^Treino A, /).first().click(); await pause(400); await shot(page, 'app-09-historico');
-  await page.getByRole('tab', {name: 'Músicas', exact: true}).click(); await pause();
-  await page.getByLabel('Adicionar músicas do celular').click(); await page.getByText('Adicionar à bolsa Treino A').waitFor();
-  await page.getByRole('checkbox', {name: 'Eye of the Tiger'}).click(); await page.getByRole('checkbox', {name: 'Lose Yourself'}).click(); await pause(); await shot(page, 'app-10-musicas-do-celular');
-  await page.getByLabel(/^ADICIONAR \d/).click(); await pause(3200); await shot(page, 'app-11-musica-fitas');
-  await page.getByLabel('Editar bolsa').click(); await pause(); await shot(page, 'app-12-editar-fita');
-  await page.getByLabel('Concluir edição da bolsa').click();
-  await page.getByRole('tab', {name: 'Rádio do mundo'}).click(); await pause(7000); await shot(page, 'app-13-radio-globo');
+  await page.getByRole('tab', {name: 'Músicas', exact: true}).click(); await pause(900);
+  for (const t of ['Eye of the Tiger', 'Lose Yourself']) { // coloca duas fitas (músicas do celular) numa bag
+    await page.getByLabel(`Mais opções de ${t}`).click(); await page.getByLabel('COLOCAR NA BAG').click(); await page.getByLabel('Colocar na bag Treino A').click(); await pause(400);
+  }
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await pause(2500); await shot(page, 'app-10-fita-tocando');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).scrollIntoViewIfNeeded(); await pause(500); await shot(page, 'app-11-minhas-fitas');
+  await page.getByRole('tab', {name: 'Bags: playlists'}).click(); await pause(1400); await shot(page, 'app-12-bags');
+  await page.getByLabel('Editar a bag Treino A').click(); await pause(700); await shot(page, 'app-13-editar-bag');
+  await page.getByLabel('Fechar').last().click();
+  await page.getByRole('tab', {name: 'Rádio do mundo'}).click(); await pause(7000); await shot(page, 'app-14-radio-globo');
   await page.getByRole('tab', {name: 'Início', exact: true}).click(); await pause();
-  await page.getByLabel('Abrir ajustes').click(); await page.getByText('Ajustes', {exact: true}).waitFor(); await pause(); await shot(page, 'app-14-ajustes');
+  await page.getByLabel('Abrir ajustes').click(); await page.getByText('Ajustes', {exact: true}).waitFor(); await pause(); await shot(page, 'app-15-ajustes');
   await ctx.close(); nat.s.close();
 }
 await browser.close(); site.s.close();

@@ -10,7 +10,6 @@ import {C, R, T} from '../theme';
 import GlobeView, {GlobeEvent, GlobeHandle} from '../radio/GlobeView';
 import {countClick, GENRES, loadStations, search, Station, toTrack} from '../radio/api';
 import {useMusic} from '../music/MusicProvider';
-import BagArt, {bagColor} from '../music/BagArt';
 
 export default function RadioScreen() {
   const m = useMusic();
@@ -135,8 +134,8 @@ export default function RadioScreen() {
                 <Pop accessibilityRole="button" accessibilityLabel={isPlayingCard ? 'Pausar rádio' : 'Ouvir rádio'} onPress={() => (playingId === card.i ? m.playPause() : play(card))} color={C.yellow} offset={3} style={{flex: 1}} innerStyle={S.cardBtn}>
                   <Icon name={isPlayingCard ? 'pause' : 'play'} size={20} /><Text style={S.cardBtnText}>{isPlayingCard ? 'PAUSAR' : 'OUVIR'}</Text>
                 </Pop>
-                <Pop accessibilityRole="button" accessibilityLabel="Guardar rádio numa bolsa" onPress={() => setSaving(true)} color={C.sky} offset={3} style={{flex: 1}} innerStyle={S.cardBtn}>
-                  <Icon name="bag-add" size={20} /><Text style={S.cardBtnText}>NA BOLSA</Text>
+                <Pop accessibilityRole="button" accessibilityLabel="Guardar rádio numa bag" onPress={() => setSaving(true)} color={C.sky} offset={3} style={{flex: 1}} innerStyle={S.cardBtn}>
+                  <Icon name="bag-add" size={20} /><Text style={S.cardBtnText}>NA BAG</Text>
                 </Pop>
                 <Pop accessibilityRole="button" accessibilityLabel={`Mais rádios de ${card.co}`} onPress={() => setCountry({iso2: card.cc, name: card.co})} color={C.card} offset={3} innerStyle={[S.cardBtn, {paddingHorizontal: 12}]}>
                   <Icon name="list" size={20} />
@@ -158,12 +157,12 @@ export default function RadioScreen() {
         )}
       </Sheet>
 
-      <Sheet visible={saving} onClose={() => setSaving(false)} title="Guardar em qual bolsa?">
+      <Sheet visible={saving} onClose={() => setSaving(false)} title="Guardar em qual bag?">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingVertical: 8, paddingRight: 12}}>
           {m.lib.tapes.map((t, i) => (
-            <Pop key={t.id} accessibilityRole="button" accessibilityLabel={`Guardar na bolsa ${t.name}`} onPress={() => { if (card) { m.selectTape(t.id); m.addToTape([toTrack(card)]); toast.show(`“${card.n}” na bolsa ${t.name}`); } setSaving(false); }} color={bagColor(i)} radius={R.lg} offset={4} innerStyle={{width: 120, alignItems: 'center', padding: 10}}>
-              <BagArt color={bagColor(i)} count={t.ids.length} open size={78} />
+            <Pop key={t.id} accessibilityRole="button" accessibilityLabel={`Guardar na bag ${t.name}`} onPress={() => { if (card) { m.selectTape(t.id); m.addToTape([toTrack(card)]); toast.show(`“${card.n}” na bag ${t.name}`); } setSaving(false); }} color={C.yellow} radius={R.md} offset={4} innerStyle={{paddingHorizontal: 18, minHeight: 48, alignItems: 'center', justifyContent: 'center'}}>
               <Text style={S.bagName} numberOfLines={1}>{t.name}</Text>
+              <Text style={T.small}>{t.ids.length} itens</Text>
             </Pop>
           ))}
         </ScrollView>

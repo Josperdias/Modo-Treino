@@ -51,3 +51,7 @@ Veja [CLAUDE.md](../CLAUDE.md).
 - `app.json` libera tráfego `http` (`usesCleartextTraffic`) porque muitas rádios ainda não têm https.
 - Para testar sem internet: abra `globe.html?demo=1` no navegador.
 - Fontes (Barlow Condensed e DM Sans, OFL) vêm dos pacotes `@expo-google-fonts/*`.
+
+## Vocabulário da música (app)
+- **Fita** = cada música do celular (um cassete por música). **Bag** = playlist de fitas e/ou rádios. **Rádio** = globo 3D; rádios entram nas bags.
+- No código, a bag é o tipo `Tape` em `native/src/music/MusicProvider.tsx` (nome histórico, guardado no armazenamento; não renomear sem migração).

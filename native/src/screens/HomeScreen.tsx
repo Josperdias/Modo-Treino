@@ -6,6 +6,7 @@ import {file, personaShort, Treino, treinoTitle} from '../data';
 import {todayKey, useApp} from '../store';
 import {streak as streakDays} from '../../logic';
 import {AText, Btn, Card, CountUp, Float, Icon, Kicker, Pattern, Pop, Pulse, Twinkle} from '../ui';
+import {Flower} from '../glyphs';
 import {C, R, T, useNarrow} from '../theme';
 import {PersonaPicker} from './Sheets';
 
@@ -38,10 +39,12 @@ export default function HomeScreen({onOpenTreino, onStart}: Props) {
     <ScrollView contentContainerStyle={H.scroll} showsVerticalScrollIndicator={false}>
       <Animated.View entering={FadeInDown.duration(420)}>
         <Card color={C.sky} offset={6} style={{padding: 22}} pattern={<Pattern kind="dots" opacity={0.16} size={18} />}>
-          <Twinkle size={18} color={C.ink} delay={200} style={{top: 156, right: 44}} />
-          <Twinkle size={13} color={C.white} delay={700} style={{top: 238, right: 22}} />
-          <Twinkle size={15} color={C.ink} delay={1200} style={{top: 330, left: 120}} />
-          <Twinkle size={12} color={C.white} delay={500} style={{top: 300, left: 40}} />
+          {state.persona !== 'loira' && <>
+            <Twinkle size={18} color={C.ink} delay={200} style={{top: 156, right: 44}} />
+            <Twinkle size={13} color={C.white} delay={700} style={{top: 238, right: 22}} />
+            <Twinkle size={15} color={C.ink} delay={1200} style={{top: 330, left: 120}} />
+            <Twinkle size={12} color={C.white} delay={500} style={{top: 300, left: 40}} />
+          </>}
           <View style={H.heroPill}><Icon name="sparkles" size={13} /><Text style={H.heroPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>SEU MOVIMENTO COMEÇA AQUI</Text></View>
           <Animated.View entering={ZoomIn.delay(450).springify().damping(7)} style={H.stickerPos}>
             <Float amplitude={3} rotate={8} duration={1800} style={H.sticker}><Text style={H.stickerText}>BORA!</Text></Float>
@@ -53,6 +56,13 @@ export default function HomeScreen({onOpenTreino, onStart}: Props) {
               <Pulse scale={1.035} duration={1300}><Btn icon="play" text={started ? 'CONTINUAR' : 'COMEÇAR'} label={started ? `Continuar treino ${next}` : `Começar treino ${next}`} onPress={() => onStart(next)} /></Pulse>
               <Text style={H.heroNote}>TREINO {next}{started ? ` · ${pn.percent}% hoje` : ''}</Text>
             </Animated.View>
+            {state.persona === 'loira' && (
+              <>
+                <Float amplitude={5} rotate={-12} duration={2400} style={{position: 'absolute', top: 4, left: 2}}><Flower size={34} /></Float>
+                <Float amplitude={6} rotate={10} duration={2900} style={{position: 'absolute', top: 62, left: 58}}><Flower size={24} /></Float>
+                <Float amplitude={4} rotate={-6} duration={2100} style={{position: 'absolute', top: 18, left: 100}}><Flower size={18} /></Float>
+              </>
+            )}
             <Float amplitude={5} rotate={5} style={[H.poster, narrow && {width: 132, height: 184, right: -26}]}>
               <Image source={hero} resizeMode="contain" style={{width: '100%', height: '100%'}} accessibilityLabel={`Ilustração de ${personaShort(state.persona)}`} />
             </Float>

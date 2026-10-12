@@ -75,7 +75,7 @@ function Shell() {
   const toast = useToast();
   const narrow = useNarrow();
   const [tab, setTab] = useState<Tab>('home');
-  const [musicMode, setMusicMode] = useState<MusicMode>('bags');
+  const [musicMode, setMusicMode] = useState<MusicMode>('tapes');
   const [open, setOpen] = useState<Treino | null>(null);
   const [workout, setWorkout] = useState<{t: Treino; index?: number} | null>(null);
   const [editing, setEditing] = useState<Exercise | null>(null);

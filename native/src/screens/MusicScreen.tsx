@@ -1,14 +1,14 @@
-import React, {useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {Alert, ScrollView, StyleSheet, View} from 'react-native';
 import {Text, TextInput} from '../text';
-import Animated, {FadeIn, FadeInDown, LinearTransition} from 'react-native-reanimated';
-import {formatClock} from '../../logic';
+import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
+import {formatClock, searchTracks} from '../../logic';
 import {flag} from '../data';
-import {AText, Btn, Card, Chips, Equalizer, Icon, Kicker, Pattern, Pop, Press, Pulse, Sheet, useToast} from '../ui';
+import {Btn, Card, Chips, Equalizer, Icon, Kicker, Pattern, Pop, Press, Pulse, Sheet, useToast} from '../ui';
 import {C, R, T, useNarrow} from '../theme';
-import BagArt, {bagColor} from '../music/BagArt';
-import AddMusicSheet from '../music/AddMusicSheet';
-import {useMusic} from '../music/MusicProvider';
+import Cassette, {MiniTape} from '../music/Cassette';
+import {PermissionCard, SourceButtons} from '../music/LibrarySources';
+import {Track, useMusic} from '../music/MusicProvider';
 
 const FADES = [0, 2, 3, 5, 8];
 
@@ -51,56 +51,42 @@ const TIMERS = [0, 15, 30, 45, 60];
 const RATES = [0.75, 1, 1.25, 1.5];
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
+const PAGE = 40;
+
+/** FITAS: cada música do celular é uma fita (um cassete). Toque numa fita para ouvir; coloque fitas em bags (playlists) na aba BAGS. */
+export default function MusicScreen() {
   const m = useMusic();
   const toast = useToast();
-  const narrow = useNarrow();
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [naming, setNaming] = useState<null | 'new' | 'rename'>(null);
-  const [name, setName] = useState('');
   const [settings, setSettings] = useState(false);
-  const [menu, setMenu] = useState<(typeof m.tapeTracks)[number] | null>(null);
-  const [others, setOthers] = useState(false);
-  const tape = m.activeTape;
-  const tapeIndex = m.lib.tapes.findIndex((t) => t.id === tape.id);
-  const tone = bagColor(tapeIndex);
-
-  const saveName = () => {
-    if (!name.trim()) return;
-    if (naming === 'new') m.newTape(name); else m.renameTape(name);
-    setNaming(null); setName('');
-  };
-  const confirmDelete = () => Alert.alert(`Excluir a bolsa “${tape.name}”?`, 'Só a bolsa e a ordem são apagadas. As músicas continuam no seu celular.', [
-    {text: 'Cancelar', style: 'cancel'}, {text: 'Excluir bolsa', style: 'destructive', onPress: () => m.deleteTape()},
-  ]);
-  const remove = (id: string, title: string) => {
-    const index = tape.ids.indexOf(id);
-    const track = m.lib.tracks.find((x) => x.id === id);
-    m.removeFromTape(id);
-    toast.show(`“${title}” saiu da bolsa`, track ? {label: 'DESFAZER', run: () => m.restoreToTape(track, index)} : undefined);
-  };
-  const sub = (t: (typeof m.tapeTracks)[number]) => t.source === 'radio' ? `${flag(t.cc)} ${t.country || 'Rádio'} · ao vivo` : t.duration ? formatClock(t.duration) : t.source === 'file' ? 'Arquivo copiado para o app' : 'No celular';
+  const [menu, setMenu] = useState<Track | null>(null);
+  const [pickBag, setPickBag] = useState(false);
+  const [q, setQ] = useState('');
+  const [shown, setShown] = useState(PAGE);
+  const list = useMemo(() => searchTracks(m.library, q), [m.library, q]);
+  useEffect(() => { setShown(PAGE); }, [q]);
+  const progress = m.duration > 0 ? m.position / m.duration : 0;
+  const context = m.queueName ?? `Bag ${m.activeTape.name}`;
+  const sub = (t: Track) => t.duration ? formatClock(t.duration) : t.source === 'file' ? 'Arquivo copiado para o app' : 'No celular';
+  const where = (t: Track) => m.lib.tapes.filter((b) => b.ids.includes(t.id)).map((b) => b.name);
 
   return (
     <ScrollView contentContainerStyle={P.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Animated.View entering={FadeInDown.duration(380)}>
         <Kicker>Sua sonoplastia particular / 001</Kicker>
-        <Text style={[T.h1, {marginTop: 4, marginBottom: 16, fontSize: 40, lineHeight: 38}]}>Suas bolsas,{'\n'}seu ritmo.</Text>
-        <Card color={tone} offset={6} style={{alignItems: 'center', paddingTop: 22, paddingBottom: 18}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
-          <BagArt color={tone} count={m.tapeTracks.length} open={m.tapeTracks.length > 0} playing={m.playing} size={narrow ? 168 : 210} />
-          <View style={P.nameTag}><Text style={P.nameTagText} numberOfLines={1}>{tape.name.toUpperCase()}</Text></View>
-          <Text style={P.heroSub}>{m.tapeTracks.length ? `${m.tapeTracks.length} ${m.tapeTracks.length === 1 ? 'item' : 'itens'} na bolsa` : 'Bolsa vazia: encha com suas músicas'}</Text>
+        <Text style={[T.h1, {marginTop: 4, marginBottom: 16, fontSize: 40, lineHeight: 38}]}>Suas fitas,{'\n'}seu ritmo.</Text>
+        <Card color={C.yellow} offset={6} style={{alignItems: 'center', paddingTop: 22, paddingBottom: 18}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
+          <View style={{width: '100%'}}><Cassette playing={m.playing} label={m.now?.title || 'Escolha uma fita'} progress={progress} /></View>
+          <Text style={P.heroSub}>{m.library.length ? `${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'} no seu celular` : 'Nenhuma fita ainda: traga as músicas do celular'}</Text>
         </Card>
       </Animated.View>
 
       <View style={{marginTop: 20}}>
         <Card offset={4} style={{padding: 18}}>
           <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-            <Text numberOfLines={1} style={[P.song, {flex: 1}]}>{m.now?.title || (tape.ids.length ? 'Toque ▶ para começar' : 'Bolsa vazia')}</Text>
+            <Text numberOfLines={1} style={[P.song, {flex: 1}]}>{m.now?.title || 'Toque ▶ ou escolha uma fita'}</Text>
             {m.live && <View style={P.live}><View style={P.liveDot} /><Text style={P.liveText}>AO VIVO</Text></View>}
           </View>
-          <Text style={[T.small, {marginTop: 2}]} numberOfLines={1}>{m.now ? (m.live ? `${flag(m.now.cc)} ${m.now.country || 'Rádio'}` : tape.name) : `${tape.ids.length} item(ns) na bolsa`}</Text>
+          <Text style={[T.small, {marginTop: 2}]} numberOfLines={1}>{m.now ? (m.live ? `${flag(m.now.cc)} ${m.now.country || 'Rádio'}` : context) : `${m.library.length} fita(s) · ${m.activeTape.ids.length} item(ns) na bag ${m.activeTape.name}`}</Text>
           {!m.live && <View style={{marginTop: 12}}><SeekBar /></View>}
           <View style={P.controls}>
             <Press accessibilityRole="button" accessibilityLabel={m.lib.shuffle ? 'Desligar aleatório' : 'Ligar aleatório'} accessibilityState={{selected: m.lib.shuffle}} onPress={() => m.setShuffle(!m.lib.shuffle)} style={P.small} quiet><Icon name="shuffle" size={22} color={m.lib.shuffle ? C.blue : C.muted} /></Press>
@@ -118,86 +104,48 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
         </Card>
       </View>
 
-      <View style={P.sectionHead}><Text style={[T.h2, {fontSize: 28}]}>Minhas bolsas</Text></View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingVertical: 8, paddingRight: 20}} style={{marginHorizontal: -20, paddingLeft: 20}}>
-        {m.lib.tapes.map((t, i) => {
-          const on = t.id === tape.id;
-          return (
-            <Pop key={t.id} accessibilityRole="button" accessibilityLabel={`Bolsa ${t.name}, ${t.ids.length} itens`} accessibilityState={{selected: on}} onPress={() => m.selectTape(t.id)} color={on ? bagColor(i) : C.card} radius={R.lg} offset={on ? 3 : 5} innerStyle={P.bagCard}>
-              <BagArt color={bagColor(i)} count={t.ids.length} open={on} playing={on && m.playing} size={92} />
-              <Text numberOfLines={1} style={P.bagName}>{t.name}</Text>
-              <Text style={P.bagCount}>{t.ids.length} {t.ids.length === 1 ? 'item' : 'itens'}</Text>
-            </Pop>
-          );
-        })}
-        <Pop accessibilityRole="button" accessibilityLabel="Criar nova bolsa" onPress={() => { setName(''); setNaming('new'); }} color={C.card} radius={R.lg} offset={5} innerStyle={[P.bagCard, {justifyContent: 'center', gap: 8}]}>
-          <View style={P.plus}><Icon name="add" size={30} /></View>
-          <Text style={P.bagName}>Nova bolsa</Text>
-        </Pop>
-      </ScrollView>
+      <View style={P.sectionHead}><Text style={[T.h2, {fontSize: 28, flex: 1}]}>Minhas fitas</Text></View>
+      <SourceButtons />
 
-      <View style={P.sectionHead}>
-        <Text style={[T.h2, {flex: 1, fontSize: 28}]} numberOfLines={1}>{tape.name}</Text>
-        {tape.ids.length > 0 && <Pop accessibilityRole="button" accessibilityLabel={editing ? 'Concluir edição da bolsa' : 'Editar bolsa'} onPress={() => setEditing(!editing)} color={C.ink} offset={3} shadowColor={C.yellow} innerStyle={P.pillBtn}><Text style={P.pillText}>{editing ? 'OK' : 'EDITAR'}</Text></Pop>}
-        <Press accessibilityRole="button" accessibilityLabel="Renomear bolsa" onPress={() => { setName(tape.name); setNaming('rename'); }} style={P.iconBtn}><Icon name="pencil" size={18} /></Press>
-        {m.lib.tapes.length > 1 && <Press accessibilityRole="button" accessibilityLabel="Excluir bolsa" onPress={confirmDelete} style={P.iconBtn}><Icon name="trash-outline" size={18} color="#9B2C4A" /></Press>}
-      </View>
-
-      <View style={{flexDirection: 'row', gap: 10, marginBottom: 12}}>
-        <Btn text="ADICIONAR MÚSICAS DO CELULAR" icon="add-circle" label="Adicionar músicas do celular" onPress={() => setAdding(true)} style={{flex: 1}} />
-      </View>
-      {m.tapeTracks.length > 0 && (
-        <View style={{flexDirection: 'row', gap: 10, marginBottom: 12}}>
-          <Btn small icon="play" text="TOCAR BOLSA" label="Tocar a bolsa toda" onPress={() => m.playBag(false)} style={{flex: 1}} />
-          <Btn small kind="ghost" icon="shuffle" text="ALEATÓRIO" label="Tocar a bolsa em ordem aleatória" onPress={() => m.playBag(true)} style={{flex: 1}} />
-        </View>
-      )}
-      {onRadio && <Btn kind="pink" small text="ACHAR UMA RÁDIO NO GLOBO" icon="earth" onPress={onRadio} style={{marginBottom: 14}} />}
-
-      {m.tapeTracks.length === 0 ? (
-        <Animated.View entering={FadeIn}>
-          <Card color={C.card} offset={3} style={{alignItems: 'center', padding: 24}}>
-            <Icon name="musical-notes" size={34} color={C.pink} />
-            <Text style={[T.h3, {marginTop: 8}]}>Esta bolsa está vazia</Text>
-            <Text style={[T.body, {textAlign: 'center', marginTop: 4}]}>Escolha músicas que já estão no seu celular ou ache uma rádio no globo. Sem importar, sem copiar.</Text>
-          </Card>
-        </Animated.View>
-      ) : m.tapeTracks.map((t, i) => {
-        const current = m.now?.id === t.id;
-        return (
-          <Animated.View key={t.id} layout={LinearTransition.duration(220)} entering={FadeIn.duration(220)} style={{marginBottom: 2}}>
-            <Pop accessibilityRole="button" accessibilityLabel={`Tocar ${t.title}`} onPress={() => { void m.playTrack(t.id); }} color={current ? '#FFF1BF' : C.card} radius={R.md} offset={3} quiet innerStyle={P.row}>
-              <View style={[P.num, current && {backgroundColor: C.yellow}]}>{current ? <Equalizer active={m.playing} /> : <Text style={P.numText}>{i + 1}</Text>}</View>
-              <View style={{flex: 1}}>
-                <Text numberOfLines={1} style={P.rowTitle}>{t.title}</Text>
-                <Text style={T.small} numberOfLines={1}>{current ? (m.playing ? 'Tocando agora' : 'Pausada') : sub(t)}</Text>
+      {m.library.length === 0 ? (
+        m.permission === 'granted' || m.scanning
+          ? <Animated.View entering={FadeIn}><Card color={C.card} offset={3} style={{alignItems: 'center', padding: 24}}>
+              <Icon name="musical-notes" size={34} color={C.pink} />
+              <Text style={[T.h3, {marginTop: 8}]}>{m.scanning ? 'Procurando suas fitas…' : 'Nenhuma fita encontrada'}</Text>
+              <Text style={[T.body, {textAlign: 'center', marginTop: 4}]}>Escolha uma pasta ou arquivos acima. As músicas ficam onde estão: sem importar, sem copiar.</Text>
+            </Card></Animated.View>
+          : <PermissionCard />
+      ) : (
+        <>
+          <View style={P.search}>
+            <Icon name="search" size={18} color={C.muted} />
+            <TextInput value={q} onChangeText={setQ} placeholder="Buscar fita" placeholderTextColor={C.muted} accessibilityLabel="Buscar fita" style={P.searchInput} autoCorrect={false} />
+          </View>
+          <View style={{flexDirection: 'row', gap: 10, marginBottom: 12}}>
+            <Btn small icon="play" text="TOCAR TUDO" label="Tocar todas as fitas" onPress={() => m.playAll(false, list)} style={{flex: 1}} />
+            <Btn small kind="ghost" icon="shuffle" text="ALEATÓRIO" label="Tocar todas as fitas em ordem aleatória" onPress={() => m.playAll(true, list)} style={{flex: 1}} />
+          </View>
+          {list.length === 0 && <Text style={[T.body, {textAlign: 'center', padding: 20}]}>Nenhuma fita com esse nome.</Text>}
+          {list.slice(0, shown).map((t) => {
+            const current = m.now?.id === t.id;
+            return (
+              <View key={t.id} style={{marginBottom: 8}}>
+                <Pop accessibilityRole="button" accessibilityLabel={`Tocar ${t.title}`} onPress={() => { void m.playFita(t, list); }} color={current ? '#FFF1BF' : C.card} radius={R.md} offset={3} quiet innerStyle={P.row}>
+                  <MiniTape id={t.id} on={current} />
+                  <View style={{flex: 1}}>
+                    <Text numberOfLines={2} style={P.rowTitle}>{t.title}</Text>
+                    <Text style={T.small} numberOfLines={1}>{current ? (m.playing ? 'Tocando agora' : 'Pausada') : sub(t)}</Text>
+                  </View>
+                  {current && m.playing && <Equalizer active />}
+                  <Press accessibilityRole="button" accessibilityLabel={`Mais opções de ${t.title}`} onPress={() => { setPickBag(false); setMenu(t); }} style={P.iconBtn} quiet><Icon name="ellipsis-horizontal" size={20} /></Press>
+                </Pop>
               </View>
-              {!editing && <Press accessibilityRole="button" accessibilityLabel={`Mais opções de ${t.title}`} onPress={() => { setOthers(false); setMenu(t); }} style={P.iconBtn} quiet><Icon name="ellipsis-horizontal" size={20} /></Press>}
-              {editing && <>
-                <Press accessibilityRole="button" accessibilityLabel={`Subir ${t.title}`} disabled={i === 0} onPress={() => m.moveInTape(t.id, -1)} style={[P.iconBtn, i === 0 && {opacity: 0.3}]} quiet><Icon name="arrow-up" size={18} /></Press>
-                <Press accessibilityRole="button" accessibilityLabel={`Descer ${t.title}`} disabled={i === m.tapeTracks.length - 1} onPress={() => m.moveInTape(t.id, 1)} style={[P.iconBtn, i === m.tapeTracks.length - 1 && {opacity: 0.3}]} quiet><Icon name="arrow-down" size={18} /></Press>
-                <Press accessibilityRole="button" accessibilityLabel={`Tirar ${t.title} da bolsa`} onPress={() => remove(t.id, t.title)} style={[P.iconBtn, {backgroundColor: '#FBE3E8'}]}><Icon name="remove" size={20} color="#9B2C4A" /></Press>
-              </>}
-            </Pop>
-          </Animated.View>
-        );
-      })}
-      {m.missing > 0 && <Text style={[T.small, {marginTop: 8}]}>{m.missing} item(ns) desta bolsa não estão mais no celular e foram ignorados.</Text>}
-      {editing && m.tapeTracks.some((t) => t.source === 'file') && (
-        <Text style={[T.small, {marginTop: 10}]}>Arquivos copiados para o app (via “Arquivos”) ocupam espaço do app. Para apagar a cópia, use o botão abaixo; músicas do celular nunca são apagadas.</Text>
+            );
+          })}
+          {list.length > shown && <Btn kind="ghost" small icon="chevron-down" text={`VER MAIS (${list.length - shown})`} label="Mostrar mais fitas" onPress={() => setShown((n) => n + PAGE)} style={{marginTop: 4}} />}
+        </>
       )}
-      {editing && m.tapeTracks.filter((t) => t.source === 'file').map((t) => (
-        <Btn key={t.id} kind="danger" small icon="trash-outline" text={`APAGAR CÓPIA: ${t.title}`.slice(0, 40)} label={`Apagar a cópia de ${t.title} do app`} style={{marginTop: 8}}
-          onPress={() => Alert.alert('Apagar a cópia do app?', 'Só a cópia guardada pelo Modo Treino é removida. O arquivo original continua onde estava.', [{text: 'Cancelar', style: 'cancel'}, {text: 'Apagar cópia', style: 'destructive', onPress: () => m.forgetImported(t.id)}])} />
-      ))}
-      <Text style={P.disclaimer}>As músicas ficam no celular e tocam offline. Rádios precisam de internet. Links do YouTube não são reproduzidos. Em segundo plano, o som depende do Android e das suas permissões.</Text>
-
-      <AddMusicSheet visible={adding} onClose={() => setAdding(false)} />
-
-      <Sheet visible={!!naming} onClose={() => setNaming(null)} title={naming === 'new' ? 'Nova bolsa' : 'Renomear bolsa'}>
-        <TextInput value={name} onChangeText={setName} autoFocus placeholder="Nome da bolsa (ex.: Pesado, Cardio)" placeholderTextColor={C.muted} maxLength={40} accessibilityLabel="Nome da bolsa" style={P.nameInput} onSubmitEditing={saveName} />
-        <Btn text="SALVAR" icon="checkmark" disabled={!name.trim()} onPress={saveName} />
-      </Sheet>
+      <Text style={P.disclaimer}>As fitas são as músicas do seu celular e tocam offline; nada é copiado nem apagado. Para montar playlists, use as BAGS. Rádios precisam de internet. Links do YouTube não são reproduzidos. Em segundo plano, o som depende do Android e das suas permissões.</Text>
 
       <Sheet visible={settings} onClose={() => setSettings(false)} title="Controles do player">
         <Text style={[T.h3, {marginBottom: 4}]}>Transição entre músicas</Text>
@@ -214,20 +162,23 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
       <Sheet visible={!!menu} onClose={() => setMenu(null)} title={menu?.title || ''}>
         {menu && (
           <View style={{gap: 10, paddingBottom: 10}}>
-            <Btn small icon="play" text="TOCAR AGORA" onPress={() => { void m.playTrack(menu.id); setMenu(null); }} />
-            <Btn small kind="ghost" icon="arrow-redo" text="TOCAR A SEGUIR" onPress={() => { m.playNext(menu.id); toast.show('Vai tocar a seguir'); setMenu(null); }} />
-            <Btn small kind="ghost" icon="bag-add" text={others ? 'ESCOLHA A BOLSA' : 'COLOCAR EM OUTRA BOLSA'} onPress={() => setOthers(!others)} />
-            {others && (
+            <Text style={T.small}>{where(menu).length ? `Está nas bags: ${where(menu).join(', ')}` : 'Ainda não está em nenhuma bag.'}</Text>
+            <Btn small icon="play" text="TOCAR AGORA" onPress={() => { void m.playFita(menu, list); setMenu(null); }} />
+            <Btn small kind="ghost" icon="bag-add" text={pickBag ? 'ESCOLHA A BAG' : 'COLOCAR NA BAG'} onPress={() => setPickBag(!pickBag)} />
+            {pickBag && (
               <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10}}>
-                {m.lib.tapes.filter((t) => t.id !== tape.id).map((t) => (
-                  <Pop key={t.id} accessibilityRole="button" accessibilityLabel={`Colocar na bolsa ${t.name}`} onPress={() => { m.copyToTape(menu, t.id); toast.show(`Também na bolsa ${t.name}`); setMenu(null); }} offset={3} quiet innerStyle={{paddingHorizontal: 16, minHeight: 40, alignItems: 'center', justifyContent: 'center'}}>
-                    <Text style={{fontSize: 16, fontWeight: '900', color: C.ink}}>{t.name}</Text>
-                  </Pop>
-                ))}
-                {m.lib.tapes.length < 2 && <Text style={T.small}>Crie outra bolsa para mover faixas entre elas.</Text>}
+                {m.lib.tapes.map((b) => {
+                  const has = b.ids.includes(menu.id);
+                  return (
+                    <Pop key={b.id} accessibilityRole="button" accessibilityLabel={has ? `Já está na bag ${b.name}` : `Colocar na bag ${b.name}`} disabled={has} onPress={() => { m.copyToTape(menu, b.id); toast.show(`“${menu.title}” na bag ${b.name}`); setMenu(null); }} offset={3} quiet innerStyle={{paddingHorizontal: 16, minHeight: 40, alignItems: 'center', justifyContent: 'center', opacity: has ? 0.45 : 1}}>
+                      <Text style={{fontSize: 16, fontWeight: '900', color: C.ink}}>{has ? '✓ ' : ''}{b.name}</Text>
+                    </Pop>
+                  );
+                })}
               </View>
             )}
-            <Btn small kind="danger" icon="remove-circle-outline" text="TIRAR DESTA BOLSA" onPress={() => { remove(menu.id, menu.title); setMenu(null); }} />
+            {menu.source === 'file' && <Btn small kind="danger" icon="trash-outline" text="APAGAR CÓPIA DO APP" label={`Apagar a cópia de ${menu.title} do app`}
+              onPress={() => Alert.alert('Apagar a cópia do app?', 'Só a cópia guardada pelo Modo Treino é removida. O arquivo original continua onde estava.', [{text: 'Cancelar', style: 'cancel'}, {text: 'Apagar cópia', style: 'destructive', onPress: () => { m.forgetImported(menu.id); setMenu(null); }}])} />}
           </View>
         )}
       </Sheet>
@@ -237,8 +188,6 @@ export default function MusicScreen({onRadio}: {onRadio?: () => void}) {
 
 const P = StyleSheet.create({
   scroll: {padding: 20, paddingBottom: 170},
-  nameTag: {backgroundColor: C.card, borderRadius: R.pill, paddingHorizontal: 20, paddingVertical: 8, marginTop: 10, borderWidth: 2, borderColor: C.ink, transform: [{rotate: '-2deg'}], maxWidth: '88%'},
-  nameTagText: {fontSize: 22, fontWeight: '900', color: C.ink, letterSpacing: 1},
   heroSub: {fontSize: 13, fontWeight: '700', color: 'rgba(20,27,52,.75)', marginTop: 10},
   song: {fontSize: 24, fontWeight: '900', color: C.ink, letterSpacing: 0.2},
   live: {flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFD3DE', borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: C.ink},
@@ -256,17 +205,10 @@ const P = StyleSheet.create({
   volPct: {width: 40, textAlign: 'right', fontSize: 12, fontWeight: '700', color: C.muted},
   fadeRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'center', padding: 8},
   sectionHead: {flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 10},
-  bagCard: {width: 130, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center', minHeight: 150},
-  bagName: {fontSize: 18, fontWeight: '900', color: C.ink, marginTop: 4, letterSpacing: 0.3},
-  bagCount: {fontSize: 11, fontWeight: '500', color: 'rgba(20,27,52,.7)'},
-  plus: {width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderStyle: 'dashed', borderColor: C.ink, alignItems: 'center', justifyContent: 'center'},
-  pillBtn: {paddingHorizontal: 14, height: 36, alignItems: 'center', justifyContent: 'center'},
-  pillText: {color: C.yellow, fontWeight: '900', fontSize: 13, letterSpacing: 1},
+  search: {flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.white, borderRadius: R.pill, paddingHorizontal: 16, height: 48, marginBottom: 12, borderWidth: 2, borderColor: C.ink},
+  searchInput: {flex: 1, fontSize: 15, color: C.ink},
   iconBtn: {width: 40, height: 40, borderRadius: 20, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
-  row: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12},
-  num: {width: 36, height: 36, borderRadius: 18, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink},
-  numText: {fontSize: 14, fontWeight: '900', color: C.ink},
+  row: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10},
   rowTitle: {fontSize: 15, fontWeight: '700', color: C.ink},
   disclaimer: {fontSize: 11, lineHeight: 17, color: C.muted, marginTop: 24},
-  nameInput: {backgroundColor: C.white, borderRadius: R.md, paddingHorizontal: 16, height: 52, fontSize: 16, color: C.ink, marginBottom: 14, borderWidth: 2, borderColor: C.ink},
 });

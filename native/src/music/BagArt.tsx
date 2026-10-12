@@ -1,4 +1,4 @@
-/** Bolsa de música desenhada em SVG: alça, zíper, bolso e fitas/discos espiando pela abertura.
+/** Bag de música desenhada em SVG: alça, zíper, bolso e fitas/discos espiando pela abertura.
  * Selecionada, ela "abre" (os itens sobem); tocando, os itens balançam e notas musicais flutuam. */
 import React, {useEffect} from 'react';
 import {StyleSheet, View} from 'react-native';
@@ -66,7 +66,7 @@ export default function BagArt({color = C.yellow, count = 0, open = false, playi
       </Svg>
       {/* fitas espiando */}
       {Array.from({length: items}, (_, i) => <Item key={i} i={i} open={open} playing={playing} reduce={reduce} />)}
-      {/* corpo da bolsa */}
+      {/* corpo da bag */}
       <Svg style={StyleSheet.absoluteFill} viewBox={`0 0 ${W} ${H}`}>
         <Rect x={12} y={70} width={176} height={108} rx={30} fill={color} stroke={C.ink} strokeWidth={6} />
         <Path d="M18 100 Q100 116 182 100" fill="none" stroke={C.ink} strokeWidth={4} strokeDasharray="2 7" strokeLinecap="round" />

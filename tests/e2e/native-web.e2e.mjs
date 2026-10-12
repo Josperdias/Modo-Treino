@@ -147,7 +147,7 @@ test('avisos de versão: estado correto (mais nova, igual, mais antiga, nenhuma,
 });
 
 test('celular pequeno (320 px): nenhuma tela estoura a largura', {skip}, async () => {
-  const {context, page} = await open({viewport: {width: 320, height: 640}, seed: {[MUSIC]: musicLib()}});
+  const {context, page} = await open({viewport: {width: 320, height: 640}, seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
   // ignora o que está dentro de listas que rolam na horizontal (fitas): ali passar da tela é o esperado
   const over = () => page.evaluate(() => {
     const scrollsX = (el) => { for (let p = el.parentElement; p; p = p.parentElement) { const cs = getComputedStyle(p); if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && p.scrollWidth > p.clientWidth + 1) return true; } return false; };
@@ -388,103 +388,134 @@ test('zoom: a ilustração da lista e da galeria também amplia', {skip}, async 
   await context.close();
 });
 
-/* ================= música: fitas com as músicas do celular ================= */
-test('música: fitas padrão A, B e Favoritas; fita vazia explica como adicionar; sem importar nada', {skip}, async () => {
+/* ================= música: FITAS (músicas do celular), BAGS (playlists) e RÁDIO ================= */
+const musicTab = (page, name) => page.getByRole('tab', {name}).click();
+
+test('música: três modos (Fitas, Bags, Rádio); sem leitura do celular explica como trazer as fitas', {skip}, async () => {
   const {context, page} = await open();
   await tab(page, 'Músicas');
-  const t = await body(page);
-  for (const n of ['Treino A', 'Treino B', 'Favoritas']) assert.match(t, new RegExp(n));
-  assert.match(t, /Esta bolsa está vazia/);
-  assert.match(t, /Sem importar, sem copiar/);
-  await page.getByLabel('Tocar ou pausar').first().waitFor();
+  assert.deepEqual(await page.getByRole('tab').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')).filter((n) => /^(Fitas|Bags|Rádio)/.test(n || ''))), ['Fitas: músicas do celular', 'Bags: playlists', 'Rádio do mundo']);
+  let t = await body(page);
+  assert.match(t, /suas fitas,/i); assert.match(t, /minhas fitas/i); assert.match(t, /Leitura automática indisponível/);
+  await musicTab(page, 'Bags: playlists');
+  t = await body(page);
+  assert.match(t, /suas bags\./i); assert.match(t, /playlist/);
+  for (const n of ['Treino A', 'Treino B', 'Favoritas']) assert.match(t, new RegExp(n, 'i'));
   await context.close();
 });
 
-test('músicas do celular: lista o aparelho, busca, adiciona à fita e persiste só referências', {skip}, async () => {
+test('fitas: cada música do celular vira uma fita (cassete), com busca; nada é importado nem guardado', {skip}, async () => {
   const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}});
   await tab(page, 'Músicas');
-  await page.getByLabel('Adicionar músicas do celular').click();
-  await page.getByText('Adicionar à bolsa Treino A').waitFor();
-  for (const t of TRACKS) assert.match(await body(page), new RegExp(t.title));
-  await page.getByLabel('Buscar música').fill('lose');
-  await settle(page, 200);
+  for (const t of TRACKS) await page.getByLabel(`Tocar ${t.title}`, {exact: true}).waitFor();
+  assert.match(await body(page), /4 fitas no seu celular/);
+  await page.getByLabel('Buscar fita').fill('lose'); await settle(page, 200);
+  assert.equal(await page.getByLabel('Tocar Lose Yourself', {exact: true}).count(), 1);
+  assert.equal(await page.getByLabel('Tocar Stronger', {exact: true}).count(), 0);
+  await page.getByLabel('Buscar fita').fill('');
+  const m = await store(page, MUSIC);
+  assert.ok(!m || m.tracks.length === 0, 'só listar as fitas não grava nem copia nada');
+  await context.close();
+});
+
+test('fita → bag: "colocar na bag" guarda só a referência e uma fita pode estar em várias bags', {skip}, async () => {
+  const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('COLOCAR NA BAG').click();
+  await page.getByLabel('Colocar na bag Treino A').click();
+  await page.getByText('“Lose Yourself” na bag Treino A').waitFor();
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('COLOCAR NA BAG').click();
+  assert.equal(await page.getByLabel('Já está na bag Treino A').count(), 1);
+  await page.getByLabel('Colocar na bag Favoritas').click();
+  const m = await store(page, MUSIC);
+  assert.deepEqual(m.tapes.find((x) => x.id === 'a').ids, ['dev:1']);
+  assert.deepEqual(m.tapes.find((x) => x.id === 'fav').ids, ['dev:1']);
+  assert.ok(m.tracks.every((x) => x.source === 'device' && x.uri.startsWith('file://')), 'guarda a referência do arquivo do celular, sem cópia');
+  await context.close();
+});
+
+test('bag: colocar fitas pelo seletor (com busca) e rádio vira item da bag', {skip}, async () => {
+  const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas'); await musicTab(page, 'Bags: playlists');
+  await page.getByLabel('Editar a bag Treino A').click();
+  await page.getByLabel('Colocar fitas na bag', {exact: true}).click();
+  await page.getByText('Colocar fitas na bag Treino A').waitFor();
+  await page.getByLabel('Buscar música').fill('lose'); await settle(page, 200);
   assert.equal(await page.getByRole('checkbox').count(), 1);
   await page.getByRole('checkbox', {name: 'Lose Yourself'}).click();
   await page.getByLabel('Buscar música').fill('');
   await page.getByRole('checkbox', {name: 'Stronger'}).click();
   await page.getByLabel('ADICIONAR 2').click();
-  await page.getByLabel('Tocar Lose Yourself').waitFor();
-  await page.getByLabel('Tocar Stronger').waitFor();
-  const m = await store(page, MUSIC);
-  assert.deepEqual(m.tapes.find((x) => x.id === 'a').ids, ['dev:1', 'dev:3']);
-  assert.ok(m.tracks.every((x) => x.source === 'device' && x.uri.startsWith('file://')), 'guarda a referência do arquivo do celular, sem cópia');
+  await page.getByLabel('Tirar Lose Yourself da bag').waitFor();
+  await page.getByLabel('Tirar Stronger da bag').waitFor();
+  assert.deepEqual((await store(page, MUSIC)).tapes.find((x) => x.id === 'a').ids, ['dev:1', 'dev:3']);
   await context.close();
 });
 
-test('tirar da fita NÃO apaga a música: ela continua disponível no celular e pode voltar (desfazer)', {skip}, async () => {
+test('tirar da bag NÃO apaga a fita: ela continua na lista do celular e pode voltar (desfazer)', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
-  await tab(page, 'Músicas');
-  await page.getByLabel('Editar bolsa').click();
-  await page.getByLabel('Tirar Lose Yourself da bolsa').click();
-  await page.getByText(/saiu da bolsa/).waitFor();
+  await tab(page, 'Músicas'); await musicTab(page, 'Bags: playlists');
+  await page.getByLabel('Editar a bag Treino A').click();
+  await page.getByLabel('Tirar Lose Yourself da bag').click();
+  await page.getByText(/saiu da bag/).waitFor();
   let m = await store(page, MUSIC);
   assert.deepEqual(m.tapes.find((x) => x.id === 'a').ids, ['dev:0', 'dev:2']);
-  await page.getByText('DESFAZER').click(); await settle(page, 250);
+  await page.getByLabel('Desfazer').click(); await settle(page, 250);
   m = await store(page, MUSIC);
   assert.deepEqual(m.tapes.find((x) => x.id === 'a').ids, ['dev:0', 'dev:1', 'dev:2'], 'voltou à mesma posição');
-  await page.getByLabel('Tirar Eye of the Tiger da bolsa').click();
-  await page.getByLabel('Concluir edição da bolsa').click();
-  await page.getByLabel('Adicionar músicas do celular').click();
-  await page.getByText('Adicionar à bolsa Treino A').waitFor();
-  assert.equal(await page.getByRole('checkbox', {name: 'Eye of the Tiger'}).getAttribute('aria-disabled'), null, 'a música tirada aparece de novo, livre para adicionar');
-  assert.match(await body(page), /Eye of the Tiger/);
+  await page.getByLabel('Fechar').last().click();
+  await musicTab(page, 'Fitas: músicas do celular');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).waitFor();
   await context.close();
 });
 
-test('uma música pode estar em várias fitas; tirar de uma não mexe nas outras', {skip}, async () => {
+test('uma fita pode estar em várias bags; tirar de uma não mexe nas outras', {skip}, async () => {
   const lib = musicLib(); lib.tapes[1].ids = ['dev:0'];
   const {context, page} = await open({seed: {[MUSIC]: lib}});
-  await tab(page, 'Músicas');
-  await page.getByLabel('Editar bolsa').click();
-  await page.getByLabel('Tirar Eye of the Tiger da bolsa').click();
+  await tab(page, 'Músicas'); await musicTab(page, 'Bags: playlists');
+  await page.getByLabel('Editar a bag Treino A').click();
+  await page.getByLabel('Tirar Eye of the Tiger da bag').click();
   const m = await store(page, MUSIC);
   assert.deepEqual(m.tapes.find((x) => x.id === 'b').ids, ['dev:0']);
-  assert.ok(m.tracks.some((x) => x.id === 'dev:0'), 'continua guardada porque a fita B usa');
+  assert.ok(m.tracks.some((x) => x.id === 'dev:0'), 'continua guardada porque a bag B usa');
   await context.close();
 });
 
-test('reordenar a fita e criar fita nova persistem', {skip}, async () => {
+test('bag: reordenar, renomear e criar bag nova persistem', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}});
-  await tab(page, 'Músicas');
-  await page.getByLabel('Editar bolsa').click();
+  await tab(page, 'Músicas'); await musicTab(page, 'Bags: playlists');
+  await page.getByLabel('Editar a bag Treino A').click();
   await page.getByLabel('Descer Eye of the Tiger').click();
   assert.deepEqual((await store(page, MUSIC)).tapes[0].ids, ['dev:1', 'dev:0', 'dev:2']);
   await page.getByLabel('Subir Till I Collapse').click();
   assert.deepEqual((await store(page, MUSIC)).tapes[0].ids, ['dev:1', 'dev:2', 'dev:0']);
-  await page.getByLabel('Concluir edição da bolsa').click();
-  await page.getByLabel('Criar nova bolsa').click();
-  await page.getByLabel('Nome da bolsa').fill('Pesado');
-  await page.getByLabel('SALVAR').click();
+  await page.getByLabel('Fechar').last().click();
+  await page.getByLabel('Criar nova bag').click();
+  await page.getByLabel('Nome da bag', {exact: true}).fill('Pesado');
+  await page.getByLabel('CRIAR', {exact: true}).click();
   const m = await store(page, MUSIC);
   assert.equal(m.tapes.length, 4); assert.equal(m.tapes[3].name, 'Pesado'); assert.equal(m.selected, m.tapes[3].id);
+  await page.getByText('Bag Pesado').waitFor();
   await context.close();
 });
 
 test('permissão negada/bloqueada: explica e oferece abrir configurações, sem travar', {skip}, async () => {
   const {context, page} = await open({device: {permission: 'blocked', tracks: []}});
   await tab(page, 'Músicas');
-  await page.getByLabel('Adicionar músicas do celular').click();
   await page.getByText('Permita o acesso às músicas').waitFor();
   assert.match(await body(page), /bloqueou o pedido/);
   await page.getByLabel('ABRIR CONFIGURAÇÕES').waitFor();
+  await page.getByLabel('Escolher uma pasta de músicas').waitFor();
   await context.close();
 });
 
-test('biblioteca antiga (arquivos copiados, sem "source") continua funcionando', {skip}, async () => {
+test('biblioteca antiga (arquivos copiados, sem "source") continua funcionando como fitas', {skip}, async () => {
   const old = {tracks: [{id: 'x1', title: 'Minha música', uri: 'file:///doc/x1.mp3'}], tapes: [{id: 'a', name: 'Treino A', ids: ['x1']}, {id: 'b', name: 'Treino B', ids: []}], selected: 'a', fade: 3, shuffle: false, repeat: false};
   const {context, page, errors} = await open({seed: {[MUSIC]: old}});
   await tab(page, 'Músicas');
-  await page.getByLabel('Tocar Minha música').waitFor();
+  await page.getByLabel('Tocar Minha música', {exact: true}).waitFor();
   assert.match(await body(page), /Arquivo copiado para o app/);
   assert.deepEqual(errors, []);
   await context.close();
@@ -503,6 +534,6 @@ test('player compacto: aparece nas telas, some na aba Músicas e fica no modo ex
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1, 'no descanso');
   await page.getByLabel('Pular descanso').click();
   await page.getByRole('button', {name: /^Abrir músicas/}).click();
-  await page.getByText('Suas bolsas,', {exact: false}).waitFor();
+  await page.getByText('Suas fitas,', {exact: false}).waitFor();
   await context.close();
 });

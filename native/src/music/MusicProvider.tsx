@@ -1,6 +1,7 @@
-/** Motor de música do Modo Treino: bolsas (listas), reprodução local com transição suave e rádios ao vivo.
- * - As faixas vêm das músicas do próprio celular (sem importar), de uma pasta escolhida, de arquivos copiados ou de rádios.
- * - Uma bolsa guarda só referências: tirar uma faixa da bolsa NUNCA apaga o arquivo.
+/** Motor de música do Modo Treino. Vocabulário do app:
+ * - FITA = cada música do celular (um cassete por música). Vêm do próprio aparelho (sem importar), de uma pasta escolhida ou de arquivos copiados.
+ * - BAG = playlist: junta fitas e/ou rádios ao vivo. No código a bag é o tipo `Tape` (nome histórico, guardado no armazenamento).
+ * - Uma bag guarda só referências: tirar uma fita da bag NUNCA apaga o arquivo.
  * Sem YouTube e sem áudio invisível. */
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import {Alert} from 'react-native';
@@ -12,6 +13,7 @@ import {forgetTrack, nextTrackId, resolveTape, tapeAdd, tapeInsert, tapeMove, ta
 import {askPermission, DeviceTrack, Permission, pickMusicFolder, readPermission, scanDevice, scanFolder} from './device';
 
 export type Track = {id: string; title: string; artist?: string; uri: string; duration?: number; source: 'device' | 'file' | 'radio'; cc?: string; country?: string};
+/** Bag (playlist). `ids` são fitas (faixas) e rádios. */
 export type Tape = {id: string; name: string; ids: string[]};
 type Library = {tracks: Track[]; tapes: Tape[]; selected: string; fade: number; shuffle: boolean; repeat: boolean; folders: string[]; volume: number; rate: number};
 
@@ -22,25 +24,32 @@ export type MusicAPI = {
   playing: boolean;
   position: number;
   duration: number;
+  /** Todas as fitas (músicas) disponíveis: lista do celular, pastas e arquivos copiados. */
+  library: Track[];
+  /** Bag selecionada e o que há nela. */
   activeTape: Tape;
   tapeTracks: Track[];
   missing: number;
   device: DeviceTrack[];
   scanning: boolean;
   permission: Permission;
-  scan: () => Promise<void>;
+  scan: (ask?: boolean) => Promise<void>;
   addFolder: () => Promise<void>;
   addToTape: (tracks: Track[]) => void;
   removeFromTape: (id: string) => void;
   restoreToTape: (track: Track, index: number) => void;
   moveInTape: (id: string, delta: number) => void;
-  newTape: (name: string) => void;
+  newTape: (name: string) => string;
   renameTape: (name: string) => void;
   deleteTape: () => void;
   selectTape: (id: string) => void;
   importFiles: () => Promise<void>;
   forgetImported: (id: string) => void;
+  /** Toca uma fita de dentro de uma bag (a fila é a bag). */
   playTrack: (id: string, tapeId?: string) => Promise<void>;
+  /** Toca uma fita da biblioteca (a fila são todas as fitas, na ordem mostrada). */
+  playFita: (track: Track, pool: Track[]) => Promise<void>;
+  playAll: (shuffle: boolean, pool?: Track[]) => void;
   playRadio: (station: Track) => Promise<void>;
   playPause: () => void;
   skip: (delta: number) => void;
@@ -54,7 +63,9 @@ export type MusicAPI = {
   setSleep: (minutes: number) => void;
   playNext: (id: string) => void;
   copyToTape: (track: Track, tapeId: string) => void;
-  playBag: (shuffle: boolean) => void;
+  playTape: (shuffle: boolean, tapeId?: string) => void;
+  /** Nome da fila quando não é uma bag (ex.: "Todas as fitas"); null quando toca a bag selecionada. */
+  queueName: string | null;
 };
 
 const KEY = 'modotreino-native-music-v1';
@@ -67,7 +78,7 @@ const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(
 const cleanName = (name: string) => name.replace(/\.[^.]+$/, '').trim().slice(0, 100) || 'Minha música';
 const Ctx = createContext<MusicAPI | null>(null);
 
-/** Referências a faixas do celular ou rádios que não estão em nenhuma bolsa não precisam ficar guardadas (o arquivo continua onde está). */
+/** Referências a faixas do celular ou rádios que não estão em nenhuma bag não precisam ficar guardadas (o arquivo continua onde está). */
 const pruneRefs = (lib: Library): Library => {
   const used = new Set(lib.tapes.flatMap((t) => t.ids));
   return {...lib, tracks: lib.tracks.filter((t) => t.source === 'file' || used.has(t.id))};
@@ -83,6 +94,8 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   const [permission, setPermission] = useState<Permission>('unknown');
   const [sleepAt, setSleepAt] = useState<number | null>(null);
   const [clock, setClock] = useState(0);
+  const [queueName, setQueueName] = useState<string | null>(null);
+  const queueRef = useRef<Track[] | null>(null);
 
   const one = useAudioPlayer(null, {updateInterval: 300});
   const two = useAudioPlayer(null, {updateInterval: 300});
@@ -113,6 +126,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     setAudioModeAsync({playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'mixWithOthers'}).catch(() => {});
     readPermission().then(setPermission).catch(() => {});
   }, []);
+  useEffect(() => { if (loaded) void scanRef.current(false); }, [loaded]);
   useEffect(() => { if (loaded) AsyncStorage.setItem(KEY, JSON.stringify(lib)).catch(() => {}); }, [lib, loaded]);
   useEffect(() => () => { if (fadeTimer.current) clearInterval(fadeTimer.current); }, []);
 
@@ -136,7 +150,8 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   const nextId = useCallback((dir: number) => {
     const s = libRef.current;
     const tape = s.tapes.find((t) => t.id === s.selected) || s.tapes[0];
-    const ids = tape.ids.filter((id) => s.tracks.some((t) => t.id === id));
+    const q = queueRef.current; // tocando da biblioteca: segue todas as fitas; senão, a bag escolhida
+    const ids = q ? q.map((t) => t.id) : tape.ids.filter((id) => s.tracks.some((t) => t.id === id));
     return nextTrackId(ids, nowRef.current?.id, dir, {shuffle: s.shuffle, repeat: s.repeat});
   }, []);
 
@@ -155,7 +170,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       try { other.setPlaybackRate?.(src.source === 'radio' ? 1 : libRef.current.rate || 1); } catch { /* velocidade é um extra */ }
       try {
         old.clearLockScreenControls?.();
-        other.setActiveForLockScreen?.(true, {title: src.title, artist: src.source === 'radio' ? `Rádio · ${src.country || 'ao vivo'}` : libRef.current.tapes.find((t) => t.id === libRef.current.selected)?.name || 'Modo Treino', albumTitle: 'Modo Treino'});
+        other.setActiveForLockScreen?.(true, {title: src.title, artist: src.source === 'radio' ? `Rádio · ${src.country || 'ao vivo'}` : (queueRef.current ? 'Todas as fitas' : libRef.current.tapes.find((t) => t.id === libRef.current.selected)?.name) || 'Modo Treino', albumTitle: 'Modo Treino'});
       } catch { /* controles da tela de bloqueio são um extra */ }
       channel.current = 1 - oldIndex; nowRef.current = src; setNowTrack(src); setPlaying(true); playingRef.current = true;
       if (seconds) {
@@ -173,7 +188,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   }, [one, two]);
 
   const playById = useCallback((id: string, withFade = true) => {
-    const t = libRef.current.tracks.find((x) => x.id === id);
+    const t = queueRef.current?.find((x) => x.id === id) ?? libRef.current.tracks.find((x) => x.id === id);
     return t ? begin(t, withFade) : Promise.resolve();
   }, [begin]);
 
@@ -207,18 +222,18 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     if (!nowTrack) {
       const id = nextId(1);
       if (id) void playById(id, false);
-      else Alert.alert('Sua bolsa está vazia', 'Toque em “Adicionar músicas” para encher a bolsa com as músicas do seu celular, ou ache uma rádio no globo.');
+      else Alert.alert('Sua bag está vazia', 'Coloque fitas (músicas do celular) ou uma rádio na bag, ou toque uma fita direto da lista.');
       return;
     }
     if (playing) { currentPlayer.pause(); setPlaying(false); playingRef.current = false; }
     else { currentPlayer.play(); setPlaying(true); playingRef.current = true; }
   }, [nowTrack, nextId, playById, playing, currentPlayer]);
 
-  const scan = useCallback(async () => {
+  const scan = useCallback(async (ask = true) => {
     setScanning(true);
     try {
       let p = await readPermission();
-      if (p !== 'granted') p = await askPermission();
+      if (p !== 'granted' && ask) p = await askPermission();
       setPermission(p);
       const found: DeviceTrack[] = p === 'granted' ? await scanDevice() : [];
       const folderTracks: DeviceTrack[] = [];
@@ -230,6 +245,9 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       Alert.alert('Não foi possível ler as músicas', 'Tente de novo, escolha uma pasta ou use “Arquivos”.');
     } finally { setScanning(false); }
   }, []);
+
+  const scanRef = useRef(scan);
+  useEffect(() => { scanRef.current = scan; }, [scan]);
 
   const addFolder = useCallback(async () => {
     setScanning(true);
@@ -259,25 +277,36 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
         try { await FileSystem.copyAsync({from: file.uri, to: uri}); added.push({id, title: cleanName(file.name), uri, source: 'file'}); } catch { /* arquivo ilegível: pula */ }
       }
       if (!added.length) { Alert.alert('Nenhuma música adicionada', 'Os arquivos escolhidos não parecem ser de áudio (MP3, M4A, WAV, FLAC…).'); return; }
-      setLib((v) => ({...v, tracks: [...v.tracks, ...added], tapes: tapeAdd(v.tapes, v.selected, added.map((x) => x.id))}));
+      setLib((v) => ({...v, tracks: [...v.tracks, ...added]}));
     } catch { Alert.alert('Seletor indisponível', 'Não foi possível abrir os arquivos. Tente a lista do celular ou escolha uma pasta.'); }
   }, []);
 
+  const library = useMemo(() => {
+    const m = new Map<string, Track>();
+    for (const t of device) m.set(t.id, t);
+    for (const t of lib.tracks) if (t.source === 'file') m.set(t.id, t);
+    return [...m.values()];
+  }, [device, lib.tracks]);
+
   const api: MusicAPI = {
-    lib, now, live, playing, position: currentStatus.currentTime || 0, duration: live ? 0 : currentStatus.duration || 0, activeTape,
+    lib, now, live, playing, position: currentStatus.currentTime || 0, duration: live ? 0 : currentStatus.duration || 0, library, activeTape,
     tapeTracks: resolved.tracks, missing: resolved.missing, device, scanning, permission, scan, addFolder, importFiles,
     addToTape: (tracks) => setLib((v) => {
       const known = new Set(v.tracks.map((x) => x.id));
       return {...v, tracks: [...v.tracks, ...tracks.filter((x) => !known.has(x.id))], tapes: tapeAdd(v.tapes, v.selected, tracks.map((x) => x.id))};
     }),
-    // Só tira da bolsa. O arquivo do celular não é tocado.
+    // Só tira da bag. O arquivo do celular não é tocado.
     removeFromTape: (id) => setLib((v) => pruneRefs({...v, tapes: tapeRemove(v.tapes, v.selected, id)})),
     restoreToTape: (track, index) => setLib((v) => {
       const known = v.tracks.some((x) => x.id === track.id);
       return {...v, tracks: known ? v.tracks : [...v.tracks, track], tapes: tapeInsert(v.tapes, v.selected, track.id, index)};
     }),
     moveInTape: (id, delta) => setLib((v) => ({...v, tapes: tapeMove(v.tapes, v.selected, id, delta)})),
-    newTape: (name) => { if (name.trim()) { const id = uid(); setLib((v) => ({...v, tapes: [...v.tapes, {id, name: name.trim().slice(0, 40), ids: []}], selected: id})); } },
+    newTape: (name) => {
+      const id = uid();
+      if (name.trim()) setLib((v) => ({...v, tapes: [...v.tapes, {id, name: name.trim().slice(0, 40), ids: []}], selected: id}));
+      return id;
+    },
     renameTape: (name) => { if (name.trim()) setLib((v) => ({...v, tapes: v.tapes.map((t) => (t.id === v.selected ? {...t, name: name.trim().slice(0, 40)} : t))})); },
     deleteTape: () => setLib((v) => (v.tapes.length < 2 ? v : pruneRefs({...v, tapes: v.tapes.filter((t) => t.id !== v.selected), selected: v.tapes.find((t) => t.id !== v.selected)!.id}))),
     selectTape: (id) => setLib((v) => ({...v, selected: id})),
@@ -289,8 +318,20 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       FileSystem.deleteAsync(t.uri, {idempotent: true}).catch(() => {});
     },
     playTrack: async (id, tapeId) => {
+      queueRef.current = null; setQueueName(null);
       if (tapeId && tapeId !== libRef.current.selected) { libRef.current = {...libRef.current, selected: tapeId}; setLib((v) => ({...v, selected: tapeId})); }
       await playById(id, true);
+    },
+    playFita: async (track, pool) => {
+      queueRef.current = pool.length ? pool : [track]; setQueueName('Todas as fitas');
+      await begin(track, true);
+    },
+    playAll: (shuffle, pool) => {
+      const list = (pool && pool.length ? pool : library);
+      if (!list.length) { Alert.alert('Nenhuma fita ainda', 'Permita o acesso às músicas do celular ou escolha uma pasta para ver suas fitas.'); return; }
+      queueRef.current = list; setQueueName('Todas as fitas');
+      setLib((v) => ({...v, shuffle})); libRef.current = {...libRef.current, shuffle};
+      void begin(shuffle ? list[Math.floor(Math.random() * list.length)] : list[0], false);
     },
     playRadio: (station) => begin(station, false),
     playPause, skip, seek: (seconds) => { if (!live) void currentPlayer.seekTo(Math.max(0, seconds)); },
@@ -318,13 +359,18 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       return {...t, ids: rest};
     })})),
     copyToTape: (track, tapeId) => setLib((v) => ({...v, tracks: v.tracks.some((x) => x.id === track.id) ? v.tracks : [...v.tracks, track], tapes: tapeAdd(v.tapes, tapeId, [track.id])})),
-    playBag: (shuffle) => {
-      const ids = resolved.tracks.map((t) => t.id);
-      if (!ids.length) { Alert.alert('Sua bolsa está vazia', 'Adicione músicas ou uma rádio para tocar a bolsa.'); return; }
-      setLib((v) => ({...v, shuffle}));
-      libRef.current = {...libRef.current, shuffle};
+    playTape: (shuffle, tapeId) => {
+      const cur = libRef.current;
+      const id = tapeId ?? cur.selected;
+      const tape = cur.tapes.find((t) => t.id === id) || cur.tapes[0];
+      const ids = tape.ids.filter((x) => cur.tracks.some((t) => t.id === x));
+      if (!ids.length) { Alert.alert('Bag vazia', 'Coloque fitas (músicas do celular) ou uma rádio na bag para tocá-la.'); return; }
+      queueRef.current = null; setQueueName(null);
+      libRef.current = {...cur, selected: tape.id, shuffle};
+      setLib((v) => ({...v, selected: tape.id, shuffle}));
       void playById(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], false);
     },
+    queueName,
   };
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

@@ -6,17 +6,17 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 
 ### Novo
 - **Rádio do mundo com globo 3D** (aba **Rádio**): milhares de estações do diretório aberto Radio Browser como pontos num globo 3D (three.js).
-  Arraste para girar, pinça para zoom, toque num ponto ou num país; busca por nome/país/estilo, **Surpreenda-me**, painel com **OUVIR** e **NA BOLSA**.
+  Arraste para girar, pinça para zoom, toque num ponto ou num país; busca por nome/país/estilo, **Surpreenda-me**, painel com **OUVIR** e **NA BAG**.
   Toca com a tela apagada e fora do app (notificação/tela de bloqueio). O globo roda numa WebView só nesta tela; o resto do app segue nativo.
   O app só toca o stream público de cada rádio (nada é baixado nem hospedado). Precisa de internet. Libera tráfego `http` (muitas rádios ainda não têm https).
-- **Bolsas de música**: as playlists viraram **bolsas** desenhadas e animadas (abrem, fitas espiam, notas flutuam enquanto toca). **Rádios também entram nas bolsas.**
+- **Fitas e bags**: **fita = cada música do celular** (um cassete por música, lida direto do aparelho, sem importar) e **bag = playlist** de fitas e/ou rádios (uma bag desenhada e animada). A aba Músicas tem três modos: **FITAS**, **BAGS** e **RÁDIO**. Em cada fita, ⋯ → *Colocar na bag*; na bag dá para reordenar, tirar (com desfazer) e achar rádios no globo.
 - **Backup sem escolher arquivo**: escolha uma pasta **uma vez** e o app guarda os dados lá sozinho; **Restaurar** é um toque. Enviar para outro app continua possível.
 - **Importar músicas por três caminhos**: lista do celular, **uma pasta** (sem permissão de áudio) ou **arquivos** (agora o seletor mostra qualquer arquivo; filtramos MP3/M4A/etc. por extensão).
-- **★ Josperd e ✿ Camila**: estrela e flor como símbolos dos personagens (perfil e escolha), e **estrelinhas** que piscam no cartão inicial.
+- **★ Josperd e ✿ Camila**: estrela e flor como símbolos dos personagens (perfil e escolha). No cartão inicial, **estrelinhas** que piscam para o Josperd e **florzinhas** para a Camila, em áreas livres, sem cobrir texto.
 
 ### Mais controle sobre a música
-- **Tocar bolsa** e **Aleatório** com um toque; **volume** com barra e mudo; **velocidade** (0,75x a 1,5x); **timer para dormir** (15 a 60 min).
-- Menu de cada faixa (⋯): **tocar agora**, **tocar a seguir**, **colocar em outra bolsa** (a mesma música pode estar em várias) e tirar da bolsa.
+- **Tocar tudo / Aleatório** nas fitas e **Tocar / Aleatório** em cada bag; **volume** com barra e mudo; **velocidade** (0,75x a 1,5x); **timer para dormir** (15 a 60 min).
+- Menu de cada fita (⋯): **tocar agora**, **colocar na bag** (a mesma fita pode estar em várias bags) e, para arquivos copiados, apagar a cópia do app.
 - Telas pensadas também para celulares estreitos (320 dp): títulos e botões encolhem em vez de cortar; miniaturas dos exercícios maiores.
 
 ### Visual refeito (estilo "adesivo")
@@ -24,7 +24,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - Botões com texto que **cabe na tela** (encolhe em vez de cortar).
 
 ### Mudanças
-- Fitas → **bolsas** em todo o app. 4 abas: Início, Músicas, Rádio, Progresso.
+- Playlists agora se chamam **bags**; **fita** é a música. 3 abas: Início, Músicas (Fitas · Bags · Rádio) e Progresso.
 
 ## [1.2.0] — 2026-10-12
 

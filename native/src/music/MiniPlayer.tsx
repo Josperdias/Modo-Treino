@@ -9,14 +9,14 @@ import {useMusic} from './MusicProvider';
 export default function MiniPlayer({onOpen}: {onOpen: () => void; dark?: boolean}) {
   const dark = true;
   const m = useMusic();
-  if (!m.now && !m.tapeTracks.length) return null;
+  if (!m.now && !m.tapeTracks.length && !m.library.length) return null;
   return (
     <View style={[MP.bar, dark && MP.dark]} accessibilityRole="toolbar" accessibilityLabel="Player de música">
       <Press accessibilityRole="button" accessibilityLabel={`Abrir músicas. ${m.now ? 'Tocando ' + m.now.title : 'Nada tocando'}`} onPress={onOpen} style={MP.info} quiet>
         <View style={[MP.disc, m.playing && {backgroundColor: C.pink}]}><Icon name="musical-notes" size={16} color={C.ink} /></View>
         <View style={{flex: 1}}>
-          <Text numberOfLines={1} style={[MP.title, dark && {color: C.white}]}>{m.now?.title || `Bolsa ${m.activeTape.name}`}</Text>
-          <Text numberOfLines={1} style={[MP.sub, dark && {color: '#B7C1E3'}]}>{m.live ? 'Rádio ao vivo' : m.activeTape.name} · {m.playing ? 'tocando' : 'pausado'}</Text>
+          <Text numberOfLines={1} style={[MP.title, dark && {color: C.white}]}>{m.now?.title || `Bag ${m.activeTape.name}`}</Text>
+          <Text numberOfLines={1} style={[MP.sub, dark && {color: '#B7C1E3'}]}>{m.live ? 'Rádio ao vivo' : (m.queueName ?? m.activeTape.name)} · {m.playing ? 'tocando' : 'pausado'}</Text>
         </View>
       </Press>
       <Press accessibilityRole="button" accessibilityLabel="Tocar ou pausar" onPress={m.playPause} style={MP.play} quiet><Icon name={m.playing ? 'pause' : 'play'} size={20} color={C.ink} /></Press>
