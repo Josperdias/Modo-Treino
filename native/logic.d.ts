@@ -6,7 +6,7 @@ export type Conf = {series: number | string; reps: number | string; peso: number
 export type ParsedVersion = {major: number; minor: number; patch: number; pre: string[]};
 export type ReleaseLike = {tag_name?: string; draft?: boolean; prerelease?: boolean; html_url?: string; assets?: {name?: string; browser_download_url?: string; size?: number; digest?: string}[]};
 export type UpdateState = {state: 'newer' | 'current' | 'ahead' | 'none'; release: ReleaseLike | null; tag: string};
-export type BackupData = {persona: 'vinho' | 'loira'; rest: number; sets: Record<string, Record<string, boolean[]>>; override: Record<string, {peso: string; series: number; reps: number}>; sessions: Session[]};
+export type BackupData = {persona: 'vinho' | 'loira'; rest: number; restExercise: number; restSet: number; sets: Record<string, Record<string, boolean[]>>; override: Record<string, {peso: string; series: number; reps: number}>; sessions: Session[]};
 
 export const MAX_SETS: number;
 export const MAX_REPS: number;
@@ -36,3 +36,18 @@ export function withCount(k: number, total: number): boolean[];
 export function tapSeries(done: unknown, k: number, total: number): boolean[];
 export function workoutProgress(o: {exercises: {id: string; treino: Treino}[]; treino: Treino; getConf: (e: any) => Conf; getDone: (e: any) => boolean[]}): WorkoutProgress;
 export function nextStep(list: ProgressItem[], i: number): NextStep;
+
+export const REST_MAX: number;
+export function normalizeRest(o: unknown): {restExercise: number; restSet: number};
+export function restPlan(o: {exerciseDone?: boolean; workoutDone?: boolean; restExercise?: number; restSet?: number; rest?: number}): number;
+export type TapeLike = {id: string; name: string; ids: string[]};
+export type TrackLike = {id: string; title: string; artist?: string};
+export function tapeAdd<T extends TapeLike>(tapes: T[], tapeId: string, trackIds: string[]): T[];
+export function tapeRemove<T extends TapeLike>(tapes: T[], tapeId: string, trackId: string): T[];
+export function tapeInsert<T extends TapeLike>(tapes: T[], tapeId: string, trackId: string, index: number): T[];
+export function tapeMove<T extends TapeLike>(tapes: T[], tapeId: string, trackId: string, delta: number): T[];
+export function forgetTrack<L extends {tracks: TrackLike[]; tapes: TapeLike[]}>(lib: L, trackId: string): L;
+export function resolveTape<X extends TrackLike>(tape: TapeLike, tracks: X[]): {tracks: X[]; missing: number};
+export function nextTrackId(ids: string[], currentId: string | null | undefined, dir: number, opts?: {shuffle?: boolean; repeat?: boolean; rand?: () => number}): string | null;
+export function searchTracks<X extends TrackLike>(tracks: X[], query: string): X[];
+export function formatClock(seconds: number): string;

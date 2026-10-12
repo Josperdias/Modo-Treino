@@ -242,3 +242,90 @@ test('nextStep: mesma série, próximo exercício, volta ao pulado e fim', () =>
   assert.deepEqual(L.nextStep([item(2), item(2)], 1), {type: 'done', index: -1});
   assert.deepEqual(L.nextStep([], 0), {type: 'done', index: -1});
 });
+
+/* ---------- descanso ---------- */
+test('restPlan: por padrão só descansa ao terminar o exercício; entre séries só se configurado', () => {
+  assert.equal(L.restPlan({exerciseDone: false}), 0);                       // entre séries: nada
+  assert.equal(L.restPlan({exerciseDone: true}), 60);                       // entre exercícios: 60 s
+  assert.equal(L.restPlan({exerciseDone: true, restExercise: 90}), 90);
+  assert.equal(L.restPlan({exerciseDone: false, restSet: 30}), 30);         // configurou descanso entre séries
+  assert.equal(L.restPlan({exerciseDone: true, restSet: 30, restExercise: 120}), 120);
+  assert.equal(L.restPlan({exerciseDone: true, workoutDone: true}), 0);    // acabou o treino: sem descanso
+  assert.equal(L.restPlan({exerciseDone: true, restExercise: 0}), 0);      // pode desligar também entre exercícios
+});
+test('normalizeRest: migra o ajuste antigo e limita valores absurdos', () => {
+  assert.deepEqual(L.normalizeRest({rest: 90}), {restExercise: 90, restSet: 0}); // antigo "rest" vira descanso entre exercícios
+  assert.deepEqual(L.normalizeRest({}), {restExercise: 60, restSet: 0});
+  assert.deepEqual(L.normalizeRest(null), {restExercise: 60, restSet: 0});
+  assert.deepEqual(L.normalizeRest({restExercise: 99999, restSet: -5}), {restExercise: 600, restSet: 0});
+  assert.deepEqual(L.normalizeRest({restExercise: 'abc', restSet: 45}), {restExercise: 60, restSet: 45});
+});
+test('validateBackup: guarda os dois descansos e aceita backup antigo só com "rest"', () => {
+  const base = {sessions: [], sets: {}, override: {}};
+  assert.equal(L.validateBackup({...base, rest: 120}).restExercise, 120);
+  const n = L.validateBackup({...base, restExercise: 45, restSet: 20});
+  assert.equal(n.restExercise, 45); assert.equal(n.restSet, 20);
+});
+
+/* ---------- fitas ---------- */
+const TAPES = () => [{id: 'a', name: 'Treino A', ids: ['m1', 'm2']}, {id: 'b', name: 'Treino B', ids: ['m2']}];
+test('tapeAdd: adiciona sem duplicar e só na fita escolhida', () => {
+  const out = L.tapeAdd(TAPES(), 'a', ['m2', 'm3', 'm3', '', 7]);
+  assert.deepEqual(out[0].ids, ['m1', 'm2', 'm3']);
+  assert.deepEqual(out[1].ids, ['m2']);
+});
+test('tapeRemove: tira só da fita escolhida; a música continua nas outras fitas', () => {
+  const t = TAPES(); const out = L.tapeRemove(t, 'a', 'm2');
+  assert.deepEqual(out[0].ids, ['m1']); assert.deepEqual(out[1].ids, ['m2']);
+  assert.deepEqual(t[0].ids, ['m1', 'm2'], 'não altera a entrada');
+});
+test('tapeRemove nunca mexe na lista de músicas (não apaga arquivo)', () => {
+  const lib = {tracks: [{id: 'm1', title: 'Um'}, {id: 'm2', title: 'Dois'}], tapes: TAPES()};
+  const tapes = L.tapeRemove(lib.tapes, 'a', 'm1');
+  assert.equal(lib.tracks.length, 2);
+  assert.equal(tapes.some((t) => t.ids.includes('m1')), false);
+});
+test('forgetTrack (cópia importada): sai da biblioteca e de todas as fitas', () => {
+  const lib = {tracks: [{id: 'm1', title: 'Um'}, {id: 'm2', title: 'Dois'}], tapes: TAPES(), x: 1};
+  const out = L.forgetTrack(lib, 'm2');
+  assert.deepEqual(out.tracks.map((x) => x.id), ['m1']);
+  assert.deepEqual(out.tapes.map((t) => t.ids), [['m1'], []]);
+  assert.equal(out.x, 1);
+});
+test('tapeMove: troca de lugar e respeita os limites', () => {
+  const t = [{id: 'a', name: 'A', ids: ['1', '2', '3']}];
+  assert.deepEqual(L.tapeMove(t, 'a', '3', -1)[0].ids, ['1', '3', '2']);
+  assert.deepEqual(L.tapeMove(t, 'a', '1', -1)[0].ids, ['1', '2', '3']);
+  assert.deepEqual(L.tapeMove(t, 'a', '3', 1)[0].ids, ['1', '2', '3']);
+  assert.deepEqual(L.tapeMove(t, 'a', 'zz', 1)[0].ids, ['1', '2', '3']);
+});
+test('resolveTape: ignora músicas que sumiram do celular e conta quantas', () => {
+  const r = L.resolveTape({id: 'a', name: 'A', ids: ['m1', 'gone', 'm2']}, [{id: 'm2', title: 'Dois'}, {id: 'm1', title: 'Um'}]);
+  assert.deepEqual(r.tracks.map((x) => x.id), ['m1', 'm2']); assert.equal(r.missing, 1);
+});
+test('nextTrackId: sequência, fim, repetir e aleatório sem repetir a atual', () => {
+  const ids = ['a', 'b', 'c'];
+  assert.equal(L.nextTrackId(ids, 'a', 1), 'b');
+  assert.equal(L.nextTrackId(ids, 'c', 1), null);
+  assert.equal(L.nextTrackId(ids, 'c', 1, {repeat: true}), 'a');
+  assert.equal(L.nextTrackId(ids, 'a', -1, {repeat: true}), 'c');
+  assert.equal(L.nextTrackId(ids, 'a', -1), null);
+  assert.equal(L.nextTrackId(ids, null, 1), 'a');
+  assert.equal(L.nextTrackId([], 'a', 1), null);
+  for (const r of [0, 0.5, 0.99]) assert.notEqual(L.nextTrackId(ids, 'b', 1, {shuffle: true, rand: () => r}), 'b');
+  assert.equal(L.nextTrackId(['x'], 'x', 1, {shuffle: true}), null);
+});
+test('searchTracks e formatClock', () => {
+  const tr = [{id: '1', title: 'Eye of the Tiger', artist: 'Survivor'}, {id: '2', title: 'Lose Yourself'}];
+  assert.deepEqual(L.searchTracks(tr, '  surv').map((x) => x.id), ['1']);
+  assert.equal(L.searchTracks(tr, '').length, 2);
+  assert.equal(L.formatClock(65), '1:05'); assert.equal(L.formatClock(-3), '0:00'); assert.equal(L.formatClock('x'), '0:00');
+});
+test('tapeInsert: devolve a música à posição original (desfazer) sem duplicar', () => {
+  const t = [{id: 'a', name: 'A', ids: ['1', '3']}];
+  assert.deepEqual(L.tapeInsert(t, 'a', '2', 1)[0].ids, ['1', '2', '3']);
+  assert.deepEqual(L.tapeInsert(t, 'a', '2', 99)[0].ids, ['1', '3', '2']);
+  assert.deepEqual(L.tapeInsert(t, 'a', '2', -5)[0].ids, ['2', '1', '3']);
+  assert.deepEqual(L.tapeInsert(t, 'a', '1', 0)[0].ids, ['1', '3'], 'já está na fita: não duplica');
+  assert.deepEqual(L.tapeInsert(t, 'zz', '2', 0)[0].ids, ['1', '3']);
+});
