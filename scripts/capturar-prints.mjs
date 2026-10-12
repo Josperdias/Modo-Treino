@@ -42,6 +42,10 @@ for (const [label, viewport] of [['mobile', {width: 390, height: 844}], ['deskto
   const page = await ctx.newPage();
   const go = async (r) => { await page.goto(`${site.url}/#${r}`); await page.waitForSelector('#main > *'); await page.waitForTimeout(500); };
   await go('/'); await shot(page, `site-${label}-01-inicio`);
+  const dir = mkdtempSync(join(tmpdir(), 'mt-'));
+  writeFileSync(join(dir, 'Aquecimento (tom 440 Hz).wav'), wav(40, 440)); writeFileSync(join(dir, 'Pesado (tom 660 Hz).wav'), wav(40, 660));
+  await go('/musica'); await page.setInputFiles('#music-files', [join(dir, 'Aquecimento (tom 440 Hz).wav'), join(dir, 'Pesado (tom 660 Hz).wav')]);
+  await page.waitForFunction(() => document.querySelectorAll('.song-row').length >= 2); await page.click('.transport-main'); await page.waitForTimeout(800);
   await go('/treino/A');
   for (const [id, n] of [['a1', 0], ['a1', 1], ['a2', 0]]) await page.click(`button.set-box[data-set="${id}"][data-index="${n}"]`);
   await page.waitForTimeout(400); await shot(page, `site-${label}-02-treino-a-descanso`);
@@ -50,8 +54,8 @@ for (const [label, viewport] of [['mobile', {width: 390, height: 844}], ['deskto
   await go('/treino/A'); await page.click('[data-g-open="A"]'); await page.waitForSelector('#guided .g-shell');
   await page.waitForFunction(() => !document.querySelector('.toast.show'), null, {timeout: 6000}); await page.waitForTimeout(400);
   await shot(page, `site-${label}-04-modo-execucao-card`);
-  await page.click('.g-zoom-btn'); await page.waitForSelector('.g-lightbox img'); await page.waitForTimeout(300);
-  await shot(page, `site-${label}-05-modo-execucao-imagem-inteira`); await page.keyboard.press('Escape');
+  await page.click('.g-zoom-btn'); await page.waitForSelector('#zoom .zoom-img'); await page.click('[data-z="in"]'); await page.click('[data-z="in"]'); await page.waitForTimeout(300);
+  await shot(page, `site-${label}-05-modo-execucao-zoom`); await page.keyboard.press('Escape');
   await page.click('[data-gset="3"]'); await page.waitForSelector('#guided .g-rest'); await page.waitForTimeout(300);
   await shot(page, `site-${label}-06-modo-execucao-descanso`);
   for (let i = 0; i < 12 && !(await page.locator('#guided .g-done').count()); i++) {
@@ -65,11 +69,7 @@ for (const [label, viewport] of [['mobile', {width: 390, height: 844}], ['deskto
   await go('/colecao'); await page.click('button[data-persona="loira"]'); await page.waitForTimeout(300); await shot(page, `site-${label}-09-colecao-camila`);
   await go('/ajustes'); await page.check('input[data-sound="enabled"]'); await page.waitForTimeout(300);
   await page.locator('.sounds-panel').scrollIntoViewIfNeeded(); await shot(page, `site-${label}-10-ajustes-audio`);
-  const dir = mkdtempSync(join(tmpdir(), 'mt-'));
-  writeFileSync(join(dir, 'Aquecimento (tom 440 Hz).wav'), wav(40, 440)); writeFileSync(join(dir, 'Pesado (tom 660 Hz).wav'), wav(40, 660));
-  await go('/musica'); await page.setInputFiles('#music-files', [join(dir, 'Aquecimento (tom 440 Hz).wav'), join(dir, 'Pesado (tom 660 Hz).wav')]);
-  await page.waitForFunction(() => document.querySelectorAll('.song-row').length >= 2); await page.click('.transport-main');
-  await page.waitForTimeout(1200); await shot(page, `site-${label}-11-musica-fitas`);
+  await go('/musica'); await page.waitForTimeout(900); await shot(page, `site-${label}-11-musica-fitas`);
   await page.goto(`${site.url}/baixar/`); await page.waitForTimeout(900); await shot(page, `site-${label}-12-baixar`);
   await ctx.close();
 }
@@ -82,6 +82,7 @@ if (nativeDir) {
   await page.goto(nat.url + '/'); await page.waitForTimeout(1500); await shot(page, 'app-01-inicio');
   const tab = (n) => page.locator(`[role="tab"][aria-label="${n}"]`).click();
   await tab('TREINO A'); await page.getByText(/COMEÇAR TREINO A/).first().click(); await page.getByText('EXERCÍCIO 1/6').waitFor(); await page.waitForTimeout(500); await shot(page, 'app-02-modo-execucao-card');
+  await page.locator('[aria-label^="Ampliar a ilustração"]').last().click(); await page.locator('[aria-label="Aumentar zoom"]').click(); await page.locator('[aria-label="Aumentar zoom"]').click(); await page.waitForTimeout(300); await shot(page, 'app-02b-zoom'); await page.locator('[aria-label="Fechar imagem ampliada"]').click();
   const setBtn = (k) => page.locator(`[aria-label="${k} ${k === 1 ? 'série feita' : 'séries feitas'} de Rosca direta na barra W"]`);
   await setBtn(3).click(); await page.getByText('PRÓXIMA: SÉRIE 4 DE 5').waitFor(); await page.waitForTimeout(300); await shot(page, 'app-03-modo-execucao-descanso');
   await page.locator('[aria-label="Pular descanso"]').click(); await page.getByText('TOQUE EM QUANTAS SÉRIES VOCÊ FEZ').waitFor();
