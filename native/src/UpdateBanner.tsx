@@ -1,12 +1,12 @@
 /** Aviso de versão nova NO TOPO do app (no lugar do aviso genérico do Android): cartão estilizado com as novidades,
- * botão "Atualizar agora" que baixa aqui mesmo (com progresso) e abre o instalador do sistema. */
+ * botão "Atualizar agora" que baixa aqui mesmo (com progresso) e leva ao arquivo para instalar. */
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 import {Text} from './text';
 import Animated, {FadeOutUp, SlideInUp, useAnimatedStyle, useSharedValue, withTiming, Easing} from 'react-native-reanimated';
 import {Btn, Card, Icon, Pattern, Press} from './ui';
 import {C, R} from './theme';
-import {INSTALAR_NO_APP} from './updates';
+import {baixaNoApp} from './updates';
 import type {UpdatesApi} from './updates';
 
 const mb = (n: number) => (n / 1048576).toFixed(1).replace('.', ',');
@@ -43,7 +43,7 @@ export default function UpdateBanner({u, current}: {u: UpdatesApi; current: stri
         {u.phase === 'idle' && (
           <View style={{marginTop: 12}}>
             <Btn small kind="dark" icon="download" text="ATUALIZAR AGORA" label="Atualizar agora" onPress={() => { void u.download(); }} />
-            {!INSTALAR_NO_APP && <Text style={[S.sub, {marginTop: 6}]}>Abre o download. Quando terminar, toque em Abrir e depois em Instalar.</Text>}
+            <Text style={[S.sub, {marginTop: 6}]}>{baixaNoApp() ? 'Baixa aqui mesmo, com barra de progresso. No fim, o Android pede para você confirmar a instalação.' : 'Abre o download. Quando terminar, toque em Abrir e depois em Instalar.'}</Text>
           </View>
         )}
         {busy && (
@@ -57,18 +57,15 @@ export default function UpdateBanner({u, current}: {u: UpdatesApi; current: stri
         )}
         {u.phase === 'ready' && (
           <View style={{marginTop: 12, gap: 8}}>
-            <Text style={S.sub}>Pronto! Confirme a instalação na tela do Android.</Text>
-            <Btn small kind="dark" icon="checkmark-circle" text="INSTALAR" label="Instalar a atualização" onPress={() => { void u.install(); }} />
+            <Text style={S.sub}>Baixado e conferido ✓. Abra os Downloads, toque em <Text style={{fontWeight: '900'}}>modo-treino-{info.tag}.apk</Text> e confirme a instalação (também dá para tocar na notificação de download).</Text>
+            <Btn small kind="dark" icon="checkmark-circle" text="ABRIR E INSTALAR" label="Abrir os downloads para instalar a atualização" onPress={() => { void u.install(); }} />
           </View>
         )}
         {u.phase === 'error' && (
           <View style={{marginTop: 12, gap: 8}}>
             <Text style={S.err}>{u.error}</Text>
             <Btn small kind="dark" icon="refresh" text="TENTAR DE NOVO" onPress={() => { void u.download(); }} />
-            <View style={{flexDirection: 'row', gap: 8}}>
-              <Btn small kind="ghost" text="PERMITIR INSTALAR" label="Permitir instalar apps desconhecidos" onPress={u.allowInstall} style={{flex: 1}} />
-              <Btn small kind="ghost" text="NO NAVEGADOR" label="Baixar pelo navegador" onPress={u.openBrowser} style={{flex: 1}} />
-            </View>
+            <Btn small kind="ghost" text="NO NAVEGADOR" label="Baixar pelo navegador" onPress={u.openBrowser} />
           </View>
         )}
       </Card>

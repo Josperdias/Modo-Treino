@@ -60,7 +60,7 @@ Veja [CLAUDE.md](../CLAUDE.md).
 - No código, a bag é o tipo `Tape` em `native/src/music/MusicProvider.tsx` (nome histórico, guardado no armazenamento; não renomear sem migração).
 
 ## Atualização dentro do app
-- O app consulta `api.github.com/.../releases`, mostra o aviso no topo (`native/src/UpdateBanner.tsx`) e o botão abre o download do APK pelo sistema. O fluxo de baixar e instalar DENTRO do app existe em `updates.ts` atrás de `INSTALAR_NO_APP` (hoje `false`): ele exige `REQUEST_INSTALL_PACKAGES`, que no 1.3.2 coincidiu com um erro de instalação ("problem parsing the package") num Xiaomi. Confere só o **tamanho**; quem garante a autenticidade é o Android, que só aceita atualização assinada com a mesma chave.
+- O app consulta `api.github.com/.../releases` e mostra o aviso no topo (`native/src/UpdateBanner.tsx`). No Android o botão baixa pelo `DownloadManager` (módulo `native/modules/modo-apk`, lógica em `native/src/updates.ts`): progresso no app, conferência de tamanho e SHA-256 e, no fim, abre a tela de Downloads. **Não declare `REQUEST_INSTALL_PACKAGES`** (o 1.3.2 com ela não abriu num Xiaomi/HyperOS); sem ela o app não pode abrir o instalador sozinho, então o toque final é do Android. No navegador (testes) o botão abre o download pelo sistema.
 - **Não renomeie o APK** de forma que o app deixe de achá-lo: ele procura o primeiro asset `*.apk` da release.
 
 ## Verificação de desenvolvedor do Google (Play Protect "App blocked")

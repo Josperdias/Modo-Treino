@@ -2,6 +2,14 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.1] — 2026-10-12
+
+### Atualização baixa DENTRO do app
+- **ATUALIZAR AGORA** agora baixa aqui mesmo, com **barra de progresso, MB e CANCELAR**, em vez de abrir o navegador. O download é feito pelo **gerenciador do Android** (módulo próprio `native/modules/modo-apk`): continua com o app fechado, aparece em *Downloads* e numa notificação do sistema.
+- Ao terminar, o app **confere o SHA-256** do arquivo com o publicado na release e o tamanho; se não bater, apaga e avisa. Depois o botão **ABRIR E INSTALAR** leva à tela de Downloads: toque em `modo-treino-X.apk` e confirme a instalação.
+- **Por que não instala direto de dentro do app?** O Android só deixa um app abrir o instalador se ele declarar a permissão `REQUEST_INSTALL_PACKAGES`, e o 1.3.2, que a declarava, **não abriu** no seu Xiaomi ("problem parsing the package"). O 1.4.1 continua **sem** essa permissão: baixa e confere dentro do app, e o toque final de instalar é do Android.
+- Sai o código antigo de baixar para o cache e o botão "Permitir instalar" (e a dependência `expo-intent-launcher`).
+
 ## [1.4.0] — 2026-10-12
 
 ### Duas notificações novas, no visual do app
