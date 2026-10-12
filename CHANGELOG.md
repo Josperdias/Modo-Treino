@@ -2,6 +2,39 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.2.0] — 2026-10-12
+
+### App Android refeito
+- **Interface nova, mais limpa**: **3 abas** (Início, Músicas, Progresso) em vez de 6. Ajustes e a coleção de ilustrações abrem em folhas
+  a partir do perfil. Visual editorial mantido (cabeçalho azul-marinho, hero "VAI LÁ. FAZ VALER.", cartões rosa e azul com contorno), agora com
+  **texturas** (pontos e listras), pôsteres inclinados que flutuam, contagem animada nas estatísticas, transições entre telas,
+  botões com mola e anel de progresso.
+- **Descanso só entre um exercício e outro.** Entre séries do mesmo exercício não há mais contagem, a não ser que você ligue em
+  Ajustes → Descanso (entre exercícios: Sem/30/45/60/90/120/180 s; entre séries: Sem/15/30/45/60/90 s). O ajuste antigo vira "entre exercícios".
+- **Fitas com as músicas do próprio celular, sem importar nem copiar** (permissão de leitura de áudio do Android; nada de foto/vídeo).
+  Busca, seleção múltipla, **tirar da fita não apaga o arquivo** (com **Desfazer**), reordenar, várias fitas com a mesma música, fitas novas e
+  renomear. "Escolher arquivos" continua existindo para o que não aparece na lista. Bibliotecas da versão anterior são migradas.
+- **Zoom com os dedos de verdade** (gesture-handler + reanimated, na thread de UI): pinça centrada nos dedos, arrastar com limites,
+  toque duplo, botões +/−/AJUSTAR; máximo 600%.
+- Cassete animado (carretéis giram, a fita passa de um lado ao outro), controles da tela de bloqueio quando o sistema permite.
+- Acabamento: confete no treino completo, equalizador na música tocando, segmentos de progresso que enchem, ícones das abas que saltam, brilhos no hero,
+  "respiração" no cronômetro e no botão principal, faixa **Últimos 7 dias** no Progresso e texturas no cabeçalho e nos cartões.
+  Tudo respeita **"remover animações"** do sistema (as animações em laço ficam paradas).
+- Modo execução com a barra azul-marinho no topo (sempre abaixo da barra de status) e os botões do rodapé como antes: anterior, **CONCLUIR SÉRIE ✓** e próximo.
+- Acessibilidade: o fundo some para leitores de tela quando o modo execução está aberto; papéis e estados também no navegador.
+- Permissões enxutas: removido o microfone (que o `expo-audio` pedia por padrão) e as de foto/vídeo/janela sobreposta.
+
+### Lógica compartilhada (`shared/logic.js`, com testes)
+- `restPlan`, `normalizeRest`, e as operações de fita `tapeAdd/tapeRemove/tapeInsert/tapeMove/forgetTrack/resolveTape/nextTrackId/searchTracks`.
+- Backup agora guarda `restExercise` e `restSet` (e continua lendo o `rest` antigo).
+
+### Testes
+- Interface do app reescrita (27 testes), incluindo **pinça e toque duplo com toques reais** simulados no Chromium e o caso "tirar da fita não apaga".
+- 41 testes de lógica.
+
+### Não verificado
+- Reprodução, permissão de áudio, lista de músicas e segundo plano **em Android real** (o ambiente de desenvolvimento não tem aparelho).
+
 ## [1.1.1] — 2026-10-12
 
 ### Novo

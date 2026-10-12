@@ -16,11 +16,11 @@ import ProgressScreen from './src/screens/ProgressScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
 import {EditSheet, GallerySheet, SettingsSheet} from './src/screens/Sheets';
 import ZoomView from './src/ZoomView';
-import {Icon, IconName, Press, ToastProvider, useToast} from './src/ui';
+import {Bounce, Icon, IconName, Pattern, Press, ToastProvider, useToast} from './src/ui';
 import {useUpdates} from './src/updates';
 import {C, R} from './src/theme';
 
-const APP_VERSION='1.1.1';
+const APP_VERSION='1.2.0';
 
 type Tab = 'home' | 'music' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
@@ -47,7 +47,7 @@ function TabBar({tab, onTab}: {tab: Tab; onTab: (t: Tab) => void}) {
         const on = t.key === tab;
         return (
           <Press key={t.key} accessibilityRole="tab" accessibilityLabel={t.label} accessibilityState={{selected: on}} onPress={() => onTab(t.key)} style={TB.item} scaleTo={0.92}>
-            <Icon name={on ? t.on : t.icon} size={23} color={on ? C.ink : '#B7C1E3'} />
+            <Bounce trigger={on}><Icon name={on ? t.on : t.icon} size={23} color={on ? C.ink : '#B7C1E3'} /></Bounce>
             <Text style={[TB.label, on && {color: C.ink}]}>{t.label.toUpperCase()}</Text>
           </Press>
         );
@@ -104,6 +104,7 @@ function Shell() {
       {/* com o modo execução aberto, o fundo some para leitores de tela (e para o toque) */}
       <View style={{flex: 1}} aria-hidden={!!workout} importantForAccessibility={workout ? 'no-hide-descendants' : 'auto'}>
       <View style={S.header}>
+        <Pattern kind="dots" color="#FFFFFF" opacity={0.07} size={16} />
         <View>
           <Text style={S.sub}>BY JOSPERD  /  EDIÇÃO 001</Text>
           <Text style={S.brand} accessibilityRole="header">MODO <Text style={{color: C.yellow}}>TREINO.</Text></Text>

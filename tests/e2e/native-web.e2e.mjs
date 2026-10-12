@@ -36,14 +36,14 @@ test.after(async () => { await browser?.close(); if (server) await new Promise((
 
 const REPO = 'Josperdias/Modo-Treino';
 const INSTALLED = JSON.parse(readFileSync(new URL('../../native/package.json', import.meta.url), 'utf8')).version;
-const bump = (v, k) => { const [a, b, c] = v.split('.').map(Number); return `${a}.${b}.${c + k}`; };
+const bump = (v, k) => { const [a, b, c] = v.split('.').map(Number); return k < 0 && c === 0 ? `${a}.${b - 1}.9` : `${a}.${b}.${c + k}`; }; // k=-1 em x.y.0 vira x.(y-1).9 (nunca patch negativo)
 const rel = (tag, extra = {}) => ({tag_name: tag, draft: false, prerelease: true, html_url: `https://github.com/${REPO}/releases/tag/${tag}`, assets: [], ...extra});
 const APP = 'modo-treino-native-v1', MUSIC = 'modotreino-native-music-v1';
 const TRACKS = [['Eye of the Tiger', 245], ['Lose Yourself', 326], ['Till I Collapse', 297], ['Stronger', 312]].map(([title, duration], i) => ({id: 'dev:' + i, title, uri: 'file:///musica/' + i + '.mp3', duration, source: 'device'}));
 
 /** seed: {chave: valor} gravado no localStorage antes do app abrir (uma vez). device: simula o MediaStore (só no navegador). */
 async function open({releases = [], status = 200, viewport = {width: 390, height: 844}, seed = null, device = null, clock = false, touch = false} = {}) {
-  const context = await browser.newContext({viewport, hasTouch: touch, isMobile: touch});
+  const context = await browser.newContext({viewport, hasTouch: touch, isMobile: touch, reducedMotion: 'reduce'}); // sem animações em laço: o app respeita "remover animações" e o teste fica estável
   context.setDefaultTimeout(8000);
   await context.route('https://api.github.com/**', (r) => r.fulfill({status, headers: {'access-control-allow-origin': '*', 'content-type': 'application/json'}, body: JSON.stringify(releases)}));
   await context.addInitScript(({seed, device}) => {
@@ -180,7 +180,7 @@ test('descanso só entre exercícios: terminar o exercício abre "ENTRE EXERCÍC
   const {context, page} = await open();
   await startWorkout(page);
   await setBtn(page, 5).click();
-  await page.getByText('ENTRE EXERCÍCIOS').waitFor();
+  await page.getByText('ENTRE EXERCÍCIOS', {exact: true}).waitFor();
   assert.match(await body(page), /01:00|00:59/);
   assert.match(await body(page), /PRÓXIMO EXERCÍCIO 2\/6/);
   assert.match(await body(page), /ROSCA CONCENTRADA/);
@@ -194,11 +194,11 @@ test('o descanso termina sozinho, avança de exercício e +15s soma tempo', {ski
   const {context, page} = await open({clock: true});
   await startWorkout(page);
   await setBtn(page, 5).click();
-  await page.getByText('ENTRE EXERCÍCIOS').waitFor();
+  await page.getByText('ENTRE EXERCÍCIOS', {exact: true}).waitFor();
   await page.getByLabel('Mais 15 segundos').click();
   await page.clock.fastForward(30000);
   assert.match(await body(page), /00:4\d|00:3\d|00:5\d/, 'passaram 30 s de 75');
-  assert.equal(await page.getByText('ENTRE EXERCÍCIOS').count(), 1);
+  assert.equal(await page.getByText('ENTRE EXERCÍCIOS', {exact: true}).count(), 1);
   await page.clock.fastForward(50000);
   await page.getByText(/EXERCÍCIO 2\/6/).first().waitFor();
   await context.close();
@@ -212,7 +212,7 @@ test('descanso entre séries é opcional: configurado em 30 s, aparece após cad
   await closeSheet(page);
   await startWorkout(page);
   await setBtn(page, 1).click();
-  await page.getByText('ENTRE SÉRIES').waitFor();
+  await page.getByText('ENTRE SÉRIES', {exact: true}).waitFor();
   assert.match(await body(page), /PRÓXIMA: SÉRIE 2 DE 5/);
   await page.getByLabel('Pular descanso').click();
   await page.getByText(/EXERCÍCIO 1\/6/).first().waitFor();
@@ -499,7 +499,7 @@ test('player compacto: aparece nas telas, some na aba Músicas e fica no modo ex
   await startWorkout(page);
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1, 'no cartão');
   await setBtn(page, 5).click();
-  await page.getByText('ENTRE EXERCÍCIOS').waitFor();
+  await page.getByText('ENTRE EXERCÍCIOS', {exact: true}).waitFor();
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1, 'no descanso');
   await page.getByLabel('Pular descanso').click();
   await page.getByRole('button', {name: /^Abrir músicas/}).click();

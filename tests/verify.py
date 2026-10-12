@@ -15,12 +15,14 @@ for ex in web:
         assert (ROOT/'site'/ex['imagemAlternativa']).is_file(),ex
 for f in ['index.html','app.js','data.js','music.js','sounds.js','updates.js','styles.css','sw.js','manifest.webmanifest']:
     assert (ROOT/'site'/f).exists(),f
-for f in ['App.tsx','MusicPlayer.tsx','SoundFX.ts','package.json','app.json','eas.json']:
+for f in ['App.tsx','SoundFX.ts','package.json','app.json','eas.json','src/store.tsx','src/data.ts','src/ui.tsx','src/ZoomView.tsx','src/music/MusicProvider.tsx','src/music/device.ts','src/music/MiniPlayer.tsx','src/screens/HomeScreen.tsx','src/screens/TrainScreen.tsx','src/screens/WorkoutScreen.tsx','src/screens/MusicScreen.tsx','src/screens/ProgressScreen.tsx']:
     assert (ROOT/'native'/f).exists(),f
 assert 'a ruivinha' in (ROOT/'site/app.js').read_text()
-assert 'MusicDock' in (ROOT/'native/App.tsx').read_text()
+assert 'MiniPlayer' in (ROOT/'native/App.tsx').read_text()
 assert 'crossfade' in (ROOT/'site/music.js').read_text()
 assert json.loads((ROOT/'native/app.json').read_text())['expo']['name']=='Modo Treino'
+for f in [ROOT/'native/App.tsx', *(ROOT/'native/src').rglob('*.tsx')]:
+    assert 'resizeMode="cover"' not in f.read_text(),f'{f}: arte de exercício nunca com cover (CLAUDE.md)'
 print('OK: 14 exercícios, arquivos de imagem, cópia nativa, Modo Música e identidade.')
 
 for style in ('suave','arcade','minimal'):

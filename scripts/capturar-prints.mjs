@@ -75,28 +75,40 @@ for (const [label, viewport] of [['mobile', {width: 390, height: 844}], ['deskto
 }
 
 /* ---------- APP NATIVO via react-native-web ---------- */
+// As músicas do "celular" nos prints são simuladas (no navegador não existe MediaStore); o restante vem de interações reais.
 if (nativeDir) {
   const nat = await serve(nativeDir);
-  const ctx = await browser.newContext({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
+  const ctx = await browser.newContext({viewport: {width: 390, height: 844}, deviceScaleFactor: 2, reducedMotion: 'reduce'});
+  await ctx.addInitScript(() => {
+    window.__MODO_DEVICE__ = {permission: 'granted', tracks: [['Eye of the Tiger', 245], ['Lose Yourself', 326], ['Till I Collapse', 297], ['Stronger', 312], ['Remember the Name', 231]].map(([title, duration], i) => ({id: 'dev:' + i, title, uri: 'file:///musica/' + i + '.mp3', duration, source: 'device'}))};
+  });
   const page = await ctx.newPage();
-  await page.goto(nat.url + '/'); await page.waitForTimeout(1500); await shot(page, 'app-01-inicio');
-  const tab = (n) => page.locator(`[role="tab"][aria-label="${n}"]`).click();
-  await tab('TREINO A'); await page.getByText(/COMEÇAR TREINO A/).first().click(); await page.getByText('EXERCÍCIO 1/6').waitFor(); await page.waitForTimeout(500); await shot(page, 'app-02-modo-execucao-card');
-  await page.locator('[aria-label^="Ampliar a ilustração"]').last().click(); await page.locator('[aria-label="Aumentar zoom"]').click(); await page.locator('[aria-label="Aumentar zoom"]').click(); await page.waitForTimeout(300); await shot(page, 'app-02b-zoom'); await page.locator('[aria-label="Fechar imagem ampliada"]').click();
+  const pause = (ms = 700) => page.waitForTimeout(ms);
+  await page.goto(nat.url + '/'); await pause(2200); await shot(page, 'app-01-inicio');
+  await page.getByLabel('Abrir treino B').scrollIntoViewIfNeeded(); await pause(); await shot(page, 'app-02-escolha-treino');
+  await page.getByLabel('Abrir treino A').click(); await pause(900); await shot(page, 'app-03-treino-a');
+  await page.getByLabel(/^Começar treino A/).last().click(); await page.getByText('EXERCÍCIO 1/6').waitFor(); await pause(); await shot(page, 'app-04-cartao-exercicio');
+  await page.getByLabel(/^Ampliar a ilustração/).last().click(); await page.getByLabel('Aumentar zoom').click(); await pause(300); await page.getByLabel('Aumentar zoom').click(); await pause(500); await shot(page, 'app-05-zoom'); await page.getByLabel('Fechar imagem ampliada').click();
   const setBtn = (k) => page.locator(`[aria-label="${k} ${k === 1 ? 'série feita' : 'séries feitas'} de Rosca direta na barra W"]`);
-  await setBtn(3).click(); await page.getByText('PRÓXIMA: SÉRIE 4 DE 5').waitFor(); await page.waitForTimeout(300); await shot(page, 'app-03-modo-execucao-descanso');
-  await page.locator('[aria-label="Pular descanso"]').click(); await page.getByText('TOQUE EM QUANTAS SÉRIES VOCÊ FEZ').waitFor();
-  for (let i = 0; i < 12 && !(await page.getByText(/COMPLETO!/).count()); i++) {
-    if (await page.locator('[aria-label="Pular descanso"]').count()) await page.locator('[aria-label="Pular descanso"]').click();
+  await setBtn(3).click(); await pause(500); await shot(page, 'app-06-series-sem-descanso');
+  await setBtn(5).click(); await page.getByText('ENTRE EXERCÍCIOS', {exact: true}).waitFor(); await pause(); await shot(page, 'app-07-descanso-entre-exercicios');
+  await page.getByLabel('Pular descanso').click(); await pause();
+  for (let i = 0; i < 45 && !(await page.getByText(/COMPLETO!/).count()); i++) {
+    if (await page.getByLabel('Pular descanso').count()) await page.getByLabel('Pular descanso').click();
     if (await page.getByText(/COMPLETO!/).count()) break;
-    const n = await page.locator('[aria-label*="séries feitas de"], [aria-label*="série feita de"]').count(); if (n) await page.locator('[aria-label*="séries feitas de"], [aria-label*="série feita de"]').nth(n - 1).click();
+    await page.getByLabel(/^(CONCLUIR SÉRIE|PRÓXIMO EXERCÍCIO|TERMINAR)/).first().click().catch(() => {}); await pause(180);
   }
-  await page.getByText(/COMPLETO!/).waitFor(); await shot(page, 'app-04-modo-execucao-completo');
-  await page.getByText('FINALIZAR E SALVAR ✓').click(); await page.getByText('SEU HISTÓRICO').waitFor();
-  await page.locator('[aria-label^="Treino A, "]').first().click(); await page.waitForTimeout(300); await shot(page, 'app-05-historico');
-  await tab('MÚSICA'); await page.waitForTimeout(400); await shot(page, 'app-06-musica-fitas');
-  await tab('ARTES'); await page.locator('[aria-label="Escolher Camila Camomila, a ruivinha"]').first().click(); await page.waitForTimeout(400); await shot(page, 'app-07-colecao-camila');
-  await page.getByText('CAMILA', {exact: true}).first().click(); await page.getByText('O SEU MODO').waitFor(); await page.getByText('BIBLIOTECA DE SONS').scrollIntoViewIfNeeded(); await shot(page, 'app-08-ajustes-audio');
+  await page.getByText(/COMPLETO!/).waitFor(); await pause(); await shot(page, 'app-08-treino-completo');
+  await page.getByLabel('FINALIZAR E SALVAR').click(); await page.getByText('Seu histórico.').waitFor(); await pause();
+  await page.getByLabel(/^Treino A, /).first().click(); await pause(400); await shot(page, 'app-09-historico');
+  await page.getByRole('tab', {name: 'Músicas', exact: true}).click(); await pause(); await shot(page, 'app-10-musica-fitas');
+  await page.getByLabel('Adicionar músicas do celular').click(); await page.getByText('Adicionar à Treino A').waitFor();
+  await page.getByRole('checkbox', {name: 'Eye of the Tiger'}).click(); await page.getByRole('checkbox', {name: 'Lose Yourself'}).click(); await pause(); await shot(page, 'app-11-musicas-do-celular');
+  await page.getByLabel(/^ADICIONAR \d/).click(); await pause(500);
+  await page.getByLabel('Editar fita').click(); await pause(); await shot(page, 'app-12-editar-fita');
+  await page.getByLabel('Concluir edição da fita').click();
+  await page.getByRole('tab', {name: 'Início', exact: true}).click(); await pause();
+  await page.getByLabel('Abrir ajustes').click(); await page.getByText('Ajustes', {exact: true}).waitFor(); await pause(); await shot(page, 'app-13-ajustes');
   await ctx.close(); nat.s.close();
 }
 await browser.close(); site.s.close();

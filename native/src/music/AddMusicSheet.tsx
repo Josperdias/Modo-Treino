@@ -77,7 +77,7 @@ export default function AddMusicSheet({visible, onClose}: {visible: boolean; onC
         }}
       />
       <View style={S.footer}>
-        <Btn kind="ghost" small icon="folder-open-outline" text="ESCOLHER ARQUIVOS" onPress={() => { void m.importFiles(); }} />
+        <Btn kind="ghost" small icon="folder-open-outline" text="ARQUIVOS" onPress={() => { void m.importFiles(); }} />
         <Btn text={picked.size ? `ADICIONAR ${picked.size}` : 'ADICIONAR'} icon="add" disabled={!picked.size} onPress={confirm} style={{flex: 1}} />
       </View>
     </Sheet>

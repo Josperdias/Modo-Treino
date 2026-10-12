@@ -1,12 +1,14 @@
 import React, {useState} from 'react';
 import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
-import Animated, {FadeInDown, LinearTransition} from 'react-native-reanimated';
+import Animated, {FadeInDown, LinearTransition, ZoomIn} from 'react-native-reanimated';
 import {annotateRecords, personalBests, streak as streakDays, totalVolume} from '../../logic';
 import {todayKey, useApp} from '../store';
 import {exportCsv} from '../backup';
-import {Btn, Card, Icon, Kicker, Press} from '../ui';
+import {Btn, Card, CountUp, Icon, Kicker, Pattern, Press} from '../ui';
 import {C, INK, R, T} from '../theme';
 
+const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const LETTERS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const fmtKg = (n: number) => Number(n || 0).toLocaleString('pt-BR', {maximumFractionDigits: 1});
 
 export default function ProgressScreen({onTrain}: {onTrain: () => void}) {
@@ -16,22 +18,40 @@ export default function ProgressScreen({onTrain}: {onTrain: () => void}) {
   const records = annotateRecords(s);
   const bests = Object.entries(personalBests(s)).sort((a, b) => b[1].peso - a[1].peso);
   const volume = totalVolume(s);
-  const stats: [string, number | string, string][] = [[String(s.length), '', 'Treinos'], [String(s.reduce((a, x) => a + x.sets, 0)), '', 'Séries feitas'], [String(streakDays(s, todayKey())), '', 'Dias seguidos']];
+  const stats: [number, string][] = [[s.length, 'Treinos'], [s.reduce((a, x) => a + x.sets, 0), 'Séries feitas'], [streakDays(s, todayKey()), 'Dias seguidos']];
+  const trained = new Set(s.map((x) => x.date));
+  const week = Array.from({length: 7}, (_, k) => { const d = new Date(); d.setDate(d.getDate() - (6 - k)); return {key: dayKey(d), letter: LETTERS[d.getDay()], today: k === 6}; });
   return (
     <ScrollView contentContainerStyle={P.scroll} showsVerticalScrollIndicator={false}>
       <Animated.View entering={FadeInDown.duration(360)}>
         <Kicker>Arquivo pessoal</Kicker>
         <Text style={[T.h1, {marginTop: 4}]}>Seu histórico.</Text>
         <View style={P.stats}>
-          {stats.map(([big, , label]) => (
-            <View key={label} style={P.stat}><Text style={P.statBig}>{big}</Text><Text style={P.statLabel}>{label}</Text></View>
+          {stats.map(([n, label]) => (
+            <View key={label} style={P.stat}><CountUp value={n} style={P.statBig} /><Text style={P.statLabel}>{label}</Text></View>
           ))}
+        </View>
+        <View style={P.week} accessibilityLabel="Últimos 7 dias">
+          <Pattern kind="dots" opacity={0.08} size={14} />
+          <Text style={P.weekTitle}>ÚLTIMOS 7 DIAS</Text>
+          <View style={P.weekRow}>
+            {week.map((d, i) => {
+              const on = trained.has(d.key);
+              return (
+                <Animated.View key={d.key} entering={ZoomIn.delay(250 + i * 70).springify().damping(12)} style={{alignItems: 'center', gap: 6}}>
+                  <View style={[P.dot, on && P.dotOn, d.today && P.dotToday]}>{on && <Icon name="checkmark" size={18} color={C.ink} />}</View>
+                  <Text style={[P.dayLetter, d.today && {color: C.ink}]}>{d.letter}</Text>
+                </Animated.View>
+              );
+            })}
+          </View>
         </View>
       </Animated.View>
 
       {(bests.length > 0 || volume > 0) && (
         <Animated.View entering={FadeInDown.delay(80).duration(360)}>
           <Card style={P.records}>
+            <Pattern kind="grid" color="#FFFFFF" opacity={0.06} size={22} />
             <Kicker color="rgba(255,255,255,.6)">Seus números</Kicker>
             <Text style={P.recTitle}>Cargas e recordes</Text>
             {volume > 0 && <Text style={P.vol}>{fmtKg(volume)} kg <Text style={P.volSub}>de volume total</Text></Text>}
@@ -92,10 +112,17 @@ export default function ProgressScreen({onTrain}: {onTrain: () => void}) {
 const P = StyleSheet.create({
   scroll: {padding: 20, paddingBottom: 170},
   stats: {flexDirection: 'row', gap: 10, marginTop: 18},
+  week: {backgroundColor: C.sky, borderRadius: R.lg, padding: 16, marginTop: 12, overflow: 'hidden', ...INK},
+  weekTitle: {fontSize: 11, fontWeight: '900', letterSpacing: 1.6, color: C.ink},
+  weekRow: {flexDirection: 'row', justifyContent: 'space-between', marginTop: 12},
+  dot: {width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,.7)', borderWidth: 2, borderColor: 'rgba(20,27,52,.25)', alignItems: 'center', justifyContent: 'center'},
+  dotOn: {backgroundColor: C.yellow, borderColor: C.ink},
+  dotToday: {borderColor: C.ink},
+  dayLetter: {fontSize: 11, fontWeight: '900', color: 'rgba(20,27,52,.55)'},
   stat: {flex: 1, backgroundColor: C.card, borderRadius: R.lg, paddingVertical: 16, alignItems: 'center', borderWidth: 1.5, borderColor: C.line},
   statBig: {fontSize: 30, fontWeight: '900', color: C.ink, letterSpacing: -1},
   statLabel: {fontSize: 11, fontWeight: '700', color: C.muted, marginTop: 2},
-  records: {backgroundColor: C.ink, marginTop: 14, borderColor: C.ink},
+  records: {backgroundColor: C.ink, marginTop: 14, borderColor: C.ink, overflow: 'hidden'},
   recTitle: {fontSize: 22, fontWeight: '900', color: C.white, marginTop: 6},
   vol: {fontSize: 34, fontWeight: '900', color: C.yellow, marginTop: 10, letterSpacing: -1},
   volSub: {fontSize: 13, fontWeight: '600', color: '#B7C1E3', letterSpacing: 0},

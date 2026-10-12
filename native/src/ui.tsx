@@ -1,6 +1,6 @@
 import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import {Modal, Pressable, PressableProps, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import Animated, {cancelAnimation, Easing, FadeInDown, FadeOutDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming} from 'react-native-reanimated';
+import Animated, {useReducedMotion, cancelAnimation, Easing, FadeInDown, FadeOutDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, Defs, G, Line, Pattern as SvgPattern, Rect} from 'react-native-svg';
 import {Ionicons} from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -224,11 +224,94 @@ export function CountUp({value, style}: {value: number; style?: StyleProp<import
 
 /** Sobe e desce devagar (pôsteres e selos): dá vida sem distrair. */
 export function Float({children, amplitude = 5, duration = 2600, rotate = 0, style}: {children: React.ReactNode; amplitude?: number; duration?: number; rotate?: number; style?: StyleProp<ViewStyle>}) {
-  const t = useSharedValue(0);
+  const t = useSharedValue(0.5);
+  const reduce = useReducedMotion(); // "remover animações" do sistema: fica parado
   useEffect(() => {
+    if (reduce) return;
     t.value = withRepeat(withTiming(1, {duration, easing: Easing.inOut(Easing.sin)}), -1, true);
     return () => cancelAnimation(t);
-  }, [t, duration]);
+  }, [t, duration, reduce]);
   const a = useAnimatedStyle(() => ({transform: [{translateY: (t.value - 0.5) * 2 * amplitude}, {rotate: `${rotate + (t.value - 0.5) * 1.6}deg`}]}));
   return <Animated.View style={[style, a]}>{children}</Animated.View>;
+}
+
+/** Respira devagar (cronômetro de descanso, botão principal): chama a atenção sem piscar. */
+export function Pulse({children, scale = 1.03, duration = 1500, style}: {children: React.ReactNode; scale?: number; duration?: number; style?: StyleProp<ViewStyle>}) {
+  const t = useSharedValue(0);
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (reduce) return;
+    t.value = withRepeat(withTiming(1, {duration, easing: Easing.inOut(Easing.quad)}), -1, true);
+    return () => cancelAnimation(t);
+  }, [t, duration, reduce]);
+  const a = useAnimatedStyle(() => ({transform: [{scale: 1 + (scale - 1) * t.value}]}));
+  return <Animated.View style={[style, a]}>{children}</Animated.View>;
+}
+
+/** Brilho que acende e apaga (decoração do hero). */
+export function Twinkle({size = 16, color = C.ink, delay = 0, style}: {size?: number; color?: string; delay?: number; style?: StyleProp<ViewStyle>}) {
+  const t = useSharedValue(1);
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (reduce) return;
+    const id = setTimeout(() => { t.value = withRepeat(withTiming(1, {duration: 1100, easing: Easing.inOut(Easing.sin)}), -1, true); }, delay);
+    return () => { clearTimeout(id); cancelAnimation(t); };
+  }, [t, delay, reduce]);
+  const a = useAnimatedStyle(() => ({opacity: 0.25 + 0.75 * t.value, transform: [{scale: 0.7 + 0.5 * t.value}, {rotate: `${t.value * 25}deg`}]}));
+  return <Animated.View pointerEvents="none" style={[{position: 'absolute'}, style, a]}><Ionicons name="sparkles" size={size} color={color} /></Animated.View>;
+}
+
+/** Salta quando `trigger` fica verdadeiro (ícone da aba escolhida). */
+export function Bounce({trigger, children}: {trigger: boolean; children: React.ReactNode}) {
+  const s = useSharedValue(1);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    if (trigger) s.value = withSequence(withTiming(1.3, {duration: 120, easing: Easing.out(Easing.quad)}), withTiming(1, {duration: 220, easing: Easing.out(Easing.back(2))}));
+  }, [trigger, s]);
+  const a = useAnimatedStyle(() => ({transform: [{scale: s.value}]}));
+  return <Animated.View style={a}>{children}</Animated.View>;
+}
+
+/** Barrinhas de equalizador: dançam quando está tocando. */
+export function Equalizer({active, color = C.ink, size = 18}: {active: boolean; color?: string; size?: number}) {
+  const bars = [useSharedValue(0.35), useSharedValue(0.6), useSharedValue(0.45)];
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    bars.forEach((b, i) => {
+      if (active && reduce) b.value = 0.7;
+      else if (active) b.value = withRepeat(withSequence(withTiming(1, {duration: 320 + i * 110}), withTiming(0.25, {duration: 380 + i * 90})), -1, true);
+      else { cancelAnimation(b); b.value = withTiming(0.3, {duration: 150}); }
+    });
+    return () => bars.forEach((b) => cancelAnimation(b));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, reduce]);
+  const styles = bars.map((b) => useAnimatedStyle(() => ({height: size * b.value}))); // eslint-disable-line react-hooks/rules-of-hooks
+  return (
+    <View style={{height: size, flexDirection: 'row', alignItems: 'flex-end', gap: 2.5}} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {styles.map((st, i) => <Animated.View key={i} style={[{width: 3.5, borderRadius: 2, backgroundColor: color}, st]} />)}
+    </View>
+  );
+}
+
+/** Confete que cai uma vez (treino completo). Não captura toques. */
+const CONFETTI = [C.yellow, C.pink, C.sky, C.mint, C.white, C.ink];
+export function Confetti({count = 28}: {count?: number}) {
+  const [h, setH] = useState(0);
+  const reduce = useReducedMotion();
+  const pieces = useRef(Array.from({length: count}, (_, i) => ({
+    x: Math.random(), delay: Math.random() * 700, dur: 1800 + Math.random() * 1400, rot: (Math.random() - 0.5) * 900, drift: (Math.random() - 0.5) * 80,
+    w: 7 + Math.random() * 7, hgt: 10 + Math.random() * 10, color: CONFETTI[i % CONFETTI.length], round: i % 4 === 0,
+  }))).current;
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={(e) => setH(e.nativeEvent.layout.height)}>
+      {h > 0 && !reduce && pieces.map((p, i) => <ConfettiPiece key={i} p={p} h={h} />)}
+    </View>
+  );
+}
+function ConfettiPiece({p, h}: {p: {x: number; delay: number; dur: number; rot: number; drift: number; w: number; hgt: number; color: string; round: boolean}; h: number}) {
+  const t = useSharedValue(0);
+  useEffect(() => { t.value = withDelay(p.delay, withTiming(1, {duration: p.dur, easing: Easing.in(Easing.quad)})); return () => cancelAnimation(t); }, [t, p]);
+  const a = useAnimatedStyle(() => ({opacity: t.value > 0.9 ? (1 - t.value) * 10 : 1, transform: [{translateY: -30 + t.value * (h + 60)}, {translateX: Math.sin(t.value * 6) * p.drift}, {rotate: `${t.value * p.rot}deg`}]}));
+  return <Animated.View style={[{position: 'absolute', top: 0, left: `${p.x * 100}%`, width: p.w, height: p.round ? p.w : p.hgt, borderRadius: p.round ? p.w : 2, backgroundColor: p.color}, a]} />;
 }

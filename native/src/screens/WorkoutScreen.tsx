@@ -6,7 +6,8 @@ import {doneCount, nextStep, restPlan, snapshotSession, tapSeries} from '../../l
 import {playCount, playSound} from '../../SoundFX';
 import {EXERCISES, Exercise, imageInfo, Treino} from '../data';
 import {todayKey, useApp} from '../store';
-import {Btn, Float, Icon, Pattern, Press, Ring, useToast} from '../ui';
+import {Btn, Confetti, Float, Icon, Pattern, Press, Pulse, Ring, useToast} from '../ui';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {C, INK, R, T} from '../theme';
 import MiniPlayer from '../music/MiniPlayer';
 
@@ -23,6 +24,13 @@ type Rest = {end: number; total: number; advance: boolean};
 
 const fmtKg = (n: number) => Number(n || 0).toLocaleString('pt-BR', {maximumFractionDigits: 1});
 const clock = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+
+function SegFill({pct}: {pct: number}) {
+  const w = useSharedValue(pct);
+  useEffect(() => { w.value = withTiming(pct, {duration: 420, easing: Easing.out(Easing.cubic)}); }, [pct, w]);
+  const st = useAnimatedStyle(() => ({width: `${w.value}%`}));
+  return <Animated.View style={[{height: '100%', backgroundColor: C.green}, st]} />;
+}
 
 function SetButton({n, size, done, next, label, onPress}: {n: number; size: number; done: boolean; next: boolean; label: string; onPress: () => void}) {
   const pop = useSharedValue(1);
@@ -44,6 +52,7 @@ function SetButton({n, size, done, next, label, onPress}: {n: number; size: numb
 export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onOpenMusic, onZoom, onEdit}: Props) {
   const app = useApp();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
   const {state} = app;
   const list = EXERCISES.filter((x) => x.treino === treino);
   const p = app.progress(treino);
@@ -118,10 +127,10 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
 
   const top = (label: string) => (
     <>
-      <View style={W.top}>
-        <Press accessibilityRole="button" accessibilityLabel="Sair do modo execução" onPress={onClose} style={W.topBtn} quiet><Icon name="close" size={22} color={phase === 'card' ? C.ink : C.white} /></Press>
-        <Text accessibilityLiveRegion="polite" style={[W.topLabel, phase !== 'card' && {color: C.white}]}>{label}</Text>
-        <Press accessibilityRole="button" accessibilityLabel="Recomeçar o treino" onPress={restart} style={W.topBtn} quiet><Icon name="refresh" size={20} color={phase === 'card' ? C.ink : C.white} /></Press>
+      <View style={[W.top, {paddingTop: insets.top + 8}]}>
+        <Press accessibilityRole="button" accessibilityLabel="Sair do modo execução" onPress={onClose} style={W.topBtn} quiet><Icon name="close" size={22} color={C.white} /></Press>
+        <Text accessibilityLiveRegion="polite" style={W.topLabel}>{label}</Text>
+        <Press accessibilityRole="button" accessibilityLabel="Recomeçar o treino" onPress={restart} style={W.topBtn} quiet><Icon name="refresh" size={20} color={C.white} /></Press>
       </View>
       <MiniPlayer onOpen={onOpenMusic} dark />
     </>
@@ -133,6 +142,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
     return (
       <View style={[W.shell, {backgroundColor: C.yellow}]}>
         <Pattern kind="stripes" opacity={0.07} size={22} />
+        <Confetti />
         {top(`TREINO ${treino}`)}
         <View style={W.center}>
           <Animated.View entering={ZoomIn.springify().damping(9)}><Float amplitude={6} duration={2000}><View style={W.burst}><Icon name="checkmark" size={54} color={C.ink} /></View></Float></Animated.View>
@@ -165,10 +175,10 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
               <Text style={W.nextMeta}>{app.total(nx)} × {nc.reps} rep. · {nc.peso ? `${nc.peso} kg` : 'carga a definir'}</Text>
             </View>
           </Animated.View>
-          <Ring size={230} stroke={14} progress={rest.total ? secs / rest.total : 0} color={C.yellow} track="rgba(255,255,255,.14)">
+          <Pulse scale={1.025} duration={1600}><Ring size={230} stroke={14} progress={rest.total ? secs / rest.total : 0} color={C.yellow} track="rgba(255,255,255,.14)">
             <Text accessibilityRole="timer" accessibilityLabel="Tempo de descanso" style={W.clock}>{clock(secs)}</Text>
             <Text style={W.clockLabel}>{between ? 'ENTRE SÉRIES' : 'ENTRE EXERCÍCIOS'}</Text>
-          </Ring>
+          </Ring></Pulse>
           <View style={{flexDirection: 'row', gap: 12, alignSelf: 'stretch', marginTop: 30}}>
             <Press accessibilityRole="button" accessibilityLabel="Mais 15 segundos" onPress={() => { setRest({...rest, end: rest.end + 15000, total: rest.total + 15}); setSecs((s) => s + 15); }} style={W.pill}><Text style={W.pillText}>+15s</Text></Press>
             <Press accessibilityRole="button" accessibilityLabel="Pular descanso" onPress={finishRest} style={[W.pill, {backgroundColor: C.white}]}><Text style={[W.pillText, {color: C.navy}]}>PULAR</Text></Press>
@@ -185,7 +195,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
     <View style={W.shell}>
       {top(`EXERCÍCIO ${i + 1}/${list.length}`)}
       <View accessibilityRole="progressbar" accessibilityLabel="Progresso do treino" aria-valuenow={p.percent} aria-valuemin={0} aria-valuemax={100} style={W.segs}>
-        {list.map((_, k) => { const x = p.list[k]; return <View key={k} style={[W.seg, k === i && W.segNow]}><View style={{height: '100%', width: `${Math.round((100 * x.done) / x.total)}%`, backgroundColor: C.green}} /></View>; })}
+        {list.map((_, k) => { const x = p.list[k]; return <View key={k} style={[W.seg, k === i && W.segNow]}><SegFill pct={Math.round((100 * x.done) / x.total)} /></View>; })}
       </View>
       <ScrollView contentContainerStyle={W.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View key={ex.id} entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(160)}>
@@ -201,7 +211,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
               <Text style={T.kicker}>{ex.codigo} · {ex.grupo}</Text>
               <Text style={W.title}>{ex.nome.toUpperCase()}</Text>
             </View>
-            <Press accessibilityRole="button" accessibilityLabel="Como fazer o movimento" accessibilityState={{expanded: help}} onPress={() => setHelp(!help)} style={W.help} quiet><Icon name="information-circle-outline" size={22} /></Press>
+            <Press accessibilityRole="button" accessibilityLabel="Como fazer o movimento" accessibilityState={{expanded: help}} onPress={() => setHelp(!help)} style={W.help} quiet><Text style={W.helpMark}>?</Text></Press>
           </View>
           {help && <Animated.Text entering={FadeIn} style={W.helpBox}>{ex.orientacao}</Animated.Text>}
 
@@ -226,53 +236,55 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
           </View>
         </Animated.View>
       </ScrollView>
-      <View style={W.controls}>
-        <Press accessibilityRole="button" accessibilityLabel="Exercício anterior" disabled={i === 0} onPress={() => { setI(i - 1); setHelp(false); }} style={[W.nav, i === 0 && {opacity: 0.3}]} quiet><Icon name="chevron-back" size={24} /></Press>
+      <View style={[W.controls, {paddingBottom: insets.bottom + 12}]}>
+        <Press accessibilityRole="button" accessibilityLabel="Exercício anterior" disabled={i === 0} onPress={() => { setI(i - 1); setHelp(false); }} style={[W.nav, i === 0 && W.navOff]} quiet><Icon name="play-skip-back" size={24} color={i === 0 ? C.muted : C.ink} /></Press>
         <Press accessibilityRole="button" accessibilityLabel={label} onPress={() => { if (cur < total) tap(ex, cur + 1); else goNext(i); }} style={W.main} scaleTo={0.97}>
-          <Text style={W.mainText}>{label}</Text><Icon name={cur < total ? 'checkmark' : 'arrow-forward'} size={20} color={C.white} />
+          <Text style={W.mainText}>{label}</Text><Icon name={cur < total ? 'checkmark' : 'arrow-forward'} size={22} color={C.ink} />
         </Press>
-        <Press accessibilityRole="button" accessibilityLabel="Próximo exercício" disabled={i === list.length - 1} onPress={() => { setI(i + 1); setHelp(false); }} style={[W.nav, i === list.length - 1 && {opacity: 0.3}]} quiet><Icon name="chevron-forward" size={24} /></Press>
+        <Press accessibilityRole="button" accessibilityLabel="Próximo exercício" disabled={i === list.length - 1} onPress={() => { setI(i + 1); setHelp(false); }} style={[W.nav, i === list.length - 1 && W.navOff]} quiet><Icon name="play-skip-forward" size={24} /></Press>
       </View>
     </View>
   );
 }
 
 const W = StyleSheet.create({
-  shell: {...StyleSheet.absoluteFillObject, backgroundColor: C.paper, zIndex: 90},
-  top: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 6, paddingBottom: 6},
-  topBtn: {width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center'},
-  topLabel: {fontSize: 12, fontWeight: '900', letterSpacing: 1.8, color: C.ink},
+  shell: {...StyleSheet.absoluteFillObject, top: 0, backgroundColor: C.paper, zIndex: 90},
+  top: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingBottom: 12, backgroundColor: C.navy},
+  topBtn: {width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: '#4A5580', alignItems: 'center', justifyContent: 'center'},
+  topLabel: {fontSize: 22, fontWeight: '900', letterSpacing: -0.4, color: C.white},
   segs: {flexDirection: 'row', gap: 5, paddingHorizontal: 18, paddingTop: 8},
-  seg: {flex: 1, height: 6, borderRadius: 3, backgroundColor: '#DDD7CA', overflow: 'hidden'},
-  segNow: {backgroundColor: '#BFB8A8'},
+  seg: {flex: 1, height: 8, borderRadius: 4, backgroundColor: '#DDD7CA', overflow: 'hidden'},
+  segNow: {borderWidth: 2, borderColor: C.pink, backgroundColor: '#E6E1D7'},
   body: {padding: 18, paddingBottom: 24},
-  figure: {height: 250, borderRadius: R.xl, backgroundColor: C.card, padding: 8, ...INK},
+  figure: {height: 270, borderRadius: R.xl, backgroundColor: '#B4CDF6', padding: 6, ...INK},
   img: {width: '100%', height: '100%'},
   zoomBadge: {position: 'absolute', right: 12, bottom: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(20,27,52,.78)', alignItems: 'center', justifyContent: 'center'},
-  chip: {alignSelf: 'center', marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: R.pill, backgroundColor: C.mint},
+  chip: {alignSelf: 'center', marginTop: 12, paddingHorizontal: 16, paddingVertical: 7, borderRadius: R.pill, backgroundColor: C.card, ...INK},
   chipText: {fontSize: 11, fontWeight: '900', letterSpacing: 1, color: C.ink},
   titleRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16},
   title: {fontSize: 26, fontWeight: '900', letterSpacing: -0.8, color: C.ink, lineHeight: 28, marginTop: 4},
-  help: {width: 44, height: 44, borderRadius: 22, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
+  help: {width: 46, height: 46, borderRadius: 23, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...INK},
+  helpMark: {fontSize: 20, fontWeight: '900', color: C.ink},
   helpBox: {backgroundColor: C.white, borderRadius: R.md, padding: 14, marginTop: 10, fontSize: 14, lineHeight: 21, color: C.muted},
-  target: {flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginTop: 16, backgroundColor: C.soft, borderRadius: R.md, padding: 14},
+  target: {flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginTop: 14},
   targetText: {fontSize: 14, color: C.muted, fontWeight: '700'},
   targetBig: {fontSize: 20, fontWeight: '900', color: C.ink},
   edit: {flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 'auto'},
   editText: {fontSize: 12, fontWeight: '900', color: C.blue, letterSpacing: 0.6},
   setsLabel: {fontSize: 11, fontWeight: '900', letterSpacing: 1.3, color: C.muted, marginTop: 22, marginBottom: 12},
   sets: {flexDirection: 'row', flexWrap: 'wrap', gap: 12},
-  set: {borderRadius: 20, backgroundColor: C.card, borderWidth: 2, borderColor: '#D9D3C6', alignItems: 'center', justifyContent: 'center'},
+  set: {borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...INK},
   setDone: {backgroundColor: C.mint, borderColor: C.green},
-  setNext: {borderColor: C.ink, backgroundColor: C.yellow},
-  setText: {fontSize: 22, fontWeight: '900', color: C.muted},
+  setNext: {backgroundColor: C.yellow},
+  setText: {fontSize: 24, fontWeight: '900', color: C.ink},
   stepper: {flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 22},
-  stepBtn: {width: 44, height: 44, borderRadius: 22, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
+  stepBtn: {width: 46, height: 46, borderRadius: 16, backgroundColor: C.yellow, alignItems: 'center', justifyContent: 'center', ...INK},
   stepNum: {minWidth: 24, textAlign: 'center', fontSize: 18, fontWeight: '900', color: C.ink},
-  controls: {flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, paddingBottom: 18, backgroundColor: C.paper, borderTopWidth: 1.5, borderTopColor: C.line},
-  nav: {width: 54, height: 58, borderRadius: R.pill, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
-  main: {flex: 1, height: 58, borderRadius: R.pill, backgroundColor: C.ink, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center'},
-  mainText: {color: C.white, fontSize: 14, fontWeight: '900', letterSpacing: 0.8},
+  controls: {flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 12, backgroundColor: C.paper, borderTopWidth: 1.5, borderTopColor: C.line},
+  nav: {width: 62, height: 64, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...INK},
+  navOff: {backgroundColor: C.soft, borderColor: '#BDB7AA', opacity: 0.7},
+  main: {flex: 1, height: 64, borderRadius: 22, backgroundColor: C.yellow, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', ...INK},
+  mainText: {color: C.ink, fontSize: 16, fontWeight: '900', letterSpacing: 0.5},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
   burst: {width: 110, height: 110, borderRadius: 55, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...INK},
   doneTitle: {fontSize: 42, fontWeight: '900', letterSpacing: -1.5, color: C.ink, textAlign: 'center', lineHeight: 44, marginTop: 24},

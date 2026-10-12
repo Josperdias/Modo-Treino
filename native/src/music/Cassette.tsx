@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {LayoutChangeEvent, StyleSheet, Text, View} from 'react-native';
-import Animated, {cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
+import Animated, {useReducedMotion, cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, G, Line, Rect} from 'react-native-svg';
 import {C} from '../theme';
 
@@ -27,11 +27,12 @@ function Hub({size}: {size: number}) {
 export default function Cassette({playing, label, side = 'LADO A', progress = 0}: {playing: boolean; label: string; side?: string; progress?: number}) {
   const [w, setW] = useState(300);
   const spin = useSharedValue(0);
+  const reduce = useReducedMotion();
   useEffect(() => {
-    if (playing) spin.value = withRepeat(withTiming(spin.value + 360, {duration: 2400, easing: Easing.linear}), -1, false);
+    if (playing && !reduce) spin.value = withRepeat(withTiming(spin.value + 360, {duration: 2400, easing: Easing.linear}), -1, false);
     else cancelAnimation(spin);
     return () => cancelAnimation(spin);
-  }, [playing, spin]);
+  }, [playing, spin, reduce]);
   const style = useAnimatedStyle(() => ({transform: [{rotate: `${spin.value % 360}deg`}]}));
   const k = w / W;
   const p = Math.max(0, Math.min(1, progress));

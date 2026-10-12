@@ -4,7 +4,7 @@ import Animated, {FadeInDown, FadeInUp, ZoomIn} from 'react-native-reanimated';
 import {file, personaShort, Treino, treinoTitle} from '../data';
 import {todayKey, useApp} from '../store';
 import {streak as streakDays} from '../../logic';
-import {Btn, CountUp, Float, Icon, Kicker, Pattern, Press} from '../ui';
+import {Btn, CountUp, Float, Icon, Kicker, Pattern, Press, Pulse, Twinkle} from '../ui';
 import {C, INK, R, T} from '../theme';
 import {PersonaPicker} from './Sheets';
 
@@ -36,6 +36,9 @@ export default function HomeScreen({onOpenTreino, onStart}: Props) {
     <ScrollView contentContainerStyle={H.scroll} showsVerticalScrollIndicator={false}>
       <Animated.View entering={FadeInDown.duration(420)} style={H.hero}>
         <Pattern kind="dots" opacity={0.16} size={18} />
+        <Twinkle size={20} color={C.ink} delay={200} style={{top: 150, right: 120}} />
+        <Twinkle size={14} color={C.white} delay={700} style={{top: 120, right: 38}} />
+        <Twinkle size={16} color={C.ink} delay={1200} style={{top: 250, left: 160}} />
         <View style={H.heroPill}><Icon name="sparkles" size={13} /><Text style={H.heroPillText}>SEU MOVIMENTO COMEÇA AQUI</Text></View>
         <Animated.View entering={ZoomIn.delay(450).springify().damping(7)} style={H.stickerPos}>
           <Float amplitude={3} rotate={8} duration={1800} style={H.sticker}><Text style={H.stickerText}>BORA!</Text></Float>
@@ -44,7 +47,7 @@ export default function HomeScreen({onOpenTreino, onStart}: Props) {
         <Animated.Text entering={FadeInUp.delay(220).duration(420)} style={H.heroSub}>Uma série de cada vez. O seu treino, ilustrado por Josperd.</Animated.Text>
         <View style={H.heroBottom}>
           <Animated.View entering={FadeInUp.delay(320).duration(420)} style={{width: '47%', paddingBottom: 4}}>
-            <Btn icon="play" text={started ? `CONTINUAR TREINO ${next}` : `COMEÇAR TREINO ${next}`} label={started ? `Continuar treino ${next}` : `Começar treino ${next}`} onPress={() => onStart(next)} />
+            <Pulse scale={1.035} duration={1300}><Btn icon="play" text={started ? `CONTINUAR TREINO ${next}` : `COMEÇAR TREINO ${next}`} label={started ? `Continuar treino ${next}` : `Começar treino ${next}`} onPress={() => onStart(next)} /></Pulse>
             {started && <Text style={H.heroNote}>{pn.percent}% do Treino {next} hoje</Text>}
           </Animated.View>
           <Float amplitude={5} rotate={5} style={H.poster}>

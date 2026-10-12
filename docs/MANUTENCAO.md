@@ -4,7 +4,7 @@
 
 O aviso só aparece quando o número da release é **maior** que o instalado, então a versão precisa subir.
 
-1. `node scripts/bump-version.mjs 1.2.0` (muda os 6 lugares: `package.json`, `native/package.json`, `native/app.json`, `native/App.tsx`, `site/updates.js`, `site/sw.js`).
+1. `node scripts/bump-version.mjs 1.3.0` (muda os 6 lugares: `package.json`, `native/package.json`, `native/app.json`, `native/App.tsx`, `site/updates.js`, `site/sw.js`).
 2. `python3 tests/verify.py` (confere que a versão é única) e atualize o `CHANGELOG.md`.
 3. Abra o PR e espere o CI ficar verde. Dê o merge (o site é republicado sozinho pelo `pages.yml`).
 4. **Actions → "Android - APK de teste" → Run workflow**, marcando **publicar**. O workflow compila o APK, confere pacote/assinatura, calcula o **SHA-256** e cria a **pré-release `v1.2.0`** com o APK anexado. (Empurrar uma tag `v*` faz o mesmo.)

@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 import {Alert, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import Animated, {FadeIn, FadeInDown, LinearTransition} from 'react-native-reanimated';
 import {formatClock} from '../../logic';
-import {Btn, Card, Chips, Icon, Kicker, Press, Sheet, useToast} from '../ui';
+import {Btn, Card, Chips, Equalizer, Icon, Kicker, Press, Sheet, useToast} from '../ui';
 import {C, INK, R, shadow, T} from '../theme';
 import Cassette from '../music/Cassette';
 import AddMusicSheet from '../music/AddMusicSheet';
@@ -110,7 +110,7 @@ export default function MusicScreen() {
         return (
           <Animated.View key={t.id} layout={LinearTransition.duration(220)} entering={FadeIn.duration(220)}>
             <Press accessibilityRole="button" accessibilityLabel={`Tocar ${t.title}`} onPress={() => { void m.playTrack(t.id); }} scaleTo={0.985} quiet style={[P.row, current && P.rowOn]}>
-              <View style={[P.num, current && {backgroundColor: C.yellow}]}>{current && m.playing ? <Icon name="musical-notes" size={15} /> : <Text style={P.numText}>{i + 1}</Text>}</View>
+              <View style={[P.num, current && {backgroundColor: C.yellow}]}>{current ? <Equalizer active={m.playing} /> : <Text style={P.numText}>{i + 1}</Text>}</View>
               <View style={{flex: 1}}>
                 <Text numberOfLines={1} style={P.rowTitle}>{t.title}</Text>
                 <Text style={T.small}>{current ? (m.playing ? 'Tocando agora' : 'Pausada') : t.duration ? formatClock(t.duration) : t.source === 'file' ? 'Arquivo copiado para o app' : 'No celular'}</Text>
