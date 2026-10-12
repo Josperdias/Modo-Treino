@@ -1,5 +1,7 @@
-// Gera as artes das notificações do app (PNG, 512x512): uma fita (cassete) para cada uma das 8 cores, a arte da rádio (globo
-// de pontinhos no espaço) e o ícone pequeno branco da barra de status. Saída: native/assets/notif/.
+// Gera as artes das notificações do app:
+//  - native/assets/notif/radio.png (512x512): o globo de pontinhos no espaço (usado também no cartão "Tocando agora" do app);
+//  - native/modules/modo-notif/.../drawable-nodpi/: as 8 fitas (cassete) com fundo transparente, a arte da rádio recortada
+//    em paisagem e os ladrilhos de pontinhos dos cartões (azul-céu, amarelo, rosa, menta).
 //   node scripts/gerar-arte-notificacao.mjs        (precisa de Chromium via Playwright)
 import {createRequire} from 'node:module';
 import {mkdirSync} from 'node:fs';
@@ -8,8 +10,10 @@ import {fileURLToPath} from 'node:url';
 
 const require = createRequire(import.meta.url);
 const {chromium} = (() => { try { return require('playwright'); } catch { return require(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright'); } })();
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'native', 'assets', 'notif');
-mkdirSync(OUT, {recursive: true});
+const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', 'native');
+const OUT = join(RAIZ, 'assets', 'notif');
+const MOD = join(RAIZ, 'modules', 'modo-notif', 'android', 'src', 'main', 'res', 'drawable-nodpi');
+mkdirSync(OUT, {recursive: true}); mkdirSync(MOD, {recursive: true});
 
 // mesmas cores do MiniTape (native/src/music/Cassette.tsx)
 const TAPES = [
@@ -20,30 +24,23 @@ const TAPES = [
 ];
 const INK = '#0B1033';
 
-const cassete = (t, esc = 1) => `
-  <g transform="scale(${esc})">
-    <rect x="2" y="2" width="96" height="60" rx="9" fill="${t.body}" stroke="${INK}" stroke-width="3"/>
-    <rect x="9" y="7" width="82" height="24" rx="4" fill="${t.label}" stroke="${INK}" stroke-width="1.5"/>
-    <rect x="16" y="14" width="44" height="3" rx="1.5" fill="${t.ink}" opacity=".75"/>
-    <rect x="16" y="20" width="28" height="3" rx="1.5" fill="${t.ink}" opacity=".45"/>
+// cassete com fundo transparente (mesmo desenho do MiniTape do app), 320x205
+const cassete = (t) => `
+  <svg xmlns="http://www.w3.org/2000/svg" width="320" height="205" viewBox="-4 -4 108 72">
+    <rect x="2" y="2" width="96" height="60" rx="9" fill="${t.body}" stroke="${INK}" stroke-width="3.2"/>
+    <rect x="9" y="7" width="82" height="24" rx="4" fill="${t.label}" stroke="${INK}" stroke-width="1.6"/>
+    <rect x="9" y="22" width="82" height="9" fill="#F6A4C1" opacity=".45"/>
+    <rect x="16" y="13" width="44" height="3.2" rx="1.6" fill="${t.ink}" opacity=".8"/>
+    <rect x="16" y="19" width="28" height="3.2" rx="1.6" fill="${t.ink}" opacity=".5"/>
     <rect x="16" y="34" width="68" height="20" rx="10" fill="${INK}"/>
     <circle cx="32" cy="44" r="6.5" fill="#F7F3EA"/><circle cx="32" cy="44" r="2.4" fill="${t.body}"/>
     <circle cx="68" cy="44" r="6.5" fill="#F7F3EA"/><circle cx="68" cy="44" r="2.4" fill="${t.body}"/>
-  </g>`;
-
-const fundoFita = (t) => `
-  <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-    <defs>
-      <pattern id="p" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="14" cy="14" r="2.2" fill="#fff" opacity=".13"/></pattern>
-      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B2547"/><stop offset="1" stop-color="#101733"/></linearGradient>
-    </defs>
-    <rect width="512" height="512" fill="url(#g)"/><rect width="512" height="512" fill="url(#p)"/>
-    <g transform="translate(256 250) rotate(-6) translate(-224 -143)">
-      <rect x="10" y="12" width="448" height="286" rx="40" fill="#000" opacity=".35"/>
-      ${cassete(t, 4.48)}
-    </g>
-    <text x="256" y="470" text-anchor="middle" font-family="Barlow Condensed, Impact, Arial Narrow, sans-serif" font-weight="900" font-size="40" letter-spacing="4" fill="#FFD369">MODO TREINO</text>
+    <path d="M34 62 L40 55 H60 L66 62Z" fill="${INK}" opacity=".85"/>
+    <circle cx="42" cy="59.4" r="1.3" fill="#53629D"/><circle cx="58" cy="59.4" r="1.3" fill="#53629D"/>
   </svg>`;
+
+// ladrilho 40x40 com dois pontinhos em quincôncio (fundo dos cartões das notificações)
+const ladrilho = (cor) => `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="10" cy="10" r="1.8" fill="${cor}"/><circle cx="30" cy="30" r="1.8" fill="${cor}"/></svg>`;
 
 // globo de pontinhos (países em rosa/azul/amarelo/menta/lilás) no espaço, com halo rosa→azul e um pino vermelho
 const globo = () => {
@@ -77,23 +74,22 @@ const globo = () => {
   </svg>`;
 };
 
-// ícone da barra de status: silhueta branca de cassete em fundo transparente (Android usa só o canal alfa)
-const icone = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-    <g fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"><rect x="8" y="22" width="80" height="52" rx="9"/></g>
-    <rect x="20" y="30" width="56" height="16" rx="3" fill="#fff"/>
-    <circle cx="34" cy="60" r="6" fill="#fff"/><circle cx="62" cy="60" r="6" fill="#fff"/>
-  </svg>`;
-
 const browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 const page = await browser.newPage({deviceScaleFactor: 1});
-const png = async (svg, w, h, nome, transparente = false) => {
+const pngEm = async (dir, svg, w, h, nome, transparente = false) => {
   await page.setViewportSize({width: w, height: h});
   await page.setContent(`<html><body style="margin:0;background:${transparente ? 'transparent' : '#000'}">${svg}</body></html>`);
-  await page.screenshot({path: join(OUT, nome), omitBackground: transparente, clip: {x: 0, y: 0, width: w, height: h}});
+  await page.screenshot({path: join(dir, nome), omitBackground: transparente, clip: {x: 0, y: 0, width: w, height: h}});
   console.log('ok', nome);
 };
-for (let i = 0; i < TAPES.length; i++) await png(fundoFita(TAPES[i]), 512, 512, `fita-${i}.png`);
+const png = (svg, w, h, nome, transparente = false) => pngEm(OUT, svg, w, h, nome, transparente);
 await png(globo(), 512, 512, 'radio.png');
-await png(icone(), 96, 96, 'icone.png', true);
+// recorte paisagem do globo (100:64) para o cartão da rádio; o Android arredonda e põe o contorno
+const globoPaisagem = globo().replace('width="512" height="512" viewBox="0 0 512 512"', 'width="320" height="205" viewBox="0 60 512 327.7"');
+await pngEm(MOD, globoPaisagem, 320, 205, 'art_radio.png');
+for (let i = 0; i < TAPES.length; i++) await pngEm(MOD, cassete(TAPES[i]), 320, 205, `art_fita_${i}.png`, true);
+await pngEm(MOD, ladrilho('rgba(120,160,230,.59)'), 40, 40, 'dots_sky.png', true);
+await pngEm(MOD, ladrilho('rgba(225,160,20,.51)'), 40, 40, 'dots_yellow.png', true);
+await pngEm(MOD, ladrilho('rgba(225,110,160,.51)'), 40, 40, 'dots_rose.png', true);
+await pngEm(MOD, ladrilho('rgba(70,170,120,.47)'), 40, 40, 'dots_mint.png', true);
 await browser.close();

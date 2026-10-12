@@ -7,11 +7,14 @@ import {doneCount, nextStep, restPlan, snapshotSession, tapSeries} from '../../l
 import {playCount, playSound} from '../../SoundFX';
 import {EXERCISES, Exercise, imageInfo, Treino} from '../data';
 import {todayKey, useApp} from '../store';
-import {AText, Btn, Confetti, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, useToast} from '../ui';
+import {AText, Btn, Confetti, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, Sheet, useToast} from '../ui';
+import ExerciseVideo from '../ExerciseVideo';
+import {calar, falar} from '../voice';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {C, INK, R, T, useNarrow} from '../theme';
 import MiniPlayer from '../music/MiniPlayer';
-import {limparTreino, mostrarTreino} from '../notify';
+import {limparTreino, mostrarTreino, nomeDaImagem} from '../notify';
+import {ModoNotif} from '../../modules/modo-notif';
 
 type Props = {
   treino: Treino;
@@ -63,13 +66,15 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const [phase, setPhase] = useState<'card' | 'rest' | 'done'>(() => (startIndex == null && p.firstIncomplete < 0 && p.total > 0 ? 'done' : 'card'));
   const [rest, setRest] = useState<Rest | null>(null);
   const [secs, setSecs] = useState(0);
+  const [restPaused, setRestPaused] = useState(false);
   const [help, setHelp] = useState(false);
+  const [vid, setVid] = useState(false);
   const prevSecs = useRef(0);
   const [setsW, setSetsW] = useState(0);
 
-  const stopRest = useCallback(() => { setRest(null); setSecs(0); prevSecs.current = 0; }, []);
+  const stopRest = useCallback(() => { setRest(null); setSecs(0); setRestPaused(false); prevSecs.current = 0; }, []);
   const startRest = (seconds: number, advance: boolean) => {
-    prevSecs.current = 0; setSecs(seconds); setRest({end: Date.now() + seconds * 1000, total: seconds, advance}); setPhase('rest');
+    prevSecs.current = 0; setRestPaused(false); setSecs(seconds); setRest({end: Date.now() + seconds * 1000, total: seconds, advance}); setPhase('rest');
   };
   const goNext = useCallback((from: number) => {
     const st = nextStep(app.progress(treino).list, from);
@@ -83,10 +88,16 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   }, [rest, stopRest, goNext, i]);
 
   useEffect(() => {
-    if (!rest) return;
+    if (!rest || restPaused) return;
     const t = setInterval(() => setSecs(Math.max(0, Math.ceil((rest.end - Date.now()) / 1000))), 250);
     return () => clearInterval(t);
-  }, [rest]);
+  }, [rest, restPaused]);
+  /** Pausa o descanso (a contagem congela) e retoma de onde parou. */
+  const toggleRestPause = () => {
+    if (!rest) return;
+    if (restPaused) { setRest({...rest, end: Date.now() + secs * 1000}); setRestPaused(false); }
+    else setRestPaused(true);
+  };
   useEffect(() => {
     if (!rest) return;
     if (secs > 0 && secs <= 3 && secs !== prevSecs.current) playCount(secs);
@@ -102,16 +113,35 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const total = app.total(ex);
   const cur = doneCount(app.done(ex), total);
 
-  // notificação do exercício (separada da de música): fixa durante o treino; ao tocar nela o app volta para esta tela
+  // Notificação do exercício (cartão verde-menta, separada da de música): ilustração, "Séries feitas" ou descanso, e botões.
+  // Exercício: ✓ conclui a série, ⏭ vai ao próximo exercício. Descanso: ⏸/▶ pausa e retoma a contagem, ⏭ pula o descanso.
+  const resting = phase === 'rest' && !!rest;
+  const lastStepNow = nextStep(p.list, i).type === 'done';
+  const nextLabel = cur < total ? `Concluir série ${cur + 1}` : lastStepNow ? 'Terminar o treino' : 'Próximo exercício';
+  const restEnd = resting ? rest!.end : 0;
+  const restLeft = resting && restPaused ? secs : 0;
   useEffect(() => {
     if (!state.notifyWorkout || phase === 'done') { void limparTreino(); return; }
-    const titulo = `Treino ${treino} · exercício ${i + 1}/${list.length}`;
-    const proximo = list[i + 1];
-    const corpo = phase === 'rest' ? `Descansando${proximo && cur >= total ? ` · próximo: ${proximo.nome}` : ''}` : `${ex.nome} · ${cur}/${total} séries`;
-    void mostrarTreino(titulo, corpo);
-  }, [state.notifyWorkout, phase, i, cur, total]); // eslint-disable-line react-hooks/exhaustive-deps
+    mostrarTreino({
+      kicker: `${ex.codigo} · ${ex.grupo}`, title: ex.nome, persona: state.persona,
+      image: nomeDaImagem(imageInfo(ex, state.persona).image),
+      pill: `Séries feitas: ${cur}/${total}`,
+      restEndsAt: resting && !restPaused ? restEnd : 0, restPaused: resting && restPaused, restLeft,
+      primaryAction: resting ? (restPaused ? 'resume' : 'pause') : 'serie',
+      primaryLabel: resting ? (restPaused ? 'Retomar o descanso' : 'Pausar o descanso') : nextLabel,
+      secondaryAction: resting ? 'skip' : 'next',
+      secondaryLabel: resting ? 'Pular o descanso' : 'Próximo exercício',
+    });
+  }, [state.notifyWorkout, state.persona, phase, i, cur, total, resting, restPaused, restEnd, restLeft]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { void limparTreino(); }, []);
   const c = app.conf(ex);
+  const video = state.videos[ex.id];
+  // Voz do treino (opcional): ao chegar num exercício, fala o nome, as séries e a carga.
+  useEffect(() => {
+    if (!state.voice || phase !== 'card') return;
+    falar(`${ex.nome}. ${total} séries de ${c.reps} repetições${c.peso ? `, com ${c.peso} quilos` : ''}.`);
+  }, [ex.id, phase === 'card', state.voice]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => calar(), []);
   const info = imageInfo(ex, state.persona);
   const cols = Math.min(total, 6);
   const setSize = setsW > 0 ? Math.max(44, Math.min(72, Math.floor((setsW - 12 * (cols - 1)) / cols))) : 60;
@@ -124,8 +154,9 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
     app.setDone(e, next);
     if (after <= before) return;
     playSound('series');
-    if (p.sets + (after - before) >= p.total) { stopRest(); setPhase('done'); return; }
+    if (p.sets + (after - before) >= p.total) { stopRest(); setPhase('done'); if (state.voice) falar('Treino completo. Parabéns!'); return; }
     const seconds = restPlan({exerciseDone: after >= t, restExercise: state.restExercise, restSet: state.restSet});
+    if (state.voice) falar(`${after >= t ? 'Exercício concluído' : `Série ${after} concluída`}.${seconds > 0 ? ` Descanso de ${seconds} segundos.` : ''}`);
     if (seconds > 0) startRest(seconds, after >= t);
   };
   const adjust = (e: Exercise, d: number) => { const k = app.conf(e); app.saveOverride(e, {...k, series: Math.max(1, Math.min(12, app.total(e) + d))}); };
@@ -137,6 +168,17 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
     if (r.ok) { playSound('finish'); onSaved(); }
     else toast.show(r.reason === 'already' ? 'Você já finalizou esse treino hoje.' : 'Marque pelo menos uma série.');
   };
+
+  // Botões da notificação chegam aqui (a ref guarda sempre a versão mais nova do estado).
+  const actions = useRef<(a: string) => void>(() => {});
+  actions.current = (a) => {
+    if (a === 'serie') { if (cur < total) tap(ex, cur + 1); else goNext(i); }
+    else if (a === 'next') { if (i < list.length - 1) { setHelp(false); stopRest(); setI(i + 1); setPhase('card'); } }
+    else if (a === 'pause') { if (rest && !restPaused) toggleRestPause(); }
+    else if (a === 'resume') { if (rest && restPaused) toggleRestPause(); }
+    else if (a === 'skip') { if (rest) finishRest(); }
+  };
+  useEffect(() => ModoNotif.onAction((e) => { if (e.kind === 'workout') actions.current(e.action); }), []);
 
   const top = (label: string) => (
     <>
@@ -194,6 +236,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
           </Ring></Pulse>
           <View style={{flexDirection: 'row', gap: 12, alignSelf: 'stretch', marginTop: 30}}>
             <Press accessibilityRole="button" accessibilityLabel="Mais 15 segundos" onPress={() => { setRest({...rest, end: rest.end + 15000, total: rest.total + 15}); setSecs((s) => s + 15); }} style={W.pill}><Text style={W.pillText}>+15s</Text></Press>
+            <Press accessibilityRole="button" accessibilityLabel={restPaused ? 'Retomar o descanso' : 'Pausar o descanso'} accessibilityState={{selected: restPaused}} onPress={toggleRestPause} style={[W.pill, restPaused && {backgroundColor: C.yellow, borderColor: C.yellow}]}><Text style={[W.pillText, restPaused && {color: C.ink}]}>{restPaused ? 'RETOMAR' : 'PAUSAR'}</Text></Press>
             <Press accessibilityRole="button" accessibilityLabel="Pular descanso" onPress={finishRest} style={[W.pill, {backgroundColor: C.white}]}><Text style={[W.pillText, {color: C.navy}]}>PULAR</Text></Press>
           </View>
         </View>
@@ -227,6 +270,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
             <Pop accessibilityRole="button" accessibilityLabel="Como fazer o movimento" accessibilityState={{expanded: help}} onPress={() => setHelp(!help)} quiet radius={23} offset={3} color={help ? C.yellow : C.card} innerStyle={W.help}><Text style={W.helpMark}>?</Text></Pop>
           </View>
           {help && <AText entering={FadeIn} style={W.helpBox}>{ex.orientacao}</AText>}
+          {video && <Btn small kind="ghost" icon="videocam" text="VER MEU VÍDEO DE EXECUÇÃO" onPress={() => setVid(true)} style={{marginTop: 10}} />}
 
           <View style={W.target}>
             <Text style={W.targetText}><Text style={W.targetBig}>{total}</Text> séries × <Text style={W.targetBig}>{c.reps}</Text> rep.</Text>
@@ -256,6 +300,9 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
         </Pop>
         <Pop accessibilityRole="button" accessibilityLabel="Próximo exercício" disabled={i === list.length - 1} onPress={() => { setI(i + 1); setHelp(false); }} quiet radius={22} offset={4} color={C.card} innerStyle={W.nav}><Icon name="play-skip-forward" size={24} /></Pop>
       </View>
+      <Sheet visible={vid && !!video} onClose={() => setVid(false)} title="Meu vídeo">
+        {video && <View style={{paddingBottom: 12}}><ExerciseVideo video={video} height={420} /><Text style={[T.small, {marginTop: 8}]} numberOfLines={1}>{ex.nome} · {video.name}</Text></View>}
+      </Sheet>
     </View>
   );
 }

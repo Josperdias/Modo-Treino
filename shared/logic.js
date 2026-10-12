@@ -378,10 +378,72 @@
     if (n >= 0 && n < ids.length) return ids[n];
     return o.repeat ? ids[(n + ids.length) % ids.length] : null;
   }
+  /** Texto sem acento e em minúsculas ("Bíceps" → "biceps"), para buscar sem se preocupar com acentos nem maiúsculas. */
+  function foldText(value) {
+    return String(value == null ? '' : value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Busca com pontuação. `textsOf(item)` devolve os textos do item, do mais importante (nome) ao menos (descrição).
+   * TODAS as palavras da busca precisam aparecer em algum texto. Quanto mais cedo e mais importante o texto, maior a nota:
+   * começo do texto > começo de palavra > no meio. Empates mantêm a ordem original. Busca vazia devolve [].
+   */
+  function searchRank(items, query, textsOf) {
+    const tokens = foldText(query).split(' ').filter(Boolean);
+    if (!tokens.length) return [];
+    // nota de um texto para uma palavra: começo do texto > começo de palavra > no meio (palavra de 1 letra só vale no começo de palavra)
+    const hit = (t, tk) => {
+      if (t.startsWith(tk)) return 6;
+      if (t.includes(' ' + tk)) return 4;
+      return tk.length > 1 && t.includes(tk) ? 2 : 0;
+    };
+    const scored = [];
+    items.forEach((item, index) => {
+      const texts = (textsOf(item) || []).map(foldText);
+      let total = 0;
+      let all = true;
+      for (const tk of tokens) {
+        let best = 0;
+        texts.forEach((t, k) => {
+          if (!t) return;
+          const v = hit(t, tk) * (k === 0 ? 10 : 1);
+          if (v > best) best = v;
+        });
+        if (!best) { all = false; break; }
+        total += best;
+      }
+      if (all) scored.push({item, score: total, index});
+    });
+    scored.sort((x, y) => y.score - x.score || x.index - y.index);
+    return scored.map((x) => x.item);
+  }
+
+  /** Músicas (fitas) por título ou artista; busca vazia devolve todas (como a lista). */
   function searchTracks(tracks, query) {
-    const q = String(query == null ? '' : query).trim().toLowerCase();
-    if (!q) return tracks;
-    return tracks.filter((x) => (x.title + ' ' + (x.artist || '')).toLowerCase().includes(q));
+    if (!foldText(query)) return tracks;
+    return searchRank(tracks, query, (x) => [x.title, x.artist || '']);
+  }
+  /** Exercícios por nome, grupo muscular, código (A1), treino, nota e orientação. */
+  function searchExercises(exercises, query) {
+    return searchRank(exercises, query, (e) => [e.nome, e.grupo + ' ' + e.codigo + ' treino ' + e.treino, e.nota || '', e.orientacao || '']);
+  }
+  /** Bags (playlists) pelo nome. */
+  function searchBags(bags, query) {
+    return searchRank(bags, query, (b) => [b.name]);
+  }
+  /** Treinos já feitos: por exercício feito, treino (A/B) ou data (AAAA-MM-DD ou DD/MM). Mais recentes primeiro. */
+  function searchSessions(sessions, query) {
+    const found = searchRank(sessions, query, (x) => {
+      const items = Array.isArray(x.items) ? x.items.map((i) => i.nome).join(' ') : '';
+      const [y, m, d] = String(x.date || '').split('-');
+      return ['treino ' + x.treino, items, String(x.date || '') + ' ' + d + '/' + m + '/' + y + ' ' + d + '/' + m];
+    });
+    return found.sort((x, y) => String(y.date).localeCompare(String(x.date)));
   }
   function formatClock(seconds) {
     const s = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -516,7 +578,12 @@
     forgetTrack,
     resolveTape,
     nextTrackId,
+    foldText,
+    searchRank,
     searchTracks,
+    searchExercises,
+    searchBags,
+    searchSessions,
     formatClock,
     sessionsToCsv,
     validateBackup,

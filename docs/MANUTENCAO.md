@@ -65,3 +65,11 @@ Veja [CLAUDE.md](../CLAUDE.md).
 
 ## Verificação de desenvolvedor do Google (Play Protect "App blocked")
 - Desde 30/09/2026 (Brasil, Indonésia, Singapura e Tailândia) o Google bloqueia nos aparelhos certificados apps de desenvolvedores não verificados. Para registrar: **Android Developer Console** → verificar a conta → registrar o pacote **`art.josperd.modotreino`** com o certificado de assinatura (SHA-256 `5F:68:FF:14:07:2B:0E:C2:81:BE:B6:DA:27:30:58:64:75:E6:C3:68:02:72:23:64:7A:B1:B5:E2:46:1D:44:73`). Isso depende da conta Google do dono; não dá para resolver só no código.
+
+## Notificações (módulo `native/modules/modo-notif`)
+- Kotlin em `android/src/main/java/art/josperd/modotreino/notif/`; layouts/drawables/fontes em `android/src/main/res/`. O JavaScript manda o estado pronto (`src/notify.ts`, `MusicProvider`, `WorkoutScreen`) e escuta o evento `onAction`.
+- **Validar os XML** sem SDK: `apt install aapt` e `aapt2 compile --dir <res> -o res.zip && aapt2 link -I <android-all.jar> --manifest <AndroidManifest.xml> -o out.ap_ res.zip` (qualquer atributo/recurso inválido derruba o link).
+- **Ver o visual**: `python3 scripts/previa-notificacoes/scenes.py /tmp/previa && node scripts/previa-notificacoes/shoot.mjs /tmp/previa '["music_big","workout_big"]'` (converte os layouts reais em HTML; aproximação, sem o cabeçalho do Android).
+- O Kotlin só compila de verdade no CI (`android-apk.yml`). Alterou o módulo? Abra PR e espere o job "Compilar APK".
+- Artes (fitas, globo, pontinhos): `node scripts/gerar-arte-notificacao.mjs`.
+- Sem notificação no aparelho? **Ajustes → Notificações** mostra permissão, canais e aparelho; **TESTAR AS DUAS** dispara os cartões. Em Xiaomi/HyperOS confira também "Tela de bloqueio" e "Notificações flutuantes" nas configurações do app.

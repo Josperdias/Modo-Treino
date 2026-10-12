@@ -74,6 +74,23 @@ export function search(stations: Station[], query: string, tag?: string | null, 
   return out;
 }
 
+/** Procura rádios pelo nome direto no diretório (não precisa ter localização). Falha de rede = lista vazia. */
+export async function searchOnline(query: string, limit = 15): Promise<Station[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+  try {
+    const raw = await getJson(`/json/stations/byname/${encodeURIComponent(q)}?hidebroken=true&order=clickcount&reverse=true&limit=${limit}`, 8000);
+    const out: Station[] = [];
+    for (const r of Array.isArray(raw) ? raw : []) {
+      const url = String(r.url_resolved || r.url || '');
+      if (!url || !/^https?:\/\//i.test(url)) continue;
+      out.push({i: String(r.stationuuid), n: String(r.name || '').trim().slice(0, 60) || 'Rádio sem nome', u: url, cc: String(r.countrycode || '').toUpperCase().slice(0, 2), co: String(r.country || '').slice(0, 40),
+        st: String(r.state || '').slice(0, 40), tg: String(r.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean).slice(0, 4).join(','), lat: num(r.geo_lat), lng: num(r.geo_long), c: num(r.clickcount), br: num(r.bitrate)});
+    }
+    return out;
+  } catch { return []; }
+}
+
 /** Estilos para filtrar o globo. `tag` é o que o Radio Browser usa; `label` é o que o app mostra. */
 export const GENRES: {tag: string; label: string}[] = [
   {tag: 'pop', label: 'Pop'}, {tag: 'rock', label: 'Rock'}, {tag: 'hip hop', label: 'Hip hop'}, {tag: 'electronic', label: 'Eletrônica'},

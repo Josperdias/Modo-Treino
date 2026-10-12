@@ -11,7 +11,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import {setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus} from 'expo-audio';
 import {forgetTrack, nextTrackId, resolveTape, tapeAdd, tapeInsert, tapeMove, tapeRemove} from '../../logic';
 import {flag} from '../data';
-import {arteDaFita, arteDaRadio, arteDaRadioPronta} from './artwork';
+import {tapeIndex} from './tapeIndex';
+import {ModoNotif} from '../../modules/modo-notif';
 import {askPermission, DeviceTrack, Permission, pickMusicFolder, readPermission, scanDevice, scanFolder} from './device';
 
 export type Track = {id: string; title: string; artist?: string; uri: string; duration?: number; source: 'device' | 'file' | 'radio'; cc?: string; country?: string};
@@ -177,15 +178,6 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       const vol = Math.max(0, Math.min(1, libRef.current.volume ?? 1));
       other.pause(); other.replace({uri: src.uri}); other.volume = seconds ? 0 : vol; other.play();
       try { other.setPlaybackRate?.(src.source === 'radio' ? 1 : libRef.current.rate || 1); } catch { /* velocidade é um extra */ }
-      try {
-        // notificação de música do sistema: fita colorida (ou globo, se for rádio), nome e de onde vem
-        const arte = await (src.source === 'radio' ? arteDaRadio() : arteDaFita(src.id));
-        const bag = queueRef.current ? 'Todas as fitas' : libRef.current.tapes.find((t) => t.id === libRef.current.selected)?.name;
-        old.clearLockScreenControls?.();
-        other.setActiveForLockScreen?.(true, src.source === 'radio'
-          ? {title: src.title, artist: `${flag(src.cc)} ${src.country || 'Rádio'} · ao vivo`, albumTitle: 'Rádio do mundo', artworkUrl: arte}
-          : {title: src.title, artist: bag ? `Fita · ${bag}` : 'Fita', albumTitle: 'Modo Treino', artworkUrl: arte});
-      } catch { /* controles da tela de bloqueio são um extra */ }
       channel.current = 1 - oldIndex; nowRef.current = src; setNowTrack(src);
       setRadioTrackState(src.source === 'radio' ? {id: src.id, title: null, state: 'buscando'} : null); setPlaying(true); playingRef.current = true;
       if (seconds) {
@@ -303,6 +295,24 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     return [...m.values()];
   }, [device, lib.tracks]);
 
+  // Notificação nativa do player (cartão azul-céu no visual do app): acompanha faixa, tocar/pausar, favorito e o tempo (de 5 em 5 s).
+  const bagName = queueName ?? `Bag ${activeTape.name}`;
+  const favNow = !!(nowTrack && lib.tapes.find((t) => t.id === 'fav')?.ids.includes(nowTrack.id));
+  const posBucket = Math.floor((currentStatus.currentTime || 0) / 5) * 5;
+  const durNow = Math.round(currentStatus.duration || 0);
+  useEffect(() => {
+    if (!nowTrack) { ModoNotif.musicStop(); return; }
+    const radio = nowTrack.source === 'radio';
+    const pais = `${flag(nowTrack.cc)} ${nowTrack.country || 'Rádio'}`;
+    ModoNotif.music({
+      title: radio && radioTrack?.title ? radioTrack.title : nowTrack.title,
+      subtitle: radio ? (radioTrack?.title ? `${nowTrack.title} · ${pais}` : `${pais} · ao vivo`) : `${bagName}${nowTrack.artist ? ` · ${nowTrack.artist}` : ''}`,
+      kicker: radio ? 'Rádio ao vivo' : 'Fita', art: radio ? -1 : tapeIndex(nowTrack.id), playing, live: radio,
+      position: radio ? 0 : posBucket, duration: radio ? 0 : durNow, fav: favNow, skip: !radio,
+    });
+  }, [nowTrack, playing, radioTrack, bagName, favNow, posBucket, durNow]);
+  useEffect(() => () => { ModoNotif.musicStop(); }, []);
+
   const api: MusicAPI = {
     lib, now, live, playing, position: currentStatus.currentTime || 0, duration: live ? 0 : currentStatus.duration || 0, library, activeTape,
     tapeTracks: resolved.tracks, missing: resolved.missing, device, scanning, permission, scan, addFolder, importFiles,
@@ -397,12 +407,21 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     setRadioTrack: (id, title, icy) => {
       if (nowRef.current?.id !== 'radio:' + id) return;      // resposta atrasada de outra rádio
       setRadioTrackState({id: nowRef.current.id, title, state: title ? 'ok' : icy ? 'buscando' : 'sem'});
-      if (title) { // tela de bloqueio: faixa em cima, nome da rádio embaixo
-        try { (channel.current === 0 ? one : two).updateLockScreenMetadata?.({title, artist: `${nowRef.current.title} · ${flag(nowRef.current.cc)} ${nowRef.current.country || ''}`.trim(), albumTitle: 'Rádio do mundo', artworkUrl: arteDaRadioPronta()}); } catch { /* extra */ }
-      }
     },
     queueName,
   };
+  // Botões da notificação, do fone e do Bluetooth chegam aqui (a ref guarda sempre a versão mais nova das funções).
+  const actions = useRef<(a: string) => void>(() => {});
+  actions.current = (a) => {
+    if (a === 'toggle') playPause();
+    else if (a === 'play') { if (!playingRef.current) playPause(); }
+    else if (a === 'pause') { if (playingRef.current) playPause(); }
+    else if (a === 'next') skip(1);
+    else if (a === 'prev') skip(-1);
+    else if (a === 'fav') { if (nowRef.current) api.toggleFav(nowRef.current); }
+    else if (a === 'close') { if (playingRef.current) playPause(); ModoNotif.musicStop(); }
+  };
+  useEffect(() => ModoNotif.onAction((e) => { if (e.kind === 'music') actions.current(e.action); }), []);
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
 

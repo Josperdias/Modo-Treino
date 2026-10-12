@@ -49,6 +49,11 @@ export function tapeMove<T extends TapeLike>(tapes: T[], tapeId: string, trackId
 export function forgetTrack<L extends {tracks: TrackLike[]; tapes: TapeLike[]}>(lib: L, trackId: string): L;
 export function resolveTape<X extends TrackLike>(tape: TapeLike, tracks: X[]): {tracks: X[]; missing: number};
 export function nextTrackId(ids: string[], currentId: string | null | undefined, dir: number, opts?: {shuffle?: boolean; repeat?: boolean; rand?: () => number}): string | null;
+export function foldText(value: unknown): string;
+export function searchRank<X>(items: X[], query: string, textsOf: (item: X) => string[]): X[];
 export function searchTracks<X extends TrackLike>(tracks: X[], query: string): X[];
+export function searchExercises<X extends {nome: string; grupo: string; codigo: string; treino: string; nota?: string; orientacao?: string}>(exercises: X[], query: string): X[];
+export function searchBags<X extends {name: string}>(bags: X[], query: string): X[];
+export function searchSessions<X extends {date: string; treino: string; items?: {nome: string}[]}>(sessions: X[], query: string): X[];
 export function formatClock(seconds: number): string;
 export function releaseNotes(body: string | null | undefined, max?: number): string[];

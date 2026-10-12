@@ -6,8 +6,12 @@ import {EXERCISES, Exercise, file, imageInfo, Persona, personaName, Treino} from
 import {useApp} from '../store';
 import {BackupApi, shareBackup, shareCsv} from '../backup';
 import {GITHUB_REPO} from '../updates';
-import {estadoNotificacoes, NotifState, pedirNotificacoes} from '../notify';
+import {abrirAjustesDeNotificacao, diagnostico, estadoNotificacoes, mostrarTreino, NotifState, pedirNotificacoes} from '../notify';
+import {ModoNotif} from '../../modules/modo-notif';
 import {Btn, Card, Chips, Icon, Kicker, Pop, Press, Sheet, Switch} from '../ui';
+import ExerciseVideo from '../ExerciseVideo';
+import {deleteExerciseVideo, pickExerciseVideo} from '../video';
+import {falar} from '../voice';
 import {Glyph} from '../glyphs';
 import {C, INK, R, shadow, T} from '../theme';
 
@@ -49,18 +53,35 @@ const Section = ({title, children}: {title: string; children: React.ReactNode}) 
 );
 
 function NotifPermission({visible}: {visible: boolean}) {
+  const {state} = useApp();
   const [st, setSt] = useState<NotifState>('unavailable');
-  useEffect(() => { if (visible) void estadoNotificacoes().then(setSt); }, [visible]);
+  const [info, setInfo] = useState<string[]>([]);
+  const refresh = () => { void estadoNotificacoes().then(setSt); setInfo(diagnostico()); };
+  useEffect(() => { if (visible) refresh(); }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   if (st === 'unavailable') return null;
   const ok = st === 'granted';
+  // Mostra os dois cartões com dados de exemplo, para ver (e conferir no Android) como ficam.
+  const testar = () => {
+    ModoNotif.music({title: 'Fita 03 – Ritmo de treino', subtitle: 'Bag Treino A · Mix genérico', kicker: 'Fita', art: 2, playing: true, live: false, position: 84, duration: 198, fav: false, skip: true});
+    mostrarTreino({kicker: 'A1 · Bíceps', title: 'Rosca direta na barra W', image: '', persona: state.persona, pill: 'Séries feitas: 2/5', restEndsAt: 0, restPaused: false, restLeft: 0,
+      primaryAction: 'serie', primaryLabel: 'Concluir série 3', secondaryAction: 'next', secondaryLabel: 'Próximo exercício'});
+    setTimeout(() => { ModoNotif.musicStop(); ModoNotif.workoutStop(); }, 20000);
+    setInfo(diagnostico());
+  };
   return (
     <View style={{marginTop: 4, paddingVertical: 10}}>
       <Text style={T.h3}>{ok ? 'Notificações permitidas ✓' : 'Notificações desligadas'}</Text>
-      <Text style={[T.small, {marginTop: 2, marginBottom: ok ? 0 : 10}]}>
-        {ok ? 'A notificação do player (fita ou rádio) e a do exercício podem aparecer na barra do celular.'
-          : 'Sem esta permissão o Android esconde TODAS as notificações do app: a do player de música e a do exercício.'}
+      <Text style={[T.small, {marginTop: 2, marginBottom: 10}]}>
+        {ok ? 'Duas notificações no visual do app: a da música (fita ou rádio) e a do exercício. Elas aparecem também com a tela bloqueada.'
+          : st === 'ask' ? 'Sem esta permissão o Android esconde TODAS as notificações do app: a do player de música e a do exercício.'
+          : 'O Android está bloqueando as notificações do Modo Treino. Abra os ajustes do app e ligue "Mostrar notificações" (e, em alguns celulares, "Tela de bloqueio" e "Notificações flutuantes").'}
       </Text>
-      {!ok && <Btn small icon="notifications" text={st === 'ask' ? 'PERMITIR NOTIFICAÇÕES' : 'ABRIR AJUSTES DO ANDROID'} onPress={() => { if (st === 'ask') void pedirNotificacoes().then(setSt); else void Linking.openSettings(); }} />}
+      {info.length > 0 && <View style={{marginBottom: 10}}>{info.map((l) => <Text key={l} style={T.small} selectable>{l}</Text>)}</View>}
+      <View style={{gap: 8}}>
+        {st === 'ask' && <Btn small icon="notifications" text="PERMITIR NOTIFICAÇÕES" onPress={() => { void pedirNotificacoes().then((n) => { setSt(n); setInfo(diagnostico()); }); }} />}
+        {st !== 'ask' && <Btn small kind={ok ? 'ghost' : 'primary'} icon="settings-sharp" text="AJUSTES DE NOTIFICAÇÃO" onPress={() => { abrirAjustesDeNotificacao(); }} />}
+        {ok && <Btn small icon="notifications" text="TESTAR AS DUAS" onPress={testar} />}
+      </View>
     </View>
   );
 }
@@ -85,7 +106,8 @@ export function SettingsSheet({visible, onClose, version, status, onCheck, onGal
 
         <Section title="Tela">
           <Switch value={state.keepAwake} onChange={(v) => update((s) => ({...s, keepAwake: v}))} title="Manter a tela ligada no treino" desc="Evita apagar durante o modo execução. Gasta mais bateria." />
-          <Switch value={state.notifyWorkout} onChange={(v) => update((s) => ({...s, notifyWorkout: v}))} title="Notificação do exercício" desc="Mostra o exercício atual na barra do celular durante o treino; toque nela para voltar ao app." />
+          <Switch value={state.notifyWorkout} onChange={(v) => update((s) => ({...s, notifyWorkout: v}))} title="Notificação do exercício" desc="Cartão verde-menta com a ilustração, as séries feitas e botões para concluir a série e pular o descanso, também com a tela bloqueada." />
+          <Switch value={state.voice} onChange={(v) => { update((s) => ({...s, voice: v})); if (v) falar('Voz do treino ligada.'); }} title="Voz do treino" desc="Desligada por padrão. O Android fala o exercício, a série concluída e o descanso. Usa a voz que já está no celular." />
           <NotifPermission visible={visible} />
         </Section>
 
@@ -166,6 +188,27 @@ export function EditSheet({exercise, onClose, onZoom}: {exercise: Exercise | nul
   const [weight, setWeight] = useState('');
   const [series, setSeries] = useState('');
   const [reps, setReps] = useState('');
+  const [watch, setWatch] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const video = exercise ? app.state.videos[exercise.id] : undefined;
+  useEffect(() => { setWatch(false); }, [exercise]);
+  const chooseVideo = async () => {
+    if (!exercise || busy) return;
+    setBusy(true);
+    try {
+      const v = await pickExerciseVideo(exercise.id);
+      if (v) { if (video) void deleteExerciseVideo(video.uri); app.update((s) => ({...s, videos: {...s.videos, [exercise.id]: v}})); setWatch(true); }
+    } catch (e) {
+      Alert.alert(e instanceof Error && e.message === 'not-video' ? 'Isso não é um vídeo' : 'Não foi possível guardar o vídeo', e instanceof Error && e.message === 'not-video' ? 'Escolha um arquivo de vídeo (MP4, MOV, WebM ou 3GP).' : 'Confira se há espaço no celular e tente de novo.');
+    } finally { setBusy(false); }
+  };
+  const removeVideo = () => {
+    if (!exercise || !video) return;
+    Alert.alert('Remover o vídeo?', 'Só a cópia guardada pelo Modo Treino é apagada. O vídeo original continua na sua galeria.', [
+      {text: 'Cancelar', style: 'cancel'},
+      {text: 'Remover', style: 'destructive', onPress: () => { void deleteExerciseVideo(video.uri); setWatch(false); app.update((s) => { const {[exercise.id]: _gone, ...rest} = s.videos; return {...s, videos: rest}; }); }},
+    ]);
+  };
   useEffect(() => {
     if (!exercise) return;
     const c = app.conf(exercise);
@@ -199,6 +242,23 @@ export function EditSheet({exercise, onClose, onZoom}: {exercise: Exercise | nul
             <Field label="SÉRIES" value={series} onChange={setSeries} keyboardType="number-pad" />
             <Field label="REPS" value={reps} onChange={setReps} keyboardType="number-pad" />
           </View>
+          <Text style={[T.kicker, {marginTop: 22, marginBottom: 8}]}>Meu vídeo de execução</Text>
+          {video ? (
+            <View style={{gap: 10}}>
+              {watch && <ExerciseVideo video={video} height={300} />}
+              <Text style={T.small} numberOfLines={1}>{video.name}</Text>
+              <Btn small icon={watch ? 'close' : 'play'} kind={watch ? 'ghost' : 'primary'} text={watch ? 'FECHAR O VÍDEO' : 'VER MEU VÍDEO'} onPress={() => setWatch(!watch)} />
+              <View style={{flexDirection: 'row', gap: 10}}>
+                <Btn small kind="ghost" icon="swap-horizontal" text="TROCAR" onPress={() => { void chooseVideo(); }} style={{flex: 1}} />
+                <Btn small kind="danger" icon="trash-outline" text="REMOVER" onPress={removeVideo} style={{flex: 1}} />
+              </View>
+            </View>
+          ) : (
+            <>
+              <Text style={[T.small, {marginBottom: 10}]}>Grave você fazendo o movimento e guarde aqui para rever durante o treino. O vídeo fica só neste celular.</Text>
+              <Btn small kind="ghost" icon="videocam-outline" text={busy ? 'GUARDANDO…' : 'ESCOLHER UM VÍDEO'} disabled={busy} onPress={() => { void chooseVideo(); }} />
+            </>
+          )}
           <Btn text="SALVAR AJUSTES" icon="checkmark" onPress={save} style={{marginTop: 18}} />
         </ScrollView>
       )}

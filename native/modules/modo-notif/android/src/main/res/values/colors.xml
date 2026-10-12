@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="mt_ink">#FF141B34</color>
+  <color name="mt_navy">#FF101733</color>
+  <color name="mt_paper">#FFF5F2EB</color>
+  <color name="mt_card">#FFFFFEFA</color>
+  <color name="mt_yellow">#FFFFD369</color>
+  <color name="mt_pink">#FFE9A0BF</color>
+  <color name="mt_sky">#FFAAC8F8</color>
+  <color name="mt_mint">#FFB7EFCE</color>
+  <color name="mt_muted">#FF4A5270</color>
+  <color name="mt_heart">#FFE63950</color>
+  <color name="mt_pink2">#FFF7A8C8</color>
+  <color name="mt_rose">#FFF6C9D8</color>
+  <color name="mt_lime">#FFE3F76B</color>
+  <color name="mt_sage">#FF9FCDB4</color>
+</resources>

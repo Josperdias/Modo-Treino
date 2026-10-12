@@ -11,7 +11,7 @@ import {BarlowCondensed_700Bold, BarlowCondensed_800ExtraBold, BarlowCondensed_9
 import {DMSans_400Regular, DMSans_500Medium, DMSans_700Bold} from '@expo-google-fonts/dm-sans';
 import {Glyph} from './src/glyphs';
 import {AppProvider, useApp} from './src/store';
-import {Exercise, imageInfo, personaShort, Treino} from './src/data';
+import {EXERCISES, Exercise, imageInfo, personaShort, Treino} from './src/data';
 import {MusicProvider} from './src/music/MusicProvider';
 import MiniPlayer from './src/music/MiniPlayer';
 import NowPlaying from './src/music/NowPlaying';
@@ -19,6 +19,7 @@ import MusicHub, {MusicMode} from './src/screens/MusicHub';
 import HomeScreen from './src/screens/HomeScreen';
 import TrainScreen from './src/screens/TrainScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
+import SearchScreen from './src/screens/SearchScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
 import {EditSheet, GallerySheet, SettingsSheet} from './src/screens/Sheets';
 import ZoomView from './src/ZoomView';
@@ -30,12 +31,13 @@ import {limparTreino, pedirNotificacoes} from './src/notify';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {C, R, useNarrow} from './src/theme';
 
-const APP_VERSION='1.3.4';
+const APP_VERSION='1.4.0';
 
-type Tab = 'home' | 'music' | 'progress';
+type Tab = 'home' | 'music' | 'search' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
   {key: 'home', label: 'Início', icon: 'home-outline', on: 'home'},
   {key: 'music', label: 'Músicas', icon: 'musical-notes-outline', on: 'musical-notes'},
+  {key: 'search', label: 'Buscar', icon: 'search-outline', on: 'search'},
   {key: 'progress', label: 'Progresso', icon: 'stats-chart-outline', on: 'stats-chart'},
 ];
 
@@ -141,6 +143,8 @@ function Shell() {
         <Animated.View key={tab} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)} style={{flex: 1}}>
           {tab === 'home' && <HomeScreen onOpenTreino={(t) => setOpen(t)} onStart={(t) => setWorkout({t})} />}
           {tab === 'music' && <MusicHub mode={musicMode} onMode={setMusicMode} />}
+          {tab === 'search' && <SearchScreen onStartExercise={(e) => setWorkout({t: e.treino, index: EXERCISES.filter((x) => x.treino === e.treino).findIndex((x) => x.id === e.id)})} onEditExercise={setEditing}
+            onGoBags={() => { setMusicMode('bags'); setTab('music'); }} onGoHistory={() => setTab('progress')} />}
           {tab === 'progress' && <ProgressScreen onTrain={() => setTab('home')} />}
         </Animated.View>
         {tab === 'home' && open && (

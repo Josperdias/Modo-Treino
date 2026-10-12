@@ -4,6 +4,7 @@ import {DEFAULT_SOUNDS, normalizeSoundSettings, setSoundSettings, SoundSettings}
 import type {Session} from '../logic';
 import {clampSeries, normalizeRest, snapshotSession, workoutProgress} from '../logic';
 import {EXERCISES, Exercise, Persona, Treino} from './data';
+import type {ExVideo} from './video';
 
 export type Override = {peso: string; series: number; reps: number};
 export type Store = {
@@ -16,13 +17,17 @@ export type Store = {
   notifyUpdates: boolean;
   keepAwake: boolean;
   notifyWorkout: boolean;
+  /** Voz do treino (fala exercício, série e descanso). Desligada por padrão. */
+  voice: boolean;
+  /** Vídeo próprio de cada exercício (cópia dentro do app). Fica só neste celular: não entra no backup. */
+  videos: Record<string, ExVideo>;
   sounds: SoundSettings;
 };
 
 export const STORAGE = 'modo-treino-native-v1';
 const INITIAL: Store = {
   persona: 'vinho', restExercise: 60, restSet: 0, sets: {}, override: {}, sessions: [],
-  notifyUpdates: true, keepAwake: false, notifyWorkout: true, sounds: {...DEFAULT_SOUNDS},
+  notifyUpdates: true, keepAwake: false, notifyWorkout: true, voice: false, videos: {}, sounds: {...DEFAULT_SOUNDS},
 };
 
 export const todayKey = () => {
@@ -57,7 +62,7 @@ export function AppProvider({children}: {children: React.ReactNode}) {
       if (!v) return;
       try {
         const j = JSON.parse(v);
-        setState({...INITIAL, ...j, ...normalizeRest(j), persona: j.persona === 'loira' ? 'loira' : 'vinho', sounds: normalizeSoundSettings(j.sounds)});
+        setState({...INITIAL, ...j, ...normalizeRest(j), persona: j.persona === 'loira' ? 'loira' : 'vinho', sounds: normalizeSoundSettings(j.sounds), voice: j.voice === true, videos: j.videos && typeof j.videos === 'object' ? j.videos : {}});
       } catch { /* dados antigos corrompidos: começa do zero sem travar */ }
     }).catch(() => {}).finally(() => setLoaded(true));
   }, []);

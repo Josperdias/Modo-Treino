@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="40dp" android:height="40dp" android:viewportWidth="100" android:viewportHeight="100">
+  <path android:fillColor="@color/mt_pink" android:strokeColor="@color/mt_ink" android:strokeWidth="5" android:pathData="M57.0,50.0a19,19 0 1,0 38,0a19,19 0 1,0 -38,0z" />
+  <path android:fillColor="@color/mt_pink" android:strokeColor="@color/mt_ink" android:strokeWidth="5" android:pathData="M44.0,72.5a19,19 0 1,0 38,0a19,19 0 1,0 -38,0z" />
+  <path android:fillColor="@color/mt_pink" android:strokeColor="@color/mt_ink" android:strokeWidth="5" android:pathData="M18.0,72.5a19,19 0 1,0 38,0a19,19 0 1,0 -38,0z" />
+  <path android:fillColor="@color/mt_pink" android:strokeColor="@color/mt_ink" android:strokeWidth="5" android:pathData="M5.0,50.0a19,19 0 1,0 38,0a19,19 0 1,0 -38,0z" />
+  <path android:fillColor="@color/mt_pink" android:strokeColor="@color/mt_ink" android:strokeWidth="5" android:pathData="M18.0,27.5a19,19 0 1,0 38,0a19,19 0 1,0 -38,0z" />
+  <path android:fillColor="@color/mt_pink" android:strokeColor="@color/mt_ink" android:strokeWidth="5" android:pathData="M44.0,27.5a19,19 0 1,0 38,0a19,19 0 1,0 -38,0z" />
+  <path android:fillColor="@color/mt_yellow" android:strokeColor="@color/mt_ink" android:strokeWidth="5" android:pathData="M33.0,50.0a17,17 0 1,0 34,0a17,17 0 1,0 -34,0z" />
+</vector>
