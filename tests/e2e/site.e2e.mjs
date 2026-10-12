@@ -36,6 +36,7 @@ test.after(async () => { await browser?.close(); await new Promise((ok) => serve
 
 /* ---------- helpers ---------- */
 const GH = 'Josperdias/modo-treino';
+const INSTALLED = JSON.parse(readFileSync(join(SITE, '../native/package.json'), 'utf8')).version; // site e app andam juntos (verify.py garante)
 const rel = (tag, extra = {}) => ({
   tag_name: tag, draft: false, prerelease: false,
   html_url: `https://github.com/${GH}/releases/tag/${tag}`, published_at: '2026-10-12T12:00:00Z', body: '',
@@ -380,7 +381,7 @@ test('aviso de versão: release mais nova mostra faixa com link do APK; nunca in
 });
 
 test('aviso de versão: versão igual, rascunho e tag inválida não geram aviso', async () => {
-  for (const releases of [[rel('v1.1.0')], [rel('v9.9.9', {draft: true})], [rel('nightly')], []]) {
+  for (const releases of [[rel('v' + INSTALLED)], [rel('v9.9.9', {draft: true})], [rel('nightly')], []]) {
     const {context, page} = await newPage({github: {releases, commit: null}});
     await go(page, '/ajustes'); await page.waitForFunction(() => !/Consultando/.test(document.getElementById('updateStatus')?.textContent || 'Consultando'));
     assert.equal(await page.locator('#git-news-banner').isVisible(), false, JSON.stringify(releases.map((r) => r.tag_name)));
@@ -800,4 +801,34 @@ test('aviso (toast) invisível nunca bloqueia toques: todos os botões de série
     assert.deepEqual(blocked, [], `largura ${width}: botões bloqueados pelo aviso`);
     await context.close();
   }
+});
+
+/* ---------- cartão e aviso de download do app ---------- */
+test('download: cartão na página inicial e link na barra lateral levam a /baixar/', async () => {
+  const {context, page} = await newPage({github: {releases: [], commit: COMMIT}});
+  await go(page, '/');
+  const card = page.locator('#dlCard');
+  assert.equal(await card.getAttribute('href'), 'baixar/');
+  assert.match(await card.innerText(), /Baixe o app Android/i);
+  assert.equal(await page.locator('.rail-download').getAttribute('href'), 'baixar/');
+  await card.click(); await page.waitForURL(/\/baixar\/$/);
+  assert.match(await page.locator('h1').innerText(), /NO BOLSO/);
+  await context.close();
+});
+
+test('download: com release que tem APK, o cartão mostra a versão e o tamanho (mesmo sem ser mais nova)', async () => {
+  const {context, page} = await newPage({github: {releases: [rel('v1.0.0'), rel('v1.1.0')], commit: COMMIT}});
+  await go(page, '/');
+  await page.waitForFunction(() => /1\.1\.0/.test(document.getElementById('dlTitle')?.textContent || ''));
+  assert.match(await page.locator('#dlSub').innerText(), /APK de teste · 50,0 MB/);
+  await context.close();
+});
+
+test('download: no app instalado (standalone) o cartão e o link não aparecem', async () => {
+  const {context, page} = await newPage();
+  await context.addInitScript(() => { const o = window.matchMedia.bind(window); window.matchMedia = (q) => q.includes('display-mode: standalone') ? {matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}} : o(q); });
+  await go(page, '/');
+  assert.equal(await page.locator('#dlCard').count(), 0);
+  assert.equal(await page.locator('.rail-download').count(), 0);
+  await context.close();
 });

@@ -35,6 +35,8 @@ test.before(async () => {
 test.after(async () => { await browser?.close(); if (server) await new Promise((ok) => server.close(ok)); });
 
 const REPO = 'Josperdias/Modo-Treino';
+const INSTALLED = JSON.parse(readFileSync(new URL('../../native/package.json', import.meta.url), 'utf8')).version; // versão instalada = a do app
+const bump = (v, k) => { const [a, b, c] = v.split('.').map(Number); return `${a}.${b}.${c + k}`; };
 const rel = (tag, extra = {}) => ({tag_name: tag, draft: false, prerelease: true, html_url: `https://github.com/${REPO}/releases/tag/${tag}`, assets: [], ...extra});
 
 async function open({releases = [], status = 200, viewport = {width: 390, height: 844}, seed = null, clock = false} = {}) {
@@ -156,8 +158,8 @@ test('ajustes: sons desligados por padrão; ativar e "manter tela ligada" persis
 test('avisos de versão: mostra o estado correto (mais nova, igual, mais antiga, nenhuma, offline)', {skip}, async () => {
   const cases = [
     [{releases: [rel('v1.0.0'), rel('v9.0.0'), rel('v1.5.0')]}, /Versão 9\.0\.0 publicada\. Baixe e instale manualmente\./],
-    [{releases: [rel('v1.1.0')]}, /tudo em dia/],
-    [{releases: [rel('v1.0.0')]}, /mais nova que a última release \(1\.0\.0\)/],
+    [{releases: [rel('v' + INSTALLED)]}, /tudo em dia/],
+    [{releases: [rel('v' + bump(INSTALLED, -1))]}, new RegExp('mais nova que a última release \\(' + bump(INSTALLED, -1).replace(/\./g, '\\.') + '\\)')],
     [{releases: []}, /nenhuma release publicada/],
     [{releases: [rel('v9.9.9', {draft: true})]}, /nenhuma release publicada/],
     [{releases: [], status: 500}, /GitHub indisponível/],

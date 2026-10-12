@@ -1,88 +1,114 @@
-# MODO TREINO — by Josperd
+<div align="center">
 
-Um diário de treino pessoal, autoral e ilustrado. Treino A (6 exercícios) e Treino B (8 exercícios), personagens Josperd e Camila Camomila, a ruivinha. Desenvolvido como site/PWA offline e aplicativo React Native/Expo (base instalável a compilar).
+# 💪 MODO TREINO
+### *by Josperd*
 
-## Site
+**O seu diário de treino ilustrado.** Marque quantas séries você fez, descanse no tempo certo, ouça sua fita cassete e acompanhe sua evolução, tudo salvo no seu aparelho. Sem conta. Sem anúncios.
 
-Abra `site/index.html` para inspeção básica. Para usar o PWA, a biblioteca musical persistente e o service worker com segurança, **sirva o diretório `site/` via HTTPS ou localhost**:
+[![CI](https://github.com/Josperdias/Modo-Treino/actions/workflows/check.yml/badge.svg)](https://github.com/Josperdias/Modo-Treino/actions/workflows/check.yml)
+[![Última versão](https://img.shields.io/github/v/release/Josperdias/Modo-Treino?include_prereleases&label=vers%C3%A3o&color=ffd365&labelColor=121a32)](https://github.com/Josperdias/Modo-Treino/releases)
+![PWA offline](https://img.shields.io/badge/PWA-offline-ed73a1?labelColor=121a32)
+![Expo SDK 54](https://img.shields.io/badge/Expo-SDK%2054-3776e6?labelColor=121a32)
+
+### [🌐 Abrir o site](https://josperdias.github.io/Modo-Treino/) &nbsp;·&nbsp; [📲 Baixar o app Android](https://josperdias.github.io/Modo-Treino/baixar/) &nbsp;·&nbsp; [🗂️ Todas as versões](https://github.com/Josperdias/Modo-Treino/releases)
+
+<br>
+
+<img src="screenshots/v1.1.0/site-mobile-01-inicio.png" width="210" alt="Tela inicial do Modo Treino">
+<img src="screenshots/v1.1.0/site-mobile-04-modo-execucao-card.png" width="210" alt="Modo execução: card do exercício com os botões de séries">
+<img src="screenshots/v1.1.0/site-mobile-06-modo-execucao-descanso.png" width="210" alt="Tela de descanso com cronômetro e mini player de música">
+
+</div>
+
+---
+
+## ✨ O que tem aqui
+
+| | |
+|---|---|
+| 🃏 **Modo Execução** | Um card por exercício, em tela cheia. **Toque em quantas séries você fez** (tocar em "3" registra 3; tocar de novo corrige). Descanso automático com **+15s**, **Pular** e **Editar tempo**, e o próximo exercício já preparado. |
+| 🖼️ **Ilustração inteira + zoom** | As artes do Josperd aparecem **inteiras**, sem corte. Toque na imagem para ampliar até 600% (pinça, toque duplo, roda do mouse, arrastar). |
+| 🏋️ **Treinos A e B** | 14 exercícios (6 + 8) com séries, repetições e cargas **editáveis**. Você escolhe quem treina com você: **Josperd** ou **Camila Camomila, a ruivinha**. |
+| 📈 **Histórico de verdade** | Volume por treino (séries × repetições × carga), detalhe por exercício, **recordes pessoais** e exportação em **CSV**. |
+| 📼 **Modo Música** | Importe as suas músicas, monte fitas (Treino A, Treino B, Favoritas), **crossfade de 0 a 8 s**, cassete com bobinas animadas e **mini player dentro do treino**. Tudo local; sem baixar nada de terceiros. |
+| 🔊 **Sons opcionais** | Estilos *Suave*, *Arcade* e *Minimal*, contagem **3-2-1 falada em português**. **Tudo vem desligado**; você escolhe o que quer ouvir. |
+| 📴 **Funciona offline** | Ilustrações, sons e seus registros ficam no aparelho. Instale como app pelo navegador. |
+| 🔔 **Avisos de versão nova** | O app e o site avisam quando sai uma release nova (veja abaixo). **Nada se instala sozinho.** |
+| 💾 **Seus dados são seus** | Backup em JSON (validado), planilha CSV. Nada é enviado a servidor algum. |
+
+<div align="center">
+
+<img src="screenshots/v1.1.0/site-mobile-05-modo-execucao-zoom.png" width="190" alt="Zoom na ilustração">
+<img src="screenshots/v1.1.0/site-mobile-07-modo-execucao-completo.png" width="190" alt="Treino completo">
+<img src="screenshots/v1.1.0/site-mobile-08-historico.png" width="190" alt="Histórico com recordes">
+<img src="screenshots/v1.1.0/site-mobile-11-musica-fitas.png" width="190" alt="Modo Música com fitas">
+
+</div>
+
+## 🚀 Como usar
+
+### 1) Pelo navegador (qualquer celular ou computador)
+Abra **https://josperdias.github.io/Modo-Treino/** e use. Para virar app:
+- **Android (Chrome):** menu ⋮ → *Instalar app*
+- **iPhone (Safari):** Compartilhar → *Adicionar à Tela de Início*
+- **Computador:** ícone de instalar na barra de endereço
+
+### 2) App Android (APK de teste)
+1. Abra **[a página de download](https://josperdias.github.io/Modo-Treino/baixar/)** no celular e toque em **Baixar APK**.
+2. Abra o arquivo e permita instalar de "fonte desconhecida" só para essa instalação.
+3. Confira o **SHA-256** mostrado na página com o do arquivo baixado.
+
+> ⚠️ É um **APK de teste** (assinado com a chave de depuração do template Expo): serve para avaliação, **não é a versão da Play Store**. Exporte um backup (Ajustes → Exportar) antes de trocar de versão.
+> Não existe app para iOS; no iPhone use o site instalado pelo Safari.
+
+## 🔔 Avisos de versão nova
+
+- **Ao abrir ou voltar para o app** (com internet), ele consulta as releases públicas deste repositório. Se existir uma versão **maior** que a instalada, mostra um aviso com **Ver release** e **Baixar APK**.
+- O site mostra a mesma faixa de aviso e o cartão **"Baixe o app Android"** na página inicial (com versão e tamanho quando existe um APK publicado).
+- Um *commit* novo **não** é "versão nova": só uma **release com APK** conta.
+- **Não há notificação push em tempo real** (isso exigiria um servidor) e **nunca há instalação automática**: você decide baixar.
+- Dá para desativar em **Ajustes → Atualizações do GitHub**.
+
+## 🧑‍💻 Para quem desenvolve
 
 ```bash
-cd site
-python3 -m http.server 8000
-# depois: http://localhost:8000
+# site/PWA
+python3 -m http.server 8000 -d site          # http://localhost:8000
+
+# app Expo (SDK 54)
+cd native && npm ci && npx expo start
+
+# testes
+npm test                                      # estrutura + lógica (29 testes)
+npm ci && npx playwright install chromium && npm run test:e2e   # site no Chromium (48 testes)
 ```
 
-Em um navegador compatível, menu > Instalar aplicativo / Adicionar à tela inicial. O site não exige cadastro, guarda registros dos treinos em localStorage e arquivos de áudio em IndexedDB. Músicas locais permanecem somente neste dispositivo e podem ser removidas. A página "Música" permite importar faixas, criar/renomear fitas, colocar faixas em ordem, reproduzir, pausar, avançar e aplicar crossfade de 0–8 segundos. Os links de YouTube / YouTube Music são atalhos externos, reproduzidos somente pelo player oficial. **O site não baixa músicas do YouTube ou Morphe.**
-
-## Aplicativo Android / iOS
-
-Projeto em `native/` (Expo SDK 54). Instale Node 20+ e rode:
-
-```bash
-cd native
-npm install
-npx expo start
-```
-
-Use Expo Go ou development build para validar no aparelho. Gerar APK/AAB ou TestFlight exige configuração local/EAS da conta do desenvolvedor. **Nenhum APK/IPA foi compilado nesta entrega**, tampouco houve verificação em dispositivo real. O app native usa `expo-audio` (dois canais para crossfade), `expo-document-picker` e `expo-file-system` para copiar músicas escolhidas pelo usuário ao armazenamento privado. Metadados e playlists salvos com AsyncStorage. Os controles compactos ficam visíveis nas telas de treino. Background playback está configurado para builds nativas, mas precisa ser verificado em aparelhos físicos.
-
-## Ilustrações e personagem
-
-- Arte do autor recebida na conversa, utilizada apenas neste projeto do usuário.
-- Camila é chamada de **ruivinha** no conteúdo; nomes de arquivo antigos `*_loira.png` foram preservados por compatibilidade técnica.
-- Se não houver imagem de Camila para um exercício, o app usa a versão de Josperd e mostra aviso.
-- Se não houver imagem de movimento para nenhum dos dois, exibe capa decorativa de Josperd com o rótulo **SEM IMAGEM DO EXERCÍCIO**, não uma demonstração incorreta.
-- O Treino B tem séries/repetições provisórias de teste, editáveis; a notação ambígua no treino A também está sinalizada.
-
-## Dependências / créditos
-
-A ideia de crossfade toma como referências conceituais [howler.js](https://github.com/goldfire/howler.js) (MIT) e [Gapless-5](https://github.com/regosen/Gapless-5) (MIT). O mecanismo entregue é implementação própria com elementos `Audio` independentes na web e com Expo Audio nativamente; **não há código desses repositórios copiado ou distribuído**.
-
-A família Le Cartoonie não está embutida; para utilizar a fonte exata, forneça um arquivo de fonte com licença adequada. O site aplica Barlow Condensed / DM Sans com fallbacks locais. Esta entrega não inclui font files de terceiros.
-
-## Estrutura
+- **CI** (`.github/workflows/check.yml`): estrutura e lógica, site no Chromium e app (typecheck, bundle Android e interface via react-native-web).
+- **APK** (`android-apk.yml`): compila um APK *standalone* (`assembleRelease`), confere pacote e assinatura com `apksigner`/`aapt2` e publica o **SHA-256**.
+- **Site** (`pages.yml`): publica a pasta `site/` no GitHub Pages.
+- **Lançar versão nova:** `node scripts/bump-version.mjs 1.2.0` → PR → merge → rode **Actions → Android - APK de teste → Run workflow** com *publicar* marcado. Detalhes em **[docs/MANUTENCAO.md](docs/MANUTENCAO.md)**.
 
 ```text
-site/                Site responsivo / PWA / toca-fitas e treino
-native/              React Native + Expo com leitor de música nativa
-screenshots/         Capturas renderizadas da interface web
-CLAUDE.md            Regras para colaboração por pull requests
-.github/workflows/   Verificação estática no GitHub Actions
+site/        site/PWA (HTML + JS puro, offline) + /baixar/
+native/      app React Native + Expo (SDK 54)
+shared/      regras puras (versões, volume, recordes, backup) — fonte única
+tests/       unitários, e2e do site e da interface do app
+scripts/     sincronização, versão e captura de prints
+docs/        manutenção, como liberar merge, exemplos
 ```
 
-## GitHub
+> **Status honesto:** o site e a interface do app são testados em navegador (Chromium). **O app nativo ainda não foi testado em aparelho Android** (áudio nativo, seletor de arquivos, segundo plano). Veja o [CHANGELOG](CHANGELOG.md).
 
-Este pacote contém repositório Git local com branch `main`. Não foi criado nem configurado um remoto no GitHub; configure com um repositório privado de sua propriedade. Consulte `CLAUDE.md` antes de liberar PRs de bots ou agentes. Recomenda-se permitir merges apenas de PRs com CI verde e revisão humana, não autorizar push direto na branch principal.
+## 🎨 Arte, identidade e créditos
 
-## Privacidade e limitações
+- **Ilustrações e personagens © Josperd.** **Josperd** e **Camila Camomila, a ruivinha**, usados apenas neste projeto. Não há licença de reutilização das artes.
+- Quando falta a arte da Camila, o app mostra a de Josperd **com aviso**; quando não há arte do movimento, mostra uma capa decorativa com **"SEM IMAGEM DO EXERCÍCIO"**. Nunca uma arte substituta como se fosse a demonstração.
+- Tipografia: **Barlow Condensed** e **DM Sans** (SIL Open Font License, incluídas em `site/assets/fonts/` com as licenças). A fonte *Le Cartoonie* só entra com licença.
+- O crossfade se inspira conceitualmente em [howler.js](https://github.com/goldfire/howler.js) e [Gapless-5](https://github.com/regosen/Gapless-5) (MIT); a implementação é própria e **não há código deles aqui**.
+- Links do YouTube são apenas atalhos para o player oficial; o app **não baixa** áudio do YouTube.
 
-Site e app guardam treino e música localmente. Sem servidor ou sincronização entre dispositivos. O navegador pode suspender reprodução em segundo plano, especialmente no iOS; a versão nativa exige build e testes específicos. Nenhuma imagem precisa ser perfeita para orientar um exercício, consulte um profissional para cargas e execução adequada.
+## ⚖️ Aviso
 
-## Biblioteca de sons (v1.0.1)
+O Modo Treino é um diário pessoal e **não substitui orientação profissional**. Consulte um profissional para cargas e execução adequadas. As séries do Treino B são valores provisórios e editáveis.
 
-Acesse **Ajustes → Biblioteca de sons**. Todos os efeitos começam desativados e podem ser silenciados com um toque. São fornecidos três pacotes locais originais (`Suave`, `Arcade`, `Minimal`), com prévia, volume e controles individuais para:
-
-- feedback opcional nos botões;
-- confirmação de uma série;
-- conclusão de todo o treino;
-- aviso ao terminar descanso;
-- contagem 3, 2, 1, em bipes ou voz sintetizada em português.
-
-Os sons são arquivos WAV próprios, sem faixas comerciais. A biblioteca de músicas importadas pelo usuário permanece separada; as playlists continuam sob controle do usuário. Gerar os arquivos novamente: `python3 scripts/generate_sounds.py` (requer `numpy` e `espeak` para voz).
-
-## GitHub Actions para APK de teste e releases
-
-Ao criar o repositório **Josperdias/modo-treino** e enviar o projeto (incluindo `.github/workflows/`):
-
-1. Abra **Actions → Android - APK de teste → Run workflow**.
-2. Aguarde o job `Build Android APK debug`; baixe o artefato `modo-treino-android-debug`.
-3. Extraia `app-debug.apk` e instale em um aparelho Android de teste, após conferir a origem. Não é APK de produção.
-4. Opcionalmente crie uma tag `v1.0.1` para publicar uma prerelease com o APK anexado.
-
-Se preferir Expo/EAS, `native/eas.json` contém um perfil `preview` para APK. `npx eas-cli build --platform android --profile preview` exige login/configuração no Expo. **Nenhum APK foi gerado neste ambiente.**
-
-### Como autenticar no GitHub com segurança
-
-Não registre senhas, chaves de API ou tokens no código, no Drive ou com o Claude. Em sua máquina, `gh auth login` usa o fluxo oficial e `gh repo create Josperdias/modo-treino --private --source=. --remote=origin --push` cria o remoto e envia o código. Se preferir SSH, crie sua chave no computador com `ssh-keygen -t ed25519 -C "seu-email"`, adicione **somente a chave pública** (`id_ed25519.pub`) em GitHub → Settings → SSH and GPG keys. Guarde a chave privada fora de qualquer pasta compartilhada. A instalação GitHub App do Claude deve ter o menor conjunto de permissões necessário; permita branches/PRs, não dê bypass de `main`.
-
-**Avisos de versão:** A consulta busca releases públicas (incluindo prereleases) e consulta o commit mais recente na web. No Android a checagem ocorre ao abrir/retomar o app conectado; não é push em tempo real e não faz instalação automática. Para manter o repositório privado, implementar um backend autenticado para avisos; nunca inserir token de GitHub no cliente.
+<div align="center"><sub>MODO TREINO © 2026 · Feito com movimento. Ilustrado por Josperd.</sub></div>
