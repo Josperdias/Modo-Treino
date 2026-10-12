@@ -43,6 +43,7 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
   (`.toast`) tem `pointer-events:none`; um elemento invisível que captura toques é bug.
 - **Versão única**: `native/package.json`, `native/app.json`, `package.json`, `native/App.tsx`, `site/updates.js` e `site/sw.js`
   precisam ter o mesmo número (o `verify.py` confere).
+- **Saídas de job e secrets**: o GitHub descarta qualquer saída de job que contenha o valor de um secret. O alias da chave (`modo-treino`) é secret e faz parte do nome do APK, então o job de publicação calcula o nome do APK sozinho (`ls dist/*.apk`) em vez de receber por `needs.apk.outputs`.
 - **APK de teste** = `assembleRelease` (JS embutido). Nunca volte para `assembleDebug`: sem Metro, o app abre em tela vermelha.
 - Fontes: só OFL embutidas (Barlow Condensed, DM Sans). Não adicione Le Cartoonie sem licença.
 

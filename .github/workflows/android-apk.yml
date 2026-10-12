@@ -34,7 +34,6 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       sign: ${{ steps.meta.outputs.sign }}
       cert: ${{ steps.meta.outputs.cert }}
-      apk: ${{ steps.meta.outputs.apk }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -152,7 +151,6 @@ jobs:
           SIZE=$(stat -c%s "$OUT")
           CERT=$(grep -m1 "certificate SHA-256 digest" dist/assinatura.txt | awk '{print $NF}')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "apk=modo-treino-${VERSION}-teste.apk" >> "$GITHUB_OUTPUT"
           echo "sign=$SIGN_MODE" >> "$GITHUB_OUTPUT"
           echo "cert=$CERT" >> "$GITHUB_OUTPUT"
           {
@@ -197,6 +195,9 @@ jobs:
       - name: Montar texto da release
         id: notes
         run: |
+          # O nome do APK NÃO passa por saída de job: ele contém o alias da chave (um secret) e o GitHub descartaria a saída.
+          APK=$(cd dist && ls -- *.apk | head -n1)
+          [ -n "$APK" ] || { echo "::error::nenhum APK no artefato"; exit 1; }
           SHA=$(cut -d' ' -f1 dist/SHA256SUMS.txt)
           TAG="${GITHUB_REF_NAME}"
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then TAG="v${{ needs.apk.outputs.version }}"; fi
@@ -207,7 +208,7 @@ jobs:
             echo "**SHA-256:** \`${SHA}\`"
             echo ""
             echo "### Como instalar"
-            echo "1. Baixe \`${{ needs.apk.outputs.apk }}\` no próprio celular."
+            echo "1. Baixe \`${APK}\` no próprio celular."
             echo "2. Abra o arquivo e permita instalar de \"fonte desconhecida\" só para esta instalação."
             echo "3. Confira o SHA-256 acima com \`sha256sum\` (Linux/Mac) ou \`certutil -hashfile arquivo SHA256\` (Windows)."
             echo ""
@@ -229,7 +230,8 @@ jobs:
           name: Modo Treino ${{ needs.apk.outputs.version }} (APK de teste)
           body_path: notes.md
           files: |
-            dist/${{ needs.apk.outputs.apk }}
+            dist/*.apk
             dist/SHA256SUMS.txt
           draft: false
           prerelease: true
+          fail_on_unmatched_files: true
