@@ -33,3 +33,65 @@ for n in (1,2,3):
 assert 'enabled:false' in (ROOT/'site/sounds.js').read_text()
 assert 'enabled:false' in (ROOT/'native/SoundFX.ts').read_text()
 print('OK: 3 estilos de som, contagem 3-2-1 e opções sonoras desativadas por padrão.')
+
+
+# ---------------- v1.1.0: consistência, segurança e infraestrutura ----------------
+import subprocess, os
+
+# 1) lógica compartilhada idêntica nas três cópias
+shared=(ROOT/'shared/logic.js').read_text()
+for t in ('site/logic.js','native/logic.js'):
+    assert (ROOT/t).read_text()==shared, f'{t} diverge de shared/logic.js — rode: node scripts/sync-shared.mjs'
+print('OK: shared/logic.js idêntico em site/ e native/.')
+
+# 2) uma única versão em todo lugar
+def grab(path,pattern):
+    m=re.search(pattern,(ROOT/path).read_text()); assert m,(path,pattern); return m.group(1)
+versions={
+ 'native/package.json':json.loads((ROOT/'native/package.json').read_text())['version'],
+ 'native/app.json':json.loads((ROOT/'native/app.json').read_text())['expo']['version'],
+ 'package.json':json.loads((ROOT/'package.json').read_text())['version'],
+ 'native/App.tsx':grab('native/App.tsx',r"APP_VERSION='([^']+)'"),
+ 'site/updates.js':grab('site/updates.js',r"APP_VERSION='([^']+)'"),
+ 'site/sw.js':grab('site/sw.js',r"VERSION = '([^']+)'"),
+}
+assert len(set(versions.values()))==1, f'versões divergentes: {versions}'
+print('OK: versão única', next(iter(versions.values())))
+
+# 3) site sem dependência externa de fontes/CDN e com fontes OFL + licenças
+for f in ['site/index.html','site/styles.css','site/baixar/index.html','site/baixar/baixar.css']:
+    txt=(ROOT/f).read_text()
+    assert 'googleapis' not in txt and 'gstatic' not in txt, f'{f} ainda depende do Google Fonts'
+fonts=sorted(p.name for p in (ROOT/'site/assets/fonts').iterdir())
+assert any(n.startswith('LICENSE-DMSans') for n in fonts) and any(n.startswith('LICENSE-BarlowCondensed') for n in fonts), fonts
+assert not any('cartoonie' in n.lower() for n in fonts), 'Le Cartoonie não pode ser distribuída sem licença'
+print('OK: tipografia local (OFL) e sem Le Cartoonie embutida.')
+
+# 4) service worker precarrega todos os arquivos do núcleo que existem
+sw=(ROOT/'site/sw.js').read_text()
+for f in ['logic.js','updates.js','sounds.js','music.js','data.js','styles.css','manifest.webmanifest','baixar/index.html','baixar/baixar.js','baixar/baixar.css']:
+    assert f"'./{f}'" in sw, f'sw.js não precarrega {f}'
+    assert (ROOT/'site'/f).is_file(), f
+manifest=json.loads((ROOT/'site/manifest.webmanifest').read_text())
+for ic in manifest['icons']: assert (ROOT/'site'/ic['src']).is_file(), ic
+print('OK: service worker e manifesto consistentes.')
+
+# 5) segredos: nada de tokens/chaves em arquivos de texto versionados
+PATTERNS=[r'ghp_[A-Za-z0-9]{30,}',r'github_pat_[A-Za-z0-9_]{30,}',r'gh[oprsu]_[A-Za-z0-9]{30,}',r'-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----',r'AKIA[0-9A-Z]{16}',r'AIza[0-9A-Za-z_\-]{35}',r'xox[baprs]-[0-9A-Za-z-]{10,}']
+SKIP_DIRS={'node_modules','.git','assets','dist-web','.expo'}
+hits=[]
+for path in ROOT.rglob('*'):
+    if not path.is_file() or any(part in SKIP_DIRS for part in path.relative_to(ROOT).parts): continue
+    if path.suffix.lower() in {'.png','.jpg','.wav','.woff2','.apk','.zip'} or path.name=='package-lock.json': continue
+    try: txt=path.read_text(encoding='utf-8')
+    except Exception: continue
+    for pat in PATTERNS:
+        if re.search(pat,txt): hits.append((str(path.relative_to(ROOT)),pat))
+assert not hits, f'possível segredo versionado: {hits}'
+print('OK: nenhum padrão de token/chave privada encontrado.')
+
+# 6) workflows existem e o APK é standalone (release), não debug sem JS
+wf=(ROOT/'.github/workflows/android-apk.yml').read_text()
+assert 'assembleRelease' in wf and 'assembleDebug' not in wf, 'APK de teste deve ser standalone (assembleRelease)'
+for f in ['check.yml','android-apk.yml','pages.yml']: assert (ROOT/'.github/workflows'/f).is_file(), f
+print('OK: workflows de CI, APK e Pages presentes.')

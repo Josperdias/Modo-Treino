@@ -1,62 +1,157 @@
 name: Android - APK de teste
+# Gera um APK STANDALONE (JavaScript embutido) para instalar em aparelhos Android de teste.
+# - Pull request / manual: gera o artefato "modo-treino-android-apk" (30 dias).
+# - Tag v* ou execução manual com "publicar" marcado: também cria uma pré-release com o APK e o SHA-256.
+# O APK é assinado com a chave de DEPURAÇÃO do template Expo: serve para teste, NÃO para Play Store.
 on:
   workflow_dispatch:
+    inputs:
+      publicar:
+        description: 'Publicar como pré-release no GitHub (tag v<versão do app.json>)'
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*'
+  pull_request:
+    paths:
+      - 'native/**'
+      - 'shared/**'
+      - '.github/workflows/android-apk.yml'
 permissions:
   contents: read
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   apk:
-    name: Build Android APK debug
+    name: Compilar APK
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      apk: ${{ steps.meta.outputs.apk }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: native/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
-      - name: Install Android platform and build tools
+      - name: Componentes do Android SDK
         run: sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
-      - name: Install JS dependencies
+      - name: Dependências JavaScript
         working-directory: native
-        run: npm install --no-audit --no-fund
-      - name: Generate Android project from Expo
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck antes de gastar tempo no Gradle
+        working-directory: native
+        run: npx tsc --noEmit
+      - name: Gerar o projeto Android a partir do Expo
         working-directory: native
         run: npx expo prebuild --platform android --no-install --clean
-      - name: Compile test APK
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+      - name: Compilar (release, arm64 + armeabi-v7a)
         working-directory: native/android
-        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: Conferir, nomear e calcular SHA-256
+        id: meta
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./native/app.json').expo.version")
+          SRC=$(ls native/android/app/build/outputs/apk/release/*.apk | head -n1)
+          mkdir -p dist
+          OUT="dist/modo-treino-${VERSION}-teste.apk"
+          cp "$SRC" "$OUT"
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          echo "== Assinatura (apksigner) =="
+          "$BT/apksigner" verify --verbose --print-certs "$OUT" | tee dist/assinatura.txt
+          echo "== Pacote e versão (aapt2) =="
+          "$BT/aapt2" dump badging "$OUT" | grep -E "^package:|^sdkVersion|^targetSdkVersion|application-label:" | tee dist/badging.txt
+          grep -q "name='art.josperd.modotreino'" dist/badging.txt
+          grep -q "versionName='${VERSION}'" dist/badging.txt
+          unzip -l "$OUT" | grep -E "classes.dex|assets/index.android.bundle|AndroidManifest.xml"
+          unzip -l "$OUT" | grep -q "assets/index.android.bundle" || { echo "::error::APK sem bundle JS embutido (não seria standalone)"; exit 1; }
+          (cd dist && sha256sum "modo-treino-${VERSION}-teste.apk" > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          SHA=$(cut -d' ' -f1 dist/SHA256SUMS.txt)
+          SIZE=$(stat -c%s "$OUT")
+          CERT=$(grep -m1 "certificate SHA-256 digest" dist/assinatura.txt | awk '{print $NF}')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "apk=modo-treino-${VERSION}-teste.apk" >> "$GITHUB_OUTPUT"
+          {
+            echo "## APK de teste — Modo Treino ${VERSION}"
+            echo ""
+            echo "| Item | Valor |"
+            echo "|---|---|"
+            echo "| Arquivo | \`modo-treino-${VERSION}-teste.apk\` |"
+            echo "| Tamanho | $((SIZE/1024/1024)) MB |"
+            echo "| SHA-256 | \`${SHA}\` |"
+            echo "| Assinatura (SHA-256 do certificado) | \`${CERT}\` |"
+            echo "| Commit | \`${GITHUB_SHA::7}\` |"
+            echo "| Data (UTC) | $(date -u +'%Y-%m-%d %H:%M') |"
+            echo "| ABIs | arm64-v8a, armeabi-v7a (aparelhos físicos; não roda em emulador x86) |"
+            echo ""
+            echo "Assinado com a chave de depuração do template Expo: **somente teste**, não é build de produção."
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: modo-treino-android-debug
-          path: native/android/app/build/outputs/apk/debug/app-debug.apk
+          name: modo-treino-android-apk
+          path: |
+            dist/*.apk
+            dist/SHA256SUMS.txt
+            dist/assinatura.txt
+            dist/badging.txt
           if-no-files-found: error
           retention-days: 30
+
   release:
-    name: Publish tag release for update alerts
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Publicar pré-release
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publicar)
     needs: apk
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: modo-treino-android-debug
-      - name: Publish GitHub release with TEST APK
+          name: modo-treino-android-apk
+          path: dist
+      - name: Montar texto da release
+        id: notes
+        run: |
+          SHA=$(cut -d' ' -f1 dist/SHA256SUMS.txt)
+          TAG="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then TAG="v${{ needs.apk.outputs.version }}"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          {
+            echo "APK de **teste** do Modo Treino ${{ needs.apk.outputs.version }}, para avaliação em aparelhos Android. Não é a versão da Play Store."
+            echo ""
+            echo "**SHA-256:** \`${SHA}\`"
+            echo ""
+            echo "### Como instalar"
+            echo "1. Baixe \`${{ needs.apk.outputs.apk }}\` no próprio celular."
+            echo "2. Abra o arquivo e permita instalar de \"fonte desconhecida\" só para esta instalação."
+            echo "3. Confira o SHA-256 acima com \`sha256sum\` (Linux/Mac) ou \`certutil -hashfile arquivo SHA256\` (Windows)."
+            echo ""
+            echo "Seus treinos e músicas ficam só no aparelho. Exporte um backup (Ajustes) antes de trocar de versão."
+            echo "O app avisa quando houver release nova, mas **nunca instala sozinho**."
+          } > notes.md
+      - name: Criar pré-release com APK e SHA-256
         uses: softprops/action-gh-release@v2
         with:
-          name: Modo Treino ${{ github.ref_name }} (APK teste)
-          files: app-debug.apk
+          tag_name: ${{ steps.notes.outputs.tag }}
+          name: Modo Treino ${{ needs.apk.outputs.version }} (APK de teste)
+          body_path: notes.md
+          files: |
+            dist/${{ needs.apk.outputs.apk }}
+            dist/SHA256SUMS.txt
           draft: false
           prerelease: true
-          body: |
-            APK de desenvolvimento (debug), apenas para avaliação no Android.
-            Não é uma versão final de produção. Baixe o arquivo `app-debug.apk` nos anexos abaixo.
-            Histórico e músicas permanecem salvos localmente, sem sincronização automática.
