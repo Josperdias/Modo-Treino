@@ -17,7 +17,7 @@
 <img src="screenshots/v1.2.0/app-01-inicio.png" width="190" alt="App Android: tela inicial">
 <img src="screenshots/v1.2.0/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
 <img src="screenshots/v1.2.0/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
-<img src="screenshots/v1.2.0/app-10-musica-fitas.png" width="190" alt="App Android: fitas de música">
+<img src="screenshots/v1.2.0/app-11-musica-fitas.png" width="190" alt="App Android: fitas de música">
 
 </div>
 
@@ -42,7 +42,7 @@
 <img src="screenshots/v1.2.0/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
 <img src="screenshots/v1.2.0/app-05-zoom.png" width="170" alt="Zoom na ilustração">
 <img src="screenshots/v1.2.0/app-08-treino-completo.png" width="170" alt="Treino completo">
-<img src="screenshots/v1.2.0/app-11-musicas-do-celular.png" width="170" alt="Escolher músicas do celular para a fita">
+<img src="screenshots/v1.2.0/app-10-musicas-do-celular.png" width="170" alt="Escolher músicas do celular para a fita">
 <img src="screenshots/v1.2.0/app-09-historico.png" width="170" alt="Histórico com recordes">
 
 <sub>Capturas do app geradas com react-native-web (mesmo código do app); as músicas do "celular" nelas são simuladas. Prints do site: <code>screenshots/v1.1.0/</code>.</sub>

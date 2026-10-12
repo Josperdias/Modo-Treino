@@ -101,10 +101,10 @@ if (nativeDir) {
   await page.getByText(/COMPLETO!/).waitFor(); await pause(); await shot(page, 'app-08-treino-completo');
   await page.getByLabel('FINALIZAR E SALVAR').click(); await page.getByText('Seu histórico.').waitFor(); await pause();
   await page.getByLabel(/^Treino A, /).first().click(); await pause(400); await shot(page, 'app-09-historico');
-  await page.getByRole('tab', {name: 'Músicas', exact: true}).click(); await pause(); await shot(page, 'app-10-musica-fitas');
+  await page.getByRole('tab', {name: 'Músicas', exact: true}).click(); await pause();
   await page.getByLabel('Adicionar músicas do celular').click(); await page.getByText('Adicionar à Treino A').waitFor();
-  await page.getByRole('checkbox', {name: 'Eye of the Tiger'}).click(); await page.getByRole('checkbox', {name: 'Lose Yourself'}).click(); await pause(); await shot(page, 'app-11-musicas-do-celular');
-  await page.getByLabel(/^ADICIONAR \d/).click(); await pause(500);
+  await page.getByRole('checkbox', {name: 'Eye of the Tiger'}).click(); await page.getByRole('checkbox', {name: 'Lose Yourself'}).click(); await pause(); await shot(page, 'app-10-musicas-do-celular');
+  await page.getByLabel(/^ADICIONAR \d/).click(); await pause(3200); await shot(page, 'app-11-musica-fitas');
   await page.getByLabel('Editar fita').click(); await pause(); await shot(page, 'app-12-editar-fita');
   await page.getByLabel('Concluir edição da fita').click();
   await page.getByRole('tab', {name: 'Início', exact: true}).click(); await pause();
