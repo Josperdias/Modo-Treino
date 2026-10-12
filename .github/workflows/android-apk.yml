@@ -77,32 +77,37 @@ jobs:
           KS_KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KS_ALIAS" ] && [ -n "$KS_KEYPASS" ]; then
-            # Segredos colados à mão costumam vir com espaço ou quebra de linha no fim: tira antes de usar.
-            trim() { printf '%s' "$1" | tr -d '[:space:]'; }
+          # Devolve 0 se keystore, alias e senhas conferem; senão escreve o motivo (sem valores secretos) e devolve 1.
+          validar() {
+            trim() { printf '%s' "$1" | tr -d '[:space:]'; }   # segredos colados à mão costumam ter espaço/quebra de linha no fim
             export KS_PASS="$(trim "$KS_PASS")" KS_ALIAS="$(trim "$KS_ALIAS")" KS_KEYPASS="$(trim "$KS_KEYPASS")"
-            printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/modo-treino.jks"
-            # Confere a chave em segundos (sem imprimir nada secreto), em vez de descobrir só depois de 6 min de Gradle.
-            echo "Keystore decodificado: $(stat -c%s "$RUNNER_TEMP/modo-treino.jks") bytes (um keystore .jks pequeno tem ~2 a 4 KB)."
+            printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/modo-treino.jks" 2>/dev/null || { echo "O ANDROID_KEYSTORE_BASE64 não é base64 válido."; return 1; }
+            echo "Keystore decodificado: $(stat -c%s "$RUNNER_TEMP/modo-treino.jks") bytes (um .jks pequeno tem ~2 a 4 KB)."
             if ! OUT=$(keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS 2>&1); then
               if printf '%s' "$OUT" | grep -qiE "invalid keystore format|not a keystore|EOF"; then
-                echo "::error::O ANDROID_KEYSTORE_BASE64 não é um keystore válido (colado incompleto ou alterado). Gere o base64 de novo do arquivo .jks inteiro."
+                echo "O ANDROID_KEYSTORE_BASE64 não é um keystore válido (colado incompleto ou alterado). Gere o base64 de novo do arquivo .jks inteiro."
               else
-                echo "::error::A senha do keystore (ANDROID_KEYSTORE_PASSWORD) não abre o keystore. Confira o valor (sem espaços) ou recadastre os dois secrets a partir do mesmo keystore."
+                echo "A senha do keystore (ANDROID_KEYSTORE_PASSWORD) não abre o keystore. Confira o valor (sem espaços) ou recadastre os dois secrets a partir do mesmo keystore."
               fi
-              exit 1
+              return 1
             fi
-            if ! keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS -alias "$KS_ALIAS" > /dev/null 2>&1; then
-              echo "::error::O alias (ANDROID_KEY_ALIAS) não existe nesse keystore."; exit 1
-            fi
+            keytool -list -keystore "$RUNNER_TEMP/modo-treino.jks" -storepass:env KS_PASS -alias "$KS_ALIAS" > /dev/null 2>&1 || { echo "O alias (ANDROID_KEY_ALIAS) não existe nesse keystore."; return 1; }
             cp "$RUNNER_TEMP/modo-treino.jks" "$RUNNER_TEMP/teste-chave.jks"
-            if ! keytool -keypasswd -keystore "$RUNNER_TEMP/teste-chave.jks" -storepass:env KS_PASS -alias "$KS_ALIAS" -keypass:env KS_KEYPASS -new:env KS_KEYPASS > /dev/null 2>&1; then
-              echo "::error::A senha da chave (ANDROID_KEY_PASSWORD) não confere com o alias."; exit 1
-            fi
+            keytool -keypasswd -keystore "$RUNNER_TEMP/teste-chave.jks" -storepass:env KS_PASS -alias "$KS_ALIAS" -keypass:env KS_KEYPASS -new:env KS_KEYPASS > /dev/null 2>&1 || { rm -f "$RUNNER_TEMP/teste-chave.jks"; echo "A senha da chave (ANDROID_KEY_PASSWORD) não confere com o alias."; return 1; }
             rm -f "$RUNNER_TEMP/teste-chave.jks"
-            echo "MT_KEYSTORE_FILE=$RUNNER_TEMP/modo-treino.jks" >> "$GITHUB_ENV"
-            echo "mode=propria" >> "$GITHUB_OUTPUT"
-            echo "Assinatura: chave própria do projeto (keystore, alias e senhas conferidos)."
+          }
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KS_ALIAS" ] && [ -n "$KS_KEYPASS" ]; then
+            if MOTIVO=$(validar); then
+              echo "MT_KEYSTORE_FILE=$RUNNER_TEMP/modo-treino.jks" >> "$GITHUB_ENV"
+              echo "mode=propria" >> "$GITHUB_OUTPUT"
+              echo "Assinatura: chave própria do projeto (keystore, alias e senhas conferidos)."
+            elif [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+              # Em PR o APK serve para testar a interface: não trava por causa dos secrets, mas avisa claramente.
+              echo "::warning::Secrets de assinatura NÃO conferem: $MOTIVO O APK deste PR sai com a chave de teste. Publicação (release) falha até corrigir."
+              echo "mode=teste" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::$MOTIVO"; exit 1
+            fi
           else
             echo "mode=teste" >> "$GITHUB_OUTPUT"
             echo "Assinatura: chave de teste do template (secrets ausentes)."
