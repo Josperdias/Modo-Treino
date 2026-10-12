@@ -692,16 +692,101 @@ test('ilustração inteira: nenhum corte no modo execução, nas listas, na gale
   await context.close();
 });
 
-test('modo execução: tocar na ilustração a amplia inteira e Esc/fechar volta ao card', async () => {
+test('zoom: tocar na ilustração do card abre a imagem inteira; botões +, − e AJUSTAR; Esc fecha só o zoom', async () => {
   const {context, page} = await newPage();
   await openGuided(page);
   await page.click('.g-zoom-btn');
-  await page.waitForSelector('.g-lightbox img');
-  const natural = await page.locator('.g-lightbox img').evaluate((i) => ({nw: i.naturalWidth, nh: i.naturalHeight, w: i.getBoundingClientRect().width, h: i.getBoundingClientRect().height}));
-  assert.ok(Math.abs(natural.w / natural.h - natural.nw / natural.nh) < 0.02, 'proporção preservada (sem esticar nem cortar)');
+  await page.waitForSelector('#zoom .zoom-img');
+  const nat = await page.locator('.zoom-img').evaluate((i) => ({nw: i.naturalWidth, nh: i.naturalHeight, w: i.offsetWidth, h: i.offsetHeight}));
+  assert.ok(Math.abs(nat.w / nat.h - nat.nw / nat.nh) < 0.02, 'proporção preservada (sem esticar nem cortar)');
+  assert.equal(await page.locator('#zoomPct').innerText(), '100%');
+  await page.click('[data-z="in"]'); assert.equal(await page.locator('#zoomPct').innerText(), '150%');
+  await page.click('[data-z="in"]'); assert.equal(await page.locator('#zoomPct').innerText(), '225%');
+  await page.click('[data-z="out"]'); assert.equal(await page.locator('#zoomPct').innerText(), '150%');
+  await page.click('[data-z="reset"]'); assert.equal(await page.locator('#zoomPct').innerText(), '100%');
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('.g-lightbox').count(), 0);
-  assert.equal(await page.locator('#guided .g-shell').count(), 1, 'Esc fecha só a imagem, não o modo execução');
+  assert.equal(await page.locator('#zoom .zoom-view').count(), 0);
+  assert.equal(await page.locator('#guided .g-shell').count(), 1, 'Esc fecha só o zoom, não o modo execução');
+  await context.close();
+});
+
+test('zoom: roda do mouse amplia no ponto do cursor, toque duplo alterna 250%/100%, arrastar move e respeita as bordas', async () => {
+  const {context, page} = await newPage();
+  await openGuided(page);
+  await page.click('.g-zoom-btn'); await page.waitForSelector('#zoom .zoom-img');
+  const box = await page.locator('#zoomStage').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -400);
+  const pct = async () => parseInt(await page.locator('#zoomPct').innerText(), 10);
+  assert.ok((await pct()) > 150, 'a roda deve ampliar');
+  await page.mouse.wheel(0, 4000);
+  assert.equal(await pct(), 100, 'ao reduzir tudo volta a 100% e recentraliza');
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+  assert.equal(await pct(), 250);
+  const tx = async () => (await page.locator('#zoomImg').evaluate((i) => i.style.transform));
+  const before = await tx();
+  await page.mouse.move(box.x + 100, box.y + 100); await page.mouse.down(); await page.mouse.move(box.x + 160, box.y + 150, {steps: 4}); await page.mouse.up();
+  assert.notEqual(await tx(), before, 'arrastar deve mover a imagem ampliada');
+  await page.mouse.move(box.x + 100, box.y + 100); await page.mouse.down(); await page.mouse.move(box.x + 5000, box.y + 5000, {steps: 3}); await page.mouse.up();
+  const lim = await page.evaluate(() => { const st = document.getElementById('zoomStage'), img = document.getElementById('zoomImg'); const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(img.style.transform); const s = +m[3]; return {x: Math.abs(+m[1]), y: Math.abs(+m[2]), mx: Math.max(0, (img.offsetWidth * s - st.clientWidth) / 2), my: Math.max(0, (img.offsetHeight * s - st.clientHeight) / 2)}; });
+  assert.ok(lim.x <= lim.mx + 1 && lim.y <= lim.my + 1, 'a imagem não pode sair das bordas: ' + JSON.stringify(lim));
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+  assert.equal(await pct(), 100);
+  await context.close();
+});
+
+test('zoom: pinça com dois dedos amplia e reduz (eventos de ponteiro)', async () => {
+  const {context, page} = await newPage({viewport: {width: 390, height: 800}});
+  await openGuided(page);
+  await page.click('.g-zoom-btn'); await page.waitForSelector('#zoom .zoom-img');
+  await page.evaluate(() => {
+    const st = document.getElementById('zoomStage'), r = st.getBoundingClientRect(), cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+    const ev = (type, id, x, y) => st.dispatchEvent(new PointerEvent(type, {pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, isPrimary: id === 1}));
+    ev('pointerdown', 1, cx - 40, cy); ev('pointerdown', 2, cx + 40, cy);
+    for (let i = 1; i <= 6; i++) { ev('pointermove', 1, cx - 40 - i * 20, cy); ev('pointermove', 2, cx + 40 + i * 20, cy); }
+    window.__pinchPct = document.getElementById('zoomPct').textContent;
+    ev('pointerup', 1, 0, 0); ev('pointerup', 2, 0, 0);
+  });
+  const pinched = parseInt(await page.evaluate(() => window.__pinchPct), 10);
+  assert.ok(pinched >= 300, `pinça deveria ampliar (≥300%), ficou ${pinched}%`);
+  await context.close();
+});
+
+test('zoom: a ilustração das listas e da janela de edição também amplia; foco volta ao fechar', async () => {
+  const {context, page} = await newPage();
+  await go(page, '/treino/A');
+  await page.locator('.exercise-row img[data-zoom]').first().click();
+  await page.waitForSelector('#zoom .zoom-img');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#zoom .zoom-view').count(), 0);
+  await page.click('.edit-button[data-detail="a2"]'); await page.waitForSelector('.modal-art');
+  await page.click('.modal-art'); await page.waitForSelector('#zoom .zoom-img');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#editForm').count(), 1, 'Esc fecha só o zoom; a janela de edição continua');
+  await context.close();
+});
+
+test('música no modo execução: mini player mostra a faixa, toca/pausa/avança sem sair do treino', async () => {
+  const {context, page} = await newPage();
+  const dir = mkdtempSync(join(tmpdir(), 'mt-wav-'));
+  const f1 = join(dir, 'Faixa Um.wav'), f2 = join(dir, 'Faixa Dois.wav');
+  writeFileSync(f1, wav(30, 440)); writeFileSync(f2, wav(30, 660));
+  await go(page, '/musica'); await page.setInputFiles('#music-files', [f1, f2]);
+  await page.waitForFunction(() => document.querySelectorAll('.song-row').length >= 2);
+  await openGuided(page);
+  assert.match(await page.locator('#gMini').innerText(), /Modo Música[\s\S]*Treino A[\s\S]*toque ▶/);
+  await page.click('#gMini .g-mini-play');
+  await page.waitForFunction(() => /Faixa Um/.test(document.getElementById('gMini')?.innerText || ''));
+  assert.match(await page.locator('#gMini').innerText(), /tocando agora/);
+  await page.click('#gMini [data-music="next"]');
+  await page.waitForFunction(() => /Faixa Dois/.test(document.getElementById('gMini')?.innerText || ''));
+  await page.click('#gMini .g-mini-play');
+  await page.waitForFunction(() => /pausado/.test(document.getElementById('gMini')?.innerText || ''));
+  assert.equal(await page.locator('#guided .g-shell').count(), 1, 'continua no modo execução');
+  await page.click('[data-gset="2"]'); await page.waitForSelector('#guided .g-rest');
+  assert.ok(await page.locator('#guided .g-rest #gMini').count() === 1, 'o mini player também aparece no descanso');
+  const covered = await page.evaluate(() => { const e = document.querySelector('#gMini .g-mini-play'), r = e.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !(hit && e.contains(hit)); });
+  assert.equal(covered, false);
   await context.close();
 });
 

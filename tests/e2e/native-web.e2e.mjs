@@ -266,7 +266,7 @@ test('modo execução: navegar, ver como fazer, ampliar a imagem inteira e Conti
   await page.getByText('ROSCA CONCENTRADA').first().waitFor();
   await page.locator('[aria-label="Como fazer o movimento"]').click();
   assert.ok((await page.locator('body').innerText()).length > 0);
-  await page.locator('[aria-label^="Ampliar a ilustração"]').click();
+  await page.locator('[aria-label^="Ampliar a ilustração"]').last().click();
   const box = await page.locator('[aria-label^="Ilustração de Rosca concentrada"]').last().evaluate((el) => ({fit: getComputedStyle(el.querySelector('div') || el).backgroundSize}));
   assert.equal(box.fit, 'contain');
   await page.locator('[aria-label="Fechar imagem ampliada"]').click();
@@ -284,5 +284,54 @@ test('ilustração inteira também nas listas, galeria e janela de edição do a
   await tab(page, 'ARTES');
   const g = await page.locator('[aria-label^="Ilustração "]').evaluateAll((els) => els.map((e) => getComputedStyle(e.querySelector('div') || e).backgroundSize));
   assert.ok(g.length >= 14 && g.every((f) => f === 'contain'));
+  await context.close();
+});
+
+test('zoom do app: tocar na ilustração abre por cima; +, −, AJUSTAR, toque duplo e fechar', {skip}, async () => {
+  const {context, page} = await open();
+  await startGuided(page);
+  await page.locator('[aria-label^="Ampliar a ilustração"]').last().click();
+  const pct = async () => parseInt((await page.locator('[aria-label^="Zoom "]').innerText()), 10);
+  await page.locator('[aria-label="Aumentar zoom"]').waitFor();
+  assert.equal(await pct(), 100);
+  await page.locator('[aria-label="Aumentar zoom"]').click(); assert.equal(await pct(), 150);
+  await page.locator('[aria-label="Aumentar zoom"]').click(); assert.equal(await pct(), 225);
+  await page.locator('[aria-label="Diminuir zoom"]').click(); assert.equal(await pct(), 150);
+  await page.locator('[aria-label="Ajustar à tela"]').click(); assert.equal(await pct(), 100);
+  const img = page.locator('[aria-label="Ilustração de Rosca direta na barra W"]').last();
+  await img.dblclick(); assert.equal(await pct(), 250, 'toque duplo amplia para 250%');
+  await img.dblclick(); assert.equal(await pct(), 100, 'toque duplo de novo volta a 100%');
+  for (let i = 0; i < 10; i++) await page.locator('[aria-label="Aumentar zoom"]').click();
+  assert.equal(await pct(), 600, 'limite máximo de 600%');
+  await page.locator('[aria-label="Fechar imagem ampliada"]').click();
+  assert.equal(await page.locator('[aria-label="Aumentar zoom"]').count(), 0);
+  assert.match(await page.locator('body').innerText(), /EXERCÍCIO 1\/6/, 'continua no modo execução');
+  await context.close();
+});
+
+test('zoom do app: a ilustração das listas e da galeria também amplia', {skip}, async () => {
+  const {context, page} = await open();
+  await tab(page, 'TREINO A');
+  await page.locator('[aria-label^="Ampliar a ilustração de Rosca direta"]').first().click();
+  await page.locator('[aria-label="Aumentar zoom"]').waitFor();
+  await page.locator('[aria-label="Fechar imagem ampliada"]').click();
+  await tab(page, 'ARTES');
+  await page.locator('[aria-label^="Ampliar a ilustração"]').first().click();
+  await page.locator('[aria-label="Aumentar zoom"]').waitFor();
+  await context.close();
+});
+
+test('música no modo execução do app: o player aparece no card e no descanso, sem sair do treino', {skip}, async () => {
+  const {context, page} = await open();
+  await startGuided(page);
+  const dock = page.locator('[aria-label="Tocar ou pausar"]').last();
+  await dock.waitFor();
+  assert.match(await page.locator('body').innerText(), /MODO MÚSICA/);
+  const ok = async () => dock.evaluate((el) => { const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!hit && el.contains(hit); });
+  assert.equal(await ok(), true, 'o botão de tocar não pode ficar coberto pelo card');
+  await setBtn(page, 2).click();
+  await page.getByText('DESCANSE').waitFor();
+  assert.equal(await page.locator('[aria-label="Tocar ou pausar"]').last().isVisible(), true, 'player também no descanso');
+  assert.match(await page.locator('body').innerText(), /DESCANSE/);
   await context.close();
 });

@@ -2,6 +2,20 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.1.1] — em desenvolvimento
+
+### Novo
+- **Zoom de verdade na ilustração** (site e app): toque na imagem do card (e das listas, da galeria e da janela de edição) para
+  ampliar até 600% com **pinça**, **toque duplo**, **roda do mouse**, **arrastar** (respeita as bordas) e botões **+ / − / AJUSTAR**.
+  Esc fecha só o zoom. No app o zoom abre por cima do modo execução e da edição.
+- **Música no treino**: o modo execução mostra um **mini player** (faixa atual, fita, ⏮ ▶/Ⅱ ⏭) no card e no descanso, sem sair do treino.
+  O app mostra o mesmo player compacto dentro do modo execução.
+
+### Corrigido
+- **Workflow do APK**: `android-actions/setup-android@v3` falhava com "Failed to find package 'tools'". Agora usa o Android SDK que
+  já vem no runner (`$ANDROID_HOME`) e aceita as licenças com `sdkmanager`.
+- `setPointerCapture` com ponteiro inválido abortava o gesto; agora é protegido.
+
 ## [1.1.0] — 2026-10-12
 
 ### Novo
