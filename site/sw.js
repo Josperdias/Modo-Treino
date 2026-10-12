@@ -3,7 +3,7 @@
  * - Mídia (ilustrações e sons): cache-first, pré-carregada na instalação (falha parcial não derruba a instalação).
  * - Requisições Range (áudio) são atendidas a partir do cache, como exige o Safari.
  * Troque VERSION a cada release para descartar caches antigos. */
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 const CORE = `modo-treino-core-${VERSION}`;
 const MEDIA = `modo-treino-media-${VERSION}`;
 const CORE_FILES = [

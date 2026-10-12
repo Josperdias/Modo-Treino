@@ -2,13 +2,19 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.3.3] — 2026-10-12
+
+### Correção de instalação
+- O **1.3.2 não abriu** num Xiaomi/HyperOS (*"There was a problem parsing the package"*). O arquivo estava íntegro; a única diferença de manifesto para o 1.3.1, que abriu, era a permissão `REQUEST_INSTALL_PACKAGES`. O 1.3.3 **não declara mais essa permissão**.
+- Por isso **"Atualizar agora" abre o download pelo sistema** (você toca em *Abrir* e depois em *Instalar*), em vez de instalar de dentro do app. O cartão de aviso no topo continua igual, com as novidades. (O código de instalar dentro do app foi mantido atrás de uma chave `INSTALAR_NO_APP`.)
+
 ## [1.3.2] — 2026-10-12
 
 ### Atualização dentro do app
 - **Aviso de versão nova no topo do app** (cartão no estilo do site, no lugar do aviso genérico do Android): mostra a versão, o tamanho, **"O que há de novo"** (vem do CHANGELOG da release) e o botão **ATUALIZAR AGORA**.
 - **Baixa aqui mesmo**, com barra de progresso (e cancelar), confere o tamanho do arquivo e abre o instalador do Android; você só confirma. O Android só aceita a atualização se o APK for assinado com a **mesma chave**. Se o Android pedir, o botão **PERMITIR INSTALAR** abre a tela certa.
 - *Depois* dispensa o aviso daquela versão (ele não volta ao reabrir); **Verificar agora** em Ajustes mostra de novo.
-- Nova permissão: `REQUEST_INSTALL_PACKAGES` (necessária para abrir o instalador).
+- Nova permissão: `REQUEST_INSTALL_PACKAGES` (necessária para abrir o instalador). **Removida no 1.3.3** (ver acima).
 
 ### Notificações aparecem de verdade
 - No Android 13+ **sem a permissão de notificações nenhuma notificação aparece, nem a do player**. O app agora **pede a permissão na primeira abertura** e mostra o estado em **Ajustes → Notificações** (com botão para permitir ou abrir as configurações do Android).

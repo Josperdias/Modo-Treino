@@ -8,6 +8,11 @@ import {apkAsset, evaluateUpdate, releaseNotes, safeGithubUrl} from '../logic';
 export const GITHUB_REPO = 'Josperdias/Modo-Treino';
 const PACKAGE = 'art.josperd.modotreino';
 const DISMISSED = 'modo-treino-dismissed-release';
+/** Instalar de dentro do app exige a permissão REQUEST_INSTALL_PACKAGES. O 1.3.2 a declarava e NÃO abriu num Xiaomi/HyperOS
+ * ("There was a problem parsing the package"); a única diferença para o 1.3.1, que abriu, era essa permissão. Por isso o
+ * app NÃO a declara: "Atualizar agora" abre o download pelo sistema (Chrome/Downloads) e você toca em Instalar. Para voltar
+ * ao fluxo dentro do app: declare a permissão em app.json e mude esta constante para true. */
+export const INSTALAR_NO_APP = false;
 
 export type UpdateInfo = {tag: string; notes: string[]; apkUrl: string | null; size: number; releaseUrl: string | null};
 export type UpdatePhase = 'idle' | 'downloading' | 'ready' | 'error';
@@ -75,7 +80,7 @@ export function useUpdates(version: string, enabled: boolean, ready: boolean) {
   const download = useCallback(async () => {
     const u = updateRef.current;
     if (!u) return;
-    if (Platform.OS !== 'android' || !u.apkUrl) { const url = u.apkUrl || u.releaseUrl; if (url) void Linking.openURL(url); return; }
+    if (!INSTALAR_NO_APP || Platform.OS !== 'android' || !u.apkUrl) { const url = u.apkUrl || u.releaseUrl; if (url) void Linking.openURL(url); return; }
     cancelled.current = false;
     setPhase('downloading'); setProgress(0); setReceived(0); setError(null);
     try {

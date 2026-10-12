@@ -6,6 +6,7 @@ import {Text} from './text';
 import Animated, {FadeOutUp, SlideInUp, useAnimatedStyle, useSharedValue, withTiming, Easing} from 'react-native-reanimated';
 import {Btn, Card, Icon, Pattern, Press} from './ui';
 import {C, R} from './theme';
+import {INSTALAR_NO_APP} from './updates';
 import type {UpdatesApi} from './updates';
 
 const mb = (n: number) => (n / 1048576).toFixed(1).replace('.', ',');
@@ -42,6 +43,7 @@ export default function UpdateBanner({u, current}: {u: UpdatesApi; current: stri
         {u.phase === 'idle' && (
           <View style={{marginTop: 12}}>
             <Btn small kind="dark" icon="download" text="ATUALIZAR AGORA" label="Atualizar agora" onPress={() => { void u.download(); }} />
+            {!INSTALAR_NO_APP && <Text style={[S.sub, {marginTop: 6}]}>Abre o download. Quando terminar, toque em Abrir e depois em Instalar.</Text>}
           </View>
         )}
         {busy && (
