@@ -24,11 +24,12 @@ import {EditSheet, GallerySheet, SettingsSheet} from './src/screens/Sheets';
 import ZoomView from './src/ZoomView';
 import {Bounce, Icon, IconName, Pattern, Press, ToastProvider, useToast} from './src/ui';
 import {useUpdates} from './src/updates';
+import UpdateBanner from './src/UpdateBanner';
 import {useBackup} from './src/backup';
 import {limparTreino} from './src/notify';
 import {C, R, useNarrow} from './src/theme';
 
-const APP_VERSION='1.3.1';
+const APP_VERSION='1.3.2';
 
 type Tab = 'home' | 'music' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
@@ -129,6 +130,7 @@ function Shell() {
         </Press>
       </View>
 
+      <UpdateBanner u={updates} current={APP_VERSION} />
       <View style={{flex: 1, backgroundColor: C.paper}}>
         <Animated.View key={tab} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)} style={{flex: 1}}>
           {tab === 'home' && <HomeScreen onOpenTreino={(t) => setOpen(t)} onStart={(t) => setWorkout({t})} />}

@@ -2,6 +2,20 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.3.2] — 2026-10-12
+
+### Atualização dentro do app
+- **Aviso de versão nova no topo do app** (cartão no estilo do site, no lugar do aviso genérico do Android): mostra a versão, o tamanho, **"O que há de novo"** (vem do CHANGELOG da release) e o botão **ATUALIZAR AGORA**.
+- **Baixa aqui mesmo**, com barra de progresso (e cancelar), confere o tamanho do arquivo e abre o instalador do Android; você só confirma. O Android só aceita a atualização se o APK for assinado com a **mesma chave**. Se o Android pedir, o botão **PERMITIR INSTALAR** abre a tela certa.
+- *Depois* dispensa o aviso daquela versão (ele não volta ao reabrir); **Verificar agora** em Ajustes mostra de novo.
+- Nova permissão: `REQUEST_INSTALL_PACKAGES` (necessária para abrir o instalador).
+
+### Nome do arquivo e release
+- O APK deixa de ter **"-teste"** no nome: `modo-treino-1.3.2.apk`. A release agora se chama "Modo Treino 1.3.2", não é mais pré-release e traz as novidades no topo.
+
+### Instalação
+- A página `/baixar/` explica o bloqueio **"App blocked to protect your device"** do Play Protect (verificação de desenvolvedor exigida no Brasil desde 30/09/2026) e as saídas.
+
 ## [1.3.1] — 2026-10-12
 
 Ajustes a partir do uso no aparelho real.

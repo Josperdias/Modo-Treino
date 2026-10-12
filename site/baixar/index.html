@@ -29,7 +29,7 @@
 
   <section class="grid">
    <article class="card apk" aria-labelledby="apk-title">
-    <p class="micro">ANDROID · APK DE TESTE</p>
+    <p class="micro">ANDROID · APK</p>
     <h2 id="apk-title">Baixar para Android</h2>
     <div id="apk-box" aria-live="polite">
      <p class="status" id="apk-status">Consultando a última versão publicada…</p>
@@ -70,14 +70,15 @@
   </section>
 
   <section class="steps" aria-labelledby="pp-title">
-   <h2 id="pp-title">O ANDROID MOSTROU UM AVISO DO PLAY PROTECT?</h2>
-   <p>É esperado. O Play Protect avisa sobre qualquer app instalado <strong>fora da Play Store</strong> que o Google ainda não analisou (“app não verificado”, “desenvolvedor desconhecido” ou “não foi possível verificar”). Isso <strong>não quer dizer que o app tenha vírus</strong>: quer dizer que o Google nunca viu este app.</p>
+   <h2 id="pp-title">O ANDROID BLOQUEOU? “APP BLOCKED TO PROTECT YOUR DEVICE”</h2>
+   <p>Esse aviso do <strong>Play Protect</strong> diz “o Play Protect nunca viu um app deste desenvolvedor”. <strong>Não é aviso de vírus</strong>: desde <strong>30/09/2026</strong> o Google exige, no Brasil, que apps instalados fora da Play Store venham de um <strong>desenvolvedor verificado</strong>, e o Modo Treino ainda não foi registrado lá.</p>
    <ol>
-    <li>Toque em <strong>Mais detalhes</strong> e depois em <strong>Instalar mesmo assim</strong>. Se aparecer <strong>Verificar app</strong>, pode tocar: o arquivo é enviado ao Google para análise e, depois dela, o aviso costuma sumir neste aparelho.</li>
-    <li>Confira que o <strong>SHA-256</strong> do arquivo é o mostrado acima. É a prova de que você instalou o arquivo certo.</li>
-    <li>O app é assinado com a <strong>chave própria do projeto</strong> (a mesma em todas as versões, por isso atualiza por cima) e pede só as permissões de que precisa: internet, ler músicas, notificações e manter o áudio tocando.</li>
+    <li>Toque em <strong>More details / Mais detalhes</strong> e procure <strong>Install anyway / Instalar mesmo assim</strong>.</li>
+    <li>Se essa opção não aparecer: na Play Store, toque na sua foto → <strong>Play Protect</strong> → ⚙ e desligue <strong>“Scan apps with Play Protect”</strong> só durante a instalação; depois ligue de novo.</li>
+    <li>Segundo o Google, apps sem registro ainda podem ser instalados pelo <strong>fluxo avançado</strong> (para usuários experientes, nas opções de desenvolvedor) ou por <strong>ADB</strong>.</li>
+    <li>Confira o <strong>SHA-256</strong> do arquivo (acima). O app é assinado com a <strong>chave própria do projeto</strong>, a mesma em todas as versões.</li>
    </ol>
-   <p>Para o aviso <strong>desaparecer de vez</strong> para todo mundo, o app precisa ser publicado na Google Play (por exemplo, em teste fechado), o que exige uma conta de desenvolvedor do Google Play. Ainda não é o caso.</p>
+   <p>Para o bloqueio <strong>acabar de vez</strong>, quem publica o app (Josperd) precisa registrar o pacote <code>art.josperd.modotreino</code> no <strong>Android Developer Console</strong> (o Google prevê uma conta gratuita para hobby/estudantes, até 20 aparelhos). Enquanto isso não acontece, use as saídas acima.</p>
   </section>
 
   <section class="note" aria-labelledby="note-title">

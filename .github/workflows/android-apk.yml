@@ -1,7 +1,7 @@
-name: Android - APK de teste
+name: Android - APK
 # Gera um APK STANDALONE (JavaScript embutido) para instalar em aparelhos Android de teste.
 # - Pull request / manual: gera o artefato "modo-treino-android-apk" (30 dias).
-# - Tag v* ou execução manual com "publicar" marcado: também cria uma pré-release com o APK e o SHA-256.
+# - Tag v* ou execução manual com "publicar" marcado: também cria a release com o APK e o SHA-256.
 # Assinatura: se os secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS e ANDROID_KEY_PASSWORD
 # existem, o APK é assinado com a chave própria do projeto (permite atualizar por cima de uma versão anterior).
 # Sem eles (ex.: PR de fork) cai na chave de DEPURAÇÃO do template Expo. Nenhuma das duas serve para Play Store sem revisão.
@@ -132,7 +132,7 @@ jobs:
           VERSION=$(node -p "require('./native/app.json').expo.version")
           SRC=$(ls native/android/app/build/outputs/apk/release/*.apk | head -n1)
           mkdir -p dist
-          OUT="dist/modo-treino-${VERSION}-teste.apk"
+          OUT="dist/modo-treino-${VERSION}.apk"
           cp "$SRC" "$OUT"
           BT="$ANDROID_HOME/build-tools/36.0.0"
           echo "== Assinatura (apksigner) =="
@@ -146,7 +146,7 @@ jobs:
           fi
           unzip -l "$OUT" | grep -E "classes.dex|assets/index.android.bundle|AndroidManifest.xml"
           unzip -l "$OUT" | grep -q "assets/index.android.bundle" || { echo "::error::APK sem bundle JS embutido (não seria standalone)"; exit 1; }
-          (cd dist && sha256sum "modo-treino-${VERSION}-teste.apk" > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          (cd dist && sha256sum "modo-treino-${VERSION}.apk" > SHA256SUMS.txt && cat SHA256SUMS.txt)
           SHA=$(cut -d' ' -f1 dist/SHA256SUMS.txt)
           SIZE=$(stat -c%s "$OUT")
           CERT=$(grep -m1 "certificate SHA-256 digest" dist/assinatura.txt | awk '{print $NF}')
@@ -154,11 +154,11 @@ jobs:
           echo "sign=$SIGN_MODE" >> "$GITHUB_OUTPUT"
           echo "cert=$CERT" >> "$GITHUB_OUTPUT"
           {
-            echo "## APK de teste — Modo Treino ${VERSION}"
+            echo "## APK — Modo Treino ${VERSION}"
             echo ""
             echo "| Item | Valor |"
             echo "|---|---|"
-            echo "| Arquivo | \`modo-treino-${VERSION}-teste.apk\` |"
+            echo "| Arquivo | \`modo-treino-${VERSION}.apk\` |"
             echo "| Tamanho | $((SIZE/1024/1024)) MB |"
             echo "| SHA-256 | \`${SHA}\` |"
             echo "| Assinatura (SHA-256 do certificado) | \`${CERT}\` |"
@@ -181,13 +181,14 @@ jobs:
           retention-days: 30
 
   release:
-    name: Publicar pré-release
+    name: Publicar release
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publicar)
     needs: apk
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4          # precisa do CHANGELOG.md para as novidades da release
       - uses: actions/download-artifact@v4
         with:
           name: modo-treino-android-apk
@@ -202,8 +203,14 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then TAG="v${{ needs.apk.outputs.version }}"; fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          VER="${{ needs.apk.outputs.version }}"
           {
-            echo "APK de **teste** do Modo Treino ${{ needs.apk.outputs.version }}, para avaliação em aparelhos Android. Não é a versão da Play Store."
+            # Novidades = a seção desta versão do CHANGELOG.md (o app mostra só este trecho, até a linha '---')
+            awk -v v="$VER" 'index($0, "## [" v "]") == 1 {on=1; next} on && /^## \[/ {exit} on {print}' CHANGELOG.md | sed -e '/./,$!d'
+            echo ""
+            echo "---"
+            echo ""
+            echo "Modo Treino ${VER} para Android (APK assinado). Não é a versão da Play Store."
             echo ""
             echo "**SHA-256:** \`${SHA}\`"
             echo ""
@@ -219,19 +226,19 @@ jobs:
               echo ""
             fi
             echo "Seus treinos e músicas ficam só no aparelho. Exporte um backup (Ajustes) antes de trocar de versão."
-            echo "O app avisa quando houver release nova, mas **nunca instala sozinho**."
+            echo "O app avisa quando há versão nova e oferece **Baixar e instalar** (você confirma a instalação no Android)."
           } > notes.md
-      - name: Criar pré-release com APK e SHA-256
+      - name: Criar release com APK e SHA-256
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.notes.outputs.tag }}
           # sem isto a tag nova nasceria no HEAD da branch padrão, não no commit que gerou o APK
           target_commitish: ${{ github.sha }}
-          name: Modo Treino ${{ needs.apk.outputs.version }} (APK de teste)
+          name: Modo Treino ${{ needs.apk.outputs.version }}
           body_path: notes.md
           files: |
             dist/*.apk
             dist/SHA256SUMS.txt
           draft: false
-          prerelease: true
+          prerelease: false
           fail_on_unmatched_files: true

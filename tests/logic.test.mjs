@@ -329,3 +329,13 @@ test('tapeInsert: devolve a música à posição original (desfazer) sem duplica
   assert.deepEqual(L.tapeInsert(t, 'a', '1', 0)[0].ids, ['1', '3'], 'já está na fita: não duplica');
   assert.deepEqual(L.tapeInsert(t, 'zz', '2', 0)[0].ids, ['1', '3']);
 });
+
+test('releaseNotes: pega só o trecho antes do "---", sem markdown, limitado', () => {
+  const body = '### Rádio\n- **Planeta neon** com `países` em [português](https://x.y)\n- Pinos menores\n\n---\n\nModo Treino 1.3.2 para Android\n**SHA-256:** `abc`';
+  assert.deepEqual(L.releaseNotes(body), ['Rádio', 'Planeta neon com países em português', 'Pinos menores']);
+  assert.deepEqual(L.releaseNotes(''), []);
+  assert.deepEqual(L.releaseNotes(null), []);
+  assert.deepEqual(L.releaseNotes('---\nsó instalação'), []);
+  const longo = L.releaseNotes('- ' + 'a'.repeat(50) + '\n- ' + 'b'.repeat(50), 60);
+  assert.equal(longo.length, 2); assert.ok(longo[1].endsWith('…') && longo[1].length <= 12);
+});

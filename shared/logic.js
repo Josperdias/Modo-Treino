@@ -124,6 +124,27 @@
     return { name: String(a.name), url, size: Number(a.size) || 0, sha256: digest ? digest[1].toLowerCase() : null };
   }
 
+  /**
+   * "Novidades" de uma release: o trecho do corpo antes da primeira linha '---' (o workflow coloca ali a seção do CHANGELOG),
+   * sem markdown (negrito, crase, títulos, links) e limitado a `max` caracteres. Devolve [] se não houver nada.
+   * Cada item é uma linha de texto simples.
+   */
+  function releaseNotes(body, max) {
+    const limit = max > 0 ? max : 700;
+    const text = String(body == null ? '' : body).split(/^\s*---\s*$/m)[0];
+    const lines = [];
+    let used = 0;
+    for (const raw of text.split(/\r?\n/)) {
+      let t = raw.trim();
+      if (!t) continue;
+      t = t.replace(/^#{1,6}\s*/, '').replace(/^[-*]\s+/, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim();
+      if (!t) continue;
+      if (used + t.length > limit) { lines.push(t.slice(0, Math.max(0, limit - used)).trimEnd() + '…'); break; }
+      lines.push(t); used += t.length;
+    }
+    return lines.filter((l) => l !== '…');
+  }
+
   /* ---------- treino: snapshot, volume e recordes ---------- */
 
   /**
@@ -474,6 +495,7 @@
     evaluateUpdate,
     safeGithubUrl,
     apkAsset,
+    releaseNotes,
     snapshotSession,
     annotateRecords,
     personalBests,

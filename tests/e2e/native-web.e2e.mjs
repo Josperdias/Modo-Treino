@@ -141,9 +141,31 @@ test('ajustes: notificação do exercício vem ligada e dá para desligar (persi
   await context.close();
 });
 
+test('aviso de versão no topo do app: novidades, "depois" some e não volta, atualizar disponível', {skip}, async () => {
+  const apk = {name: 'modo-treino-9.0.0.apk', browser_download_url: `https://github.com/${REPO}/releases/download/v9.0.0/modo-treino-9.0.0.apk`, size: 58000000, digest: 'sha256:' + 'a'.repeat(64)};
+  const release = rel('v9.0.0', {prerelease: false, body: '### Rádio\n- **Planeta neon** com `países`\n- Pinos menores\n\n---\n\nModo Treino 9.0.0 para Android', assets: [apk]});
+  const {context, page, errors} = await open({releases: [release]});
+  await page.getByRole('alert', {name: /Nova versão 9\.0\.0 disponível/}).waitFor();
+  const t = await body(page);
+  assert.match(t, /9\.0\.0 CHEGOU!/); assert.match(t, new RegExp(`você está na ${INSTALLED.replace(/\./g, '\\.')}`)); assert.match(t, /55,3 MB/);
+  assert.equal(await page.getByLabel('Atualizar agora').count(), 1);
+  await page.getByLabel('Ver novidades').click();
+  assert.match(await body(page), /Planeta neon com países/); assert.match(await body(page), /Pinos menores/);
+  assert.doesNotMatch(await body(page), /para Android/, 'só o trecho antes do "---" aparece');
+  await page.getByLabel('Depois').click();
+  await page.getByRole('alert').waitFor({state: 'detached'});
+  await page.reload(); await page.getByText('MODO', {exact: false}).first().waitFor(); await settle(page, 800);
+  assert.equal(await page.getByRole('alert').count(), 0, 'dispensada: não volta ao reabrir');
+  await openSettings(page);
+  await page.getByLabel('VERIFICAR AGORA').click();
+  await page.getByRole('alert', {name: /Nova versão 9\.0\.0/}).waitFor();   // verificar à mão mostra de novo
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('avisos de versão: estado correto (mais nova, igual, mais antiga, nenhuma, offline)', {skip}, async () => {
   const cases = [
-    [{releases: [rel('v1.0.0'), rel('v9.0.0'), rel('v1.5.0')]}, /Versão 9\.0\.0 publicada\. Baixe e instale manualmente\./],
+    [{releases: [rel('v1.0.0'), rel('v9.0.0'), rel('v1.5.0')]}, /Versão 9\.0\.0 disponível\./],
     [{releases: [rel('v' + INSTALLED)]}, /tudo em dia/],
     [{releases: [rel('v' + bump(INSTALLED, -1))]}, new RegExp('mais nova que a última release \\(' + bump(INSTALLED, -1).replace(/\./g, '\\.') + '\\)')],
     [{releases: []}, /nenhuma release publicada/],

@@ -14,10 +14,10 @@
 
 <br>
 
-<img src="screenshots/v1.3.1/app-01-inicio.png" width="190" alt="App Android: tela inicial">
-<img src="screenshots/v1.3.1/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
-<img src="screenshots/v1.3.1/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
-<img src="screenshots/v1.3.1/app-10b-tocando-agora.png" width="190" alt="App Android: Tocando agora, com a fita girando">
+<img src="screenshots/v1.3.2/app-01-inicio.png" width="190" alt="App Android: tela inicial">
+<img src="screenshots/v1.3.2/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
+<img src="screenshots/v1.3.2/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
+<img src="screenshots/v1.3.2/app-10b-tocando-agora.png" width="190" alt="App Android: Tocando agora, com a fita girando">
 
 </div>
 
@@ -36,16 +36,16 @@
 | 🔔 **Notificações** | **Música/rádio:** notificação do player com a **fita colorida** (ou o globo) e o nome da faixa. **Exercício:** notificação fixa durante o treino com o exercício atual; toque para voltar ao app. |
 | 🔊 **Sons opcionais** | Estilos *Suave*, *Arcade* e *Minimal*, contagem **3-2-1 falada em português**. **Tudo vem desligado**; você escolhe o que quer ouvir. |
 | 📴 **Funciona offline** | Ilustrações, sons e seus registros ficam no aparelho. Instale como app pelo navegador. |
-| 🔔 **Avisos de versão nova** | O app e o site avisam quando sai uma release nova (veja abaixo). **Nada se instala sozinho.** |
+| 🔔 **Atualização no próprio app** | Quando sai versão nova, um **cartão no topo do app** mostra as novidades e o botão **Atualizar agora**: baixa aqui mesmo (com progresso) e abre o instalador do Android; **você confirma a instalação**. |
 | 💾 **Backup sem complicação** | Escolha uma pasta **uma vez**: o app guarda seus treinos lá sozinho e **restaurar é um toque** (sem procurar arquivo). Também dá para exportar CSV. Nada vai para servidor algum. |
 
 <div align="center">
 
-<img src="screenshots/v1.3.1/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
-<img src="screenshots/v1.3.1/app-14-radio-globo.png" width="170" alt="Rádio do mundo: globo 3D com países">
-<img src="screenshots/v1.3.1/app-08-treino-completo.png" width="170" alt="Treino completo">
-<img src="screenshots/v1.3.1/app-12-bags.png" width="170" alt="Bags: playlists de fitas e rádios">
-<img src="screenshots/v1.3.1/app-09-historico.png" width="170" alt="Histórico com recordes">
+<img src="screenshots/v1.3.2/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
+<img src="screenshots/v1.3.2/app-14-radio-globo.png" width="170" alt="Rádio do mundo: globo 3D com países">
+<img src="screenshots/v1.3.2/app-08-treino-completo.png" width="170" alt="Treino completo">
+<img src="screenshots/v1.3.2/app-12-bags.png" width="170" alt="Bags: playlists de fitas e rádios">
+<img src="screenshots/v1.3.2/app-09-historico.png" width="170" alt="Histórico com recordes">
 
 <sub>Capturas do app geradas com react-native-web (mesmo código do app); as músicas do "celular" nelas são simuladas. Prints do site: <code>screenshots/v1.1.0/</code>.</sub>
 
@@ -59,23 +59,23 @@ Abra **https://josperdias.github.io/Modo-Treino/** e use. Para virar app:
 - **iPhone (Safari):** Compartilhar → *Adicionar à Tela de Início*
 - **Computador:** ícone de instalar na barra de endereço
 
-### 2) App Android (APK de teste)
+### 2) App Android
 1. Abra **[a página de download](https://josperdias.github.io/Modo-Treino/baixar/)** no celular e toque em **Baixar APK**.
 2. Abra o arquivo e permita instalar de "fonte desconhecida" só para essa instalação.
 3. Confira o **SHA-256** mostrado na página com o do arquivo baixado.
 
-> ⚠️ É um **APK de teste** (assinado com a chave de depuração do template Expo): serve para avaliação, **não é a versão da Play Store**. Exporte um backup (Ajustes → Exportar) antes de trocar de versão.
+> ⚠️ O APK é assinado com a **chave própria do projeto** (a mesma em todas as versões, então atualiza por cima), mas **não é a versão da Play Store**. Se o Android mostrar *“App blocked to protect your device”*, veja a explicação na página de download (verificação de desenvolvedor do Google). Exporte um backup (Ajustes → Exportar) antes de trocar de versão.
 > Não existe app para iOS; no iPhone use o site instalado pelo Safari.
 
 ## 🙏 Créditos
 Ilustrações, personagens e identidade: **Josperd** (★ Josperd · ✿ Camila Camomila, a ruivinha). Fontes **Barlow Condensed** e **DM Sans** (SIL OFL). Rádios: diretório aberto [Radio Browser](https://www.radio-browser.info). Globo: three.js e globe.gl (MIT), mapa Natural Earth (domínio público). Veja `native/assets/globe/LICENSES.txt`.
 
-## 🔔 Avisos de versão nova
+## 🔔 Atualização e avisos de versão
 
 - **Ao abrir ou voltar para o app** (com internet), ele consulta as releases públicas deste repositório. Se existir uma versão **maior** que a instalada, mostra um aviso com **Ver release** e **Baixar APK**.
 - O site mostra a mesma faixa de aviso e o cartão **"Baixe o app Android"** na página inicial (com versão e tamanho quando existe um APK publicado).
 - Um *commit* novo **não** é "versão nova": só uma **release com APK** conta.
-- **Não há notificação push em tempo real** (isso exigiria um servidor) e **nunca há instalação automática**: você decide baixar.
+- No Android o botão **Atualizar agora** baixa o APK no app e abre o instalador do sistema; **a instalação sempre é confirmada por você** (nunca é silenciosa). Não há notificação push em tempo real (isso exigiria um servidor).
 - Dá para desativar em **Ajustes → Atualizações do GitHub**.
 
 ## 🧑‍💻 Para quem desenvolve
@@ -95,7 +95,7 @@ npm ci && npx playwright install chromium && npm run test:e2e   # site no Chromi
 - **CI** (`.github/workflows/check.yml`): estrutura e lógica, site no Chromium e app (typecheck, bundle Android e interface via react-native-web).
 - **APK** (`android-apk.yml`): compila um APK *standalone* (`assembleRelease`), confere pacote e assinatura com `apksigner`/`aapt2` e publica o **SHA-256**.
 - **Site** (`pages.yml`): publica a pasta `site/` no GitHub Pages.
-- **Lançar versão nova:** `node scripts/bump-version.mjs 1.2.0` → PR → merge → rode **Actions → Android - APK de teste → Run workflow** com *publicar* marcado. Detalhes em **[docs/MANUTENCAO.md](docs/MANUTENCAO.md)**.
+- **Lançar versão nova:** `node scripts/bump-version.mjs 1.3.2` → PR → merge → rode **Actions → Android - APK → Run workflow** com *publicar* marcado. Detalhes em **[docs/MANUTENCAO.md](docs/MANUTENCAO.md)**.
 
 ```text
 site/        site/PWA (HTML + JS puro, offline) + /baixar/

@@ -121,7 +121,15 @@ if (nativeDir) {
   await page.getByLabel('Ver rádios por país').click(); await pause(700); await shot(page, 'app-15-radio-paises'); await page.getByLabel('Fechar').last().click();
   await page.getByRole('tab', {name: 'Início', exact: true}).click(); await pause();
   await page.getByLabel('Abrir ajustes').click(); await page.getByText('Ajustes', {exact: true}).waitFor(); await pause(); await shot(page, 'app-16-ajustes');
-  await ctx.close(); nat.s.close();
+  await ctx.close();
+  // aviso de versão nova no topo (release simulada): contexto à parte para não aparecer nas outras telas
+  const ctx2 = await browser.newContext({viewport: {width: 390, height: 844}, deviceScaleFactor: 2, reducedMotion: 'reduce'});
+  const release = {tag_name: 'v9.9.9', draft: false, prerelease: false, html_url: 'https://github.com/Josperdias/Modo-Treino/releases/tag/v9.9.9', body: '### Novidades\n- **Planeta neon** com países em português\n- Rádios espalhadas pelo país\n- Aviso de versão no topo do app\n\n---\nInstalação', assets: [{name: 'modo-treino-9.9.9.apk', browser_download_url: 'https://github.com/Josperdias/Modo-Treino/releases/download/v9.9.9/modo-treino-9.9.9.apk', size: 58560000, digest: 'sha256:' + 'b'.repeat(64)}]};
+  await ctx2.route('https://api.github.com/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify([release])}));
+  const p2 = await ctx2.newPage();
+  await p2.goto(nat.url + '/'); await p2.getByRole('alert').waitFor(); await p2.waitForTimeout(900); await shot(p2, 'app-17-aviso-de-versao');
+  await p2.getByLabel('Ver novidades').click(); await p2.waitForTimeout(500); await shot(p2, 'app-18-aviso-novidades');
+  await ctx2.close(); nat.s.close();
 }
 await browser.close(); site.s.close();
 console.log('prints em', out);

@@ -1,6 +1,6 @@
 {
   "name": "modo-treino-native",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "private": true,
   "main": "expo/AppEntry",
   "scripts": {
@@ -23,6 +23,7 @@
     "expo-file-system": "~19.0.24",
     "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",
+    "expo-intent-launcher": "~13.0.8",
     "expo-keep-awake": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-media-library": "~18.2.1",
