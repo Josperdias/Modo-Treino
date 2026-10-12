@@ -56,3 +56,6 @@ export function imageInfo(e: Exercise, persona: Persona): ImageInfo {
 export const personaName = (p: Persona) => (p === 'loira' ? 'Camila Camomila, a ruivinha' : 'Josperd');
 export const personaShort = (p: Persona) => (p === 'loira' ? 'Camila' : 'Josperd');
 export const treinoTitle = (t: Treino) => (t === 'A' ? 'Bíceps, costas e trapézio' : 'Bíceps, peito e ombro');
+
+/** Bandeira (emoji) a partir do código ISO de 2 letras do país. */
+export const flag = (cc?: string) => (cc && /^[A-Za-z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 127397 + c.charCodeAt(0))) : '🌐');

@@ -43,3 +43,11 @@ localmente (`ssh-keygen -t ed25519`) e cadastre **somente a chave pública**. D�
 
 ## Regras de código
 Veja [CLAUDE.md](../CLAUDE.md).
+
+## Rádio do mundo (globo 3D)
+- O globo é **uma página HTML única e autocontida**: `native/assets/globe/globe.html` (three.js + globe.gl + mapa Natural Earth, sem rede). O app a carrega numa WebView só na tela de Rádio.
+- Para regenerar depois de mexer em `scripts/globe/*`: `npm ci && node scripts/build-globe.mjs` (usa esbuild). Créditos em `native/assets/globe/LICENSES.txt`.
+- Estações vêm do **Radio Browser** (`native/src/radio/api.ts`): servidores `de1/de2/fi1/nl1/at1.api.radio-browser.info`, cópia local por 3 dias. O app avisa o diretório de cada estação ouvida (boa prática do serviço).
+- `app.json` libera tráfego `http` (`usesCleartextTraffic`) porque muitas rádios ainda não têm https.
+- Para testar sem internet: abra `globe.html?demo=1` no navegador.
+- Fontes (Barlow Condensed e DM Sans, OFL) vêm dos pacotes `@expo-google-fonts/*`.

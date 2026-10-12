@@ -1,9 +1,10 @@
 import React, {useState} from 'react';
-import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, ScrollView, StyleSheet, View} from 'react-native';
+import {Text} from '../text';
 import Animated, {FadeInDown, LinearTransition, ZoomIn} from 'react-native-reanimated';
 import {annotateRecords, personalBests, streak as streakDays, totalVolume} from '../../logic';
 import {todayKey, useApp} from '../store';
-import {exportCsv} from '../backup';
+import {shareCsv} from '../backup';
 import {Btn, Card, CountUp, Icon, Kicker, Pattern, Press} from '../ui';
 import {C, INK, R, T} from '../theme';
 
@@ -28,12 +29,11 @@ export default function ProgressScreen({onTrain}: {onTrain: () => void}) {
         <Text style={[T.h1, {marginTop: 4}]}>Seu histórico.</Text>
         <View style={P.stats}>
           {stats.map(([n, label]) => (
-            <View key={label} style={P.stat}><CountUp value={n} style={P.statBig} /><Text style={P.statLabel}>{label}</Text></View>
+            <View key={label} style={{flex: 1}}><Card offset={3} style={{paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center'}}><CountUp value={n} style={P.statBig} /><Text style={P.statLabel} numberOfLines={1} adjustsFontSizeToFit>{label}</Text></Card></View>
           ))}
         </View>
-        <View style={P.week} accessibilityLabel="Últimos 7 dias">
-          <Pattern kind="dots" opacity={0.08} size={14} />
-          <Text style={P.weekTitle}>ÚLTIMOS 7 DIAS</Text>
+        <Card color={C.sky} offset={4} outer={{marginTop: 18}} pattern={<Pattern kind="dots" opacity={0.1} size={14} />}>
+          <Text style={P.weekTitle} accessibilityLabel="Últimos 7 dias">ÚLTIMOS 7 DIAS</Text>
           <View style={P.weekRow}>
             {week.map((d, i) => {
               const on = trained.has(d.key);
@@ -45,12 +45,12 @@ export default function ProgressScreen({onTrain}: {onTrain: () => void}) {
               );
             })}
           </View>
-        </View>
+        </Card>
       </Animated.View>
 
       {(bests.length > 0 || volume > 0) && (
         <Animated.View entering={FadeInDown.delay(80).duration(360)}>
-          <Card style={P.records}>
+          <Card color={C.ink} offset={5} shadowColor={C.yellow} outer={{marginTop: 20}} style={P.records}>
             <Pattern kind="grid" color="#FFFFFF" opacity={0.06} size={22} />
             <Kicker color="rgba(255,255,255,.6)">Seus números</Kicker>
             <Text style={P.recTitle}>Cargas e recordes</Text>
@@ -70,7 +70,8 @@ export default function ProgressScreen({onTrain}: {onTrain: () => void}) {
             const isOpen = open === i;
             const items = x.items || [];
             return (
-              <Animated.View key={`${x.date}-${x.treino}-${i}`} layout={LinearTransition.duration(220)} style={P.item}>
+              <Animated.View key={`${x.date}-${x.treino}-${i}`} layout={LinearTransition.duration(220)} style={{marginBottom: 4}}>
+                <Card offset={3} style={{padding: 0}}>
                 <Press accessibilityRole="button" accessibilityState={{expanded: isOpen}} aria-expanded={isOpen}
                   accessibilityLabel={`Treino ${x.treino}, ${x.date.split('-').reverse().join('/')}, ${x.sets} séries. Toque para ${isOpen ? 'recolher' : 'ver o detalhe'}`}
                   onPress={() => setOpen(isOpen ? null : i)} style={P.itemHead} quiet scaleTo={0.99}>
@@ -92,10 +93,11 @@ export default function ProgressScreen({onTrain}: {onTrain: () => void}) {
                     )) : <Text style={T.small}>Treino registrado sem detalhe por exercício.</Text>}
                   </View>
                 )}
+                </Card>
               </Animated.View>
             );
           })}
-          <Btn kind="ghost" icon="download-outline" text="EXPORTAR PLANILHA (CSV)" onPress={() => { void exportCsv(state); }} style={{marginTop: 8}} />
+          <Btn kind="ghost" icon="download-outline" text="EXPORTAR PLANILHA (CSV)" onPress={() => { void shareCsv(state); }} style={{marginTop: 8}} />
         </>
       ) : (
         <View style={P.empty}>
@@ -115,14 +117,14 @@ const P = StyleSheet.create({
   week: {backgroundColor: C.sky, borderRadius: R.lg, padding: 16, marginTop: 12, overflow: 'hidden', ...INK},
   weekTitle: {fontSize: 11, fontWeight: '900', letterSpacing: 1.6, color: C.ink},
   weekRow: {flexDirection: 'row', justifyContent: 'space-between', marginTop: 12},
-  dot: {width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,.7)', borderWidth: 2, borderColor: 'rgba(20,27,52,.25)', alignItems: 'center', justifyContent: 'center'},
+  dot: {width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,.75)', borderWidth: 2, borderColor: 'rgba(20,27,52,.35)', alignItems: 'center', justifyContent: 'center'},
   dotOn: {backgroundColor: C.yellow, borderColor: C.ink},
   dotToday: {borderColor: C.ink},
   dayLetter: {fontSize: 11, fontWeight: '900', color: 'rgba(20,27,52,.55)'},
-  stat: {flex: 1, backgroundColor: C.card, borderRadius: R.lg, paddingVertical: 16, alignItems: 'center', borderWidth: 1.5, borderColor: C.line},
-  statBig: {fontSize: 30, fontWeight: '900', color: C.ink, letterSpacing: -1},
+  statX: {flex: 1, backgroundColor: C.card, borderRadius: R.lg, paddingVertical: 16, alignItems: 'center', borderWidth: 1.5, borderColor: C.line},
+  statBig: {fontSize: 36, fontWeight: '900', color: C.ink, letterSpacing: -1},
   statLabel: {fontSize: 11, fontWeight: '700', color: C.muted, marginTop: 2},
-  records: {backgroundColor: C.ink, marginTop: 14, borderColor: C.ink, overflow: 'hidden'},
+  records: {overflow: 'hidden'},
   recTitle: {fontSize: 22, fontWeight: '900', color: C.white, marginTop: 6},
   vol: {fontSize: 34, fontWeight: '900', color: C.yellow, marginTop: 10, letterSpacing: -1},
   volSub: {fontSize: 13, fontWeight: '600', color: '#B7C1E3', letterSpacing: 0},
@@ -132,7 +134,7 @@ const P = StyleSheet.create({
   recNote: {fontSize: 11, lineHeight: 16, color: '#B7C1E3', marginTop: 12},
   item: {backgroundColor: C.card, borderRadius: R.lg, marginBottom: 10, overflow: 'hidden', borderWidth: 1.5, borderColor: C.line},
   itemHead: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14},
-  tag: {width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center'},
+  tag: {width: 42, height: 42, borderRadius: 14, borderWidth: 2, borderColor: C.ink, alignItems: 'center', justifyContent: 'center'},
   tagText: {fontSize: 18, fontWeight: '900', color: C.ink},
   itemTitle: {fontSize: 15, fontWeight: '800', color: C.ink},
   pct: {fontSize: 16, fontWeight: '900', color: C.green},

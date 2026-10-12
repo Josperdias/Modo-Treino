@@ -1,5 +1,6 @@
 import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
-import {Modal, Pressable, PressableProps, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {Modal, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
+import {Text} from './text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, FadeInDown, FadeOutDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, Defs, G, Line, Pattern as SvgPattern, Rect} from 'react-native-svg';
 import {Ionicons} from '@expo/vector-icons';
@@ -44,48 +45,86 @@ export function Press({style, scaleTo = 0.96, quiet = false, haptic = true, onPr
   );
 }
 
-type BtnProps = {text: string; onPress: () => void; icon?: IconName; kind?: 'primary' | 'dark' | 'ghost' | 'danger'; disabled?: boolean; small?: boolean; label?: string; style?: StyleProp<ViewStyle>};
-export function Btn({text, onPress, icon, kind = 'primary', disabled, small, label, style}: BtnProps) {
-  const bg = kind === 'primary' ? C.yellow : kind === 'dark' ? C.ink : kind === 'danger' ? '#FBE3E8' : 'transparent';
-  const fg = kind === 'dark' ? C.white : kind === 'danger' ? '#9B2C4A' : C.ink;
+/** Botão "adesivo": borda de tinta + sombra dura. Ao apertar, a frente afunda na sombra (como um botão físico). */
+type PopProps = Omit<PressableProps, 'style'> & {color?: string; radius?: number; offset?: number; shadowColor?: string; style?: StyleProp<ViewStyle>; innerStyle?: StyleProp<ViewStyle>; quiet?: boolean; border?: boolean; children?: React.ReactNode};
+export function Pop({color = C.yellow, radius = R.pill, offset = 4, shadowColor = C.ink, style, innerStyle, quiet = false, border = true, onPress, children, disabled, ...rest}: PopProps) {
+  const p = useSharedValue(0);
+  const front = useAnimatedStyle(() => ({transform: [{translateX: p.value * offset}, {translateY: p.value * offset}]}));
+  const st = rest.accessibilityState;
+  const aria: Record<string, unknown> = {};
+  if (st) {
+    if (st.checked !== undefined) aria['aria-checked'] = st.checked;
+    if (st.selected !== undefined) aria['aria-selected'] = st.selected;
+    if (st.expanded !== undefined) aria['aria-expanded'] = st.expanded;
+    if (st.disabled !== undefined) aria['aria-disabled'] = st.disabled;
+  }
   return (
-    <Press accessibilityRole="button" accessibilityLabel={label || text} accessibilityState={{disabled: !!disabled}} disabled={disabled} onPress={onPress}
-      style={[B.btn, small && B.small, {backgroundColor: bg}, kind === 'primary' && INK, kind === 'danger' && {borderWidth: 2, borderColor: '#9B2C4A'}, kind === 'ghost' && B.ghost, disabled && {opacity: 0.4}, style]}>
+    <Pressable
+      {...rest}
+      {...aria}
+      disabled={disabled}
+      style={[{marginRight: offset, marginBottom: offset, opacity: disabled ? 0.45 : 1}, style]}
+      onPressIn={() => { p.value = withTiming(1, {duration: 60}); }}
+      onPressOut={() => { p.value = withTiming(0, {duration: 160, easing: Easing.out(Easing.back(2.2))}); }}
+      onPress={(e) => {
+        if (!quiet) playSound('button');
+        Haptics.selectionAsync().catch(() => {});
+        onPress?.(e);
+      }}>
+      <View pointerEvents="none" style={{position: 'absolute', left: offset, top: offset, right: -offset, bottom: -offset, borderRadius: radius, backgroundColor: shadowColor}} />
+      <Animated.View style={[{borderRadius: radius, backgroundColor: color, overflow: 'hidden'}, border && {borderWidth: 2, borderColor: C.ink}, front, innerStyle]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
+type BtnProps = {lines?: number; text: string; onPress: () => void; icon?: IconName; kind?: 'primary' | 'dark' | 'ghost' | 'danger' | 'pink'; disabled?: boolean; small?: boolean; label?: string; style?: StyleProp<ViewStyle>};
+export function Btn({lines = 1, text, onPress, icon, kind = 'primary', disabled, small, label, style}: BtnProps) {
+  const bg = kind === 'primary' ? C.yellow : kind === 'dark' ? C.ink : kind === 'danger' ? '#FBE3E8' : kind === 'pink' ? C.pink : C.card;
+  const fg = kind === 'dark' ? C.yellow : kind === 'danger' ? '#9B2C4A' : C.ink;
+  return (
+    <Pop accessibilityRole="button" accessibilityLabel={label || text} accessibilityState={{disabled: !!disabled}} disabled={disabled} onPress={onPress} color={bg} offset={small ? 3 : 4}
+      shadowColor={kind === 'dark' ? C.yellow : C.ink} style={[{alignSelf: 'stretch'}, style]} innerStyle={[B.btn, small && B.small]}>
       {icon && <Icon name={icon} size={small ? 17 : 20} color={fg} />}
-      <Text style={[B.text, small && {fontSize: 12}, {color: fg}]}>{text}</Text>
-    </Press>
+      <Text numberOfLines={lines} adjustsFontSizeToFit minimumFontScale={0.7} style={[B.text, lines > 1 && {textAlign: 'center'}, small && {fontSize: 12}, {color: fg}]}>{text}</Text>
+    </Pop>
   );
 }
 const B = StyleSheet.create({
-  btn: {minHeight: 54, borderRadius: R.pill, paddingHorizontal: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9},
-  small: {minHeight: 42, paddingHorizontal: 16},
-  ghost: {borderWidth: 2, borderColor: C.ink},
-  text: {fontSize: 14, fontWeight: '900', letterSpacing: 0.6},
+  btn: {minHeight: 54, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9},
+  small: {minHeight: 42, paddingHorizontal: 14},
+  text: {fontSize: 15, fontWeight: '900', letterSpacing: 0.8, flexShrink: 1},
 });
 
-export const Card = ({children, style}: {children: React.ReactNode; style?: StyleProp<ViewStyle>}) => <View style={[K.card, style]}>{children}</View>;
-const K = StyleSheet.create({card: {backgroundColor: C.card, borderRadius: R.lg, padding: 18, borderWidth: 1.5, borderColor: C.line}});
+/** Cartão "adesivo" estático (borda de tinta + sombra dura). */
+export function Card({children, style, outer, color = C.card, offset = 4, pattern, shadowColor = C.ink}: {children: React.ReactNode; style?: StyleProp<ViewStyle>; outer?: StyleProp<ViewStyle>; color?: string; offset?: number; pattern?: React.ReactNode; shadowColor?: string}) {
+  return (
+    <View style={[{marginRight: offset, marginBottom: offset}, outer]}>
+      <View pointerEvents="none" style={{position: 'absolute', left: offset, top: offset, right: -offset, bottom: -offset, borderRadius: R.lg, backgroundColor: shadowColor}} />
+      <View style={[{backgroundColor: color, borderRadius: R.lg, padding: 18, borderWidth: 2, borderColor: C.ink, overflow: 'hidden'}, style]}>{pattern}{children}</View>
+    </View>
+  );
+}
+export const AText = Animated.createAnimatedComponent(Text);
 
 export function Kicker({children, color}: {children: string; color?: string}) { return <Text style={[T.kicker, color ? {color} : null]}>{children}</Text>; }
 
 export function Chips<V extends string | number>({options, value, onChange, format, label}: {options: V[]; value: V; onChange: (v: V) => void; format?: (v: V) => string; label: (v: V) => string}) {
   return (
-    <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+    <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10}}>
       {options.map((o) => {
         const on = o === value;
         return (
-          <Press key={String(o)} accessibilityRole="button" accessibilityLabel={label(o)} accessibilityState={{selected: on}} onPress={() => onChange(o)} style={[CH.chip, on && CH.on]}>
-            <Text style={[CH.text, on && {color: C.white}]}>{format ? format(o) : String(o)}</Text>
-          </Press>
+          <Pop key={String(o)} accessibilityRole="button" accessibilityLabel={label(o)} accessibilityState={{selected: on}} onPress={() => onChange(o)} color={on ? C.ink : C.card} offset={on ? 2 : 3} quiet innerStyle={CH.chip}>
+            <Text style={[CH.text, on && {color: C.yellow}]}>{format ? format(o) : String(o)}</Text>
+          </Pop>
         );
       })}
     </View>
   );
 }
 const CH = StyleSheet.create({
-  chip: {paddingHorizontal: 16, minHeight: 40, borderRadius: R.pill, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
-  on: {backgroundColor: C.ink},
-  text: {fontSize: 13, fontWeight: '800', color: C.ink},
+  chip: {paddingHorizontal: 16, minHeight: 38, alignItems: 'center', justifyContent: 'center'},
+  text: {fontSize: 16, fontWeight: '900', color: C.ink, letterSpacing: 0.4},
 });
 
 export function Switch({value, onChange, title, desc}: {value: boolean; onChange: (v: boolean) => void; title: string; desc?: string}) {

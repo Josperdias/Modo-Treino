@@ -1,10 +1,11 @@
 import React from 'react';
-import {Alert, Image, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, Image, ScrollView, StyleSheet, View} from 'react-native';
+import {Text} from '../text';
 import Animated, {FadeIn, FadeInDown, LinearTransition} from 'react-native-reanimated';
 import {EXERCISES, Exercise, imageInfo, personaShort, Treino, treinoTitle} from '../data';
 import {useApp} from '../store';
-import {Btn, Float, Icon, Pattern, Press, Ring} from '../ui';
-import {C, INK, R, T} from '../theme';
+import {Btn, Card, Float, Icon, Pattern, Pop, Press, Ring, Twinkle} from '../ui';
+import {C, R, T} from '../theme';
 
 const TONE: Record<Treino, string> = {A: C.pink, B: C.sky};
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -30,31 +31,33 @@ export default function TrainScreen({treino, onBack, onTreino, onStart, onEdit, 
   return (
     <ScrollView contentContainerStyle={S.scroll} showsVerticalScrollIndicator={false}>
       <Press accessibilityRole="button" accessibilityLabel="Voltar ao início" onPress={onBack} style={S.back} quiet><Icon name="arrow-back" size={18} /><Text style={S.backText}>INÍCIO</Text></Press>
-      <Animated.View entering={FadeInDown.duration(380)} style={[S.hero, {backgroundColor: TONE[treino]}]}>
-        <Pattern kind={treino === 'A' ? 'stripes' : 'dots'} opacity={0.09} size={treino === 'A' ? 14 : 18} />
-        <View style={{flex: 1, zIndex: 2}}>
-          <Text style={S.date}>{longDate().toUpperCase()}</Text>
-          <Text style={S.heroTitle} accessibilityRole="header">TREINO {treino}</Text>
-          <Text style={S.heroSub}>{treinoTitle(treino)}</Text>
-          <View style={S.ringRow}>
-            <Ring size={64} stroke={7} progress={p.percent / 100} color={C.ink} track="rgba(20,27,52,.16)">
-              <Text style={S.ringText}>{p.percent}%</Text>
-            </Ring>
-            <Text style={S.ringCaption}>{started ? `${p.sets} de ${p.total} séries hoje` : `${p.total} séries · ${list.length} exercícios`}</Text>
+      <Animated.View entering={FadeInDown.duration(380)}>
+        <Card color={TONE[treino]} offset={6} style={{flexDirection: 'row', padding: 20}} pattern={<Pattern kind={treino === 'A' ? 'stripes' : 'dots'} opacity={0.09} size={treino === 'A' ? 14 : 18} />}>
+          <Twinkle size={16} color={C.white} delay={300} style={{top: 14, right: 150}} />
+          <View style={{flex: 1, zIndex: 2}}>
+            <Text style={S.date}>{longDate().toUpperCase()}</Text>
+            <Text style={S.heroTitle} accessibilityRole="header">TREINO {treino}</Text>
+            <Text style={S.heroSub}>{treinoTitle(treino)}</Text>
+            <View style={S.ringRow}>
+              <Ring size={64} stroke={8} progress={p.percent / 100} color={C.ink} track="rgba(20,27,52,.16)">
+                <Text style={S.ringText}>{p.percent}%</Text>
+              </Ring>
+              <Text style={S.ringCaption}>{started ? `${p.sets} de ${p.total} séries hoje` : `${p.total} séries · ${list.length} exercícios`}</Text>
+            </View>
+            <Btn icon={all ? 'eye' : 'play'} small text={all ? 'REVER' : started ? 'CONTINUAR' : 'COMEÇAR'} label={all ? 'Rever o treino' : started ? 'Continuar o treino' : `Começar treino ${treino}`} onPress={() => onStart(treino)} style={{alignSelf: 'flex-start', marginTop: 16, minWidth: 150}} />
           </View>
-          <Btn icon={all ? 'eye' : 'play'} small text={all ? 'REVER' : started ? 'CONTINUAR' : 'COMEÇAR'} label={all ? 'Rever o treino' : started ? 'Continuar o treino' : `Começar treino ${treino}`} onPress={() => onStart(treino)} style={{alignSelf: 'flex-start', marginTop: 16}} />
-        </View>
-        <Float amplitude={4} rotate={5} style={S.heroArtBox}><Image source={art.image} resizeMode="contain" style={{width: '100%', height: '100%'}} accessibilityLabel={`Ilustração de ${personaShort(state.persona)}`} /></Float>
+          <Float amplitude={4} rotate={5} style={S.heroArtBox}><Image source={art.image} resizeMode="contain" style={{width: '100%', height: '100%'}} accessibilityLabel={`Ilustração de ${personaShort(state.persona)}`} /></Float>
+        </Card>
       </Animated.View>
 
       <View style={S.seg} accessibilityRole="tablist">
         {(['A', 'B'] as const).map((t) => {
           const on = t === treino;
           return (
-            <Press key={t} accessibilityRole="tab" accessibilityLabel={`Treino ${t}`} accessibilityState={{selected: on}} onPress={() => onTreino(t)} style={[S.segItem, on && S.segOn]} scaleTo={0.97}>
-              <Text style={[S.segText, on && {color: C.white}]}>TREINO {t}</Text>
+            <Pop key={t} accessibilityRole="tab" accessibilityLabel={`Treino ${t}`} accessibilityState={{selected: on}} onPress={() => onTreino(t)} color={on ? C.ink : C.card} radius={R.lg} offset={on ? 2 : 4} style={{flex: 1}} innerStyle={S.segItem}>
+              <Text style={[S.segText, on && {color: C.yellow}]}>TREINO {t}</Text>
               <Text style={[S.segSub, on && {color: '#C9D1EE'}]}>{t === 'A' ? '6 exercícios' : '8 exercícios'}</Text>
-            </Press>
+            </Pop>
           );
         })}
       </View>
@@ -66,8 +69,8 @@ export default function TrainScreen({treino, onBack, onTreino, onStart, onEdit, 
         const info = imageInfo(e, state.persona);
         const complete = done >= tot;
         return (
-          <Animated.View key={e.id} entering={FadeInDown.delay(60 + i * 45).duration(320)} layout={LinearTransition}>
-            <Press accessibilityRole="button" accessibilityLabel={`Abrir ${e.nome}`} onPress={() => onStart(treino, i)} scaleTo={0.985} quiet style={S.row}>
+          <Animated.View key={e.id} entering={FadeInDown.delay(60 + i * 45).duration(320)} layout={LinearTransition} style={{marginBottom: 6}}>
+            <Pop accessibilityRole="button" accessibilityLabel={`Abrir ${e.nome}`} onPress={() => onStart(treino, i)} color={complete ? '#E3F8EC' : C.card} radius={R.lg} offset={4} quiet innerStyle={S.row}>
               <View style={S.thumb}><Image source={info.image} resizeMode="contain" style={{width: '100%', height: '100%'}} accessibilityLabel={`Ilustração de ${e.nome}`} /></View>
               <View style={{flex: 1}}>
                 <Text style={S.rowName} numberOfLines={2}>{e.nome}</Text>
@@ -78,7 +81,7 @@ export default function TrainScreen({treino, onBack, onTreino, onStart, onEdit, 
                 {complete ? <Icon name="checkmark" size={18} color={C.green} /> : <Text style={S.badgeText}>{done}/{tot}</Text>}
               </View>
               <Press accessibilityRole="button" accessibilityLabel={`Editar ${e.nome}`} onPress={() => onEdit(e)} style={S.edit} quiet><Icon name="pencil" size={16} color={C.muted} /></Press>
-            </Press>
+            </Pop>
           </Animated.View>
         );
       })}
@@ -94,28 +97,26 @@ export default function TrainScreen({treino, onBack, onTreino, onStart, onEdit, 
 }
 
 const S = StyleSheet.create({
-  scroll: {padding: 20, paddingBottom: 150},
+  scroll: {padding: 20, paddingBottom: 170},
   back: {flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingRight: 14, marginBottom: 6},
-  backText: {fontSize: 12, fontWeight: '900', letterSpacing: 1.4, color: C.ink},
-  hero: {borderRadius: R.xl, padding: 20, flexDirection: 'row', overflow: 'hidden', ...INK},
-  date: {fontSize: 10, fontWeight: '900', letterSpacing: 1.6, color: 'rgba(20,27,52,.6)'},
-  heroTitle: {fontSize: 36, fontWeight: '900', letterSpacing: -1.4, color: C.ink, marginTop: 6},
-  heroSub: {fontSize: 14, color: 'rgba(20,27,52,.75)', fontWeight: '600', marginTop: 2},
-  ringRow: {flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16},
-  ringText: {fontSize: 15, fontWeight: '900', color: C.ink},
-  ringCaption: {flex: 1, fontSize: 12, fontWeight: '700', color: 'rgba(20,27,52,.75)'},
-  heroArtBox: {width: 124, height: 176, borderRadius: 14, backgroundColor: C.card, padding: 4, alignSelf: 'center', marginLeft: 8, ...INK},
-  seg: {flexDirection: 'row', backgroundColor: C.soft, borderRadius: R.pill, padding: 5, marginTop: 20, marginBottom: 16, borderWidth: 1.5, borderColor: C.line},
-  segItem: {flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: R.pill},
-  segOn: {backgroundColor: C.ink},
-  segText: {fontSize: 13, fontWeight: '900', letterSpacing: 0.8, color: C.ink},
-  segSub: {fontSize: 11, color: C.muted, marginTop: 1},
-  row: {flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: R.lg, padding: 10, marginBottom: 10, borderWidth: 1.5, borderColor: C.line},
-  thumb: {width: 72, height: 72, borderRadius: R.md, backgroundColor: '#F4F0E6', padding: 3},
-  rowName: {fontSize: 15, fontWeight: '800', color: C.ink, marginBottom: 2},
-  badge: {minWidth: 46, height: 36, paddingHorizontal: 8, borderRadius: 18, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
+  backText: {fontSize: 15, fontWeight: '900', letterSpacing: 1.2, color: C.ink},
+  date: {fontSize: 12, fontWeight: '800', letterSpacing: 1.4, color: 'rgba(20,27,52,.6)'},
+  heroTitle: {fontSize: 40, fontWeight: '900', letterSpacing: 0.2, color: C.ink, marginTop: 4, lineHeight: 40},
+  heroSub: {fontSize: 14, color: 'rgba(20,27,52,.78)', fontWeight: '500', marginTop: 4},
+  ringRow: {flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14},
+  ringText: {fontSize: 17, fontWeight: '900', color: C.ink},
+  ringCaption: {flex: 1, fontSize: 12, fontWeight: '700', color: 'rgba(20,27,52,.78)'},
+  heroArtBox: {width: 118, height: 170, borderRadius: 14, backgroundColor: C.card, padding: 4, alignSelf: 'center', marginLeft: 8, borderWidth: 2, borderColor: C.ink},
+  seg: {flexDirection: 'row', gap: 12, marginTop: 22, marginBottom: 18},
+  segItem: {alignItems: 'center', paddingVertical: 10},
+  segText: {fontSize: 20, fontWeight: '900', letterSpacing: 0.6, color: C.ink},
+  segSub: {fontSize: 11, color: C.muted, marginTop: 1, fontWeight: '500'},
+  row: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10},
+  thumb: {width: 74, height: 74, borderRadius: R.md, backgroundColor: '#F4F0E6', padding: 3, borderWidth: 2, borderColor: C.ink},
+  rowName: {fontSize: 16, fontWeight: '700', color: C.ink, marginBottom: 2},
+  badge: {minWidth: 46, height: 36, paddingHorizontal: 8, borderRadius: 18, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink},
   badgeDone: {backgroundColor: C.mint},
-  badgeText: {fontSize: 12, fontWeight: '900', color: C.ink},
+  badgeText: {fontSize: 14, fontWeight: '900', color: C.ink},
   edit: {width: 34, height: 34, alignItems: 'center', justifyContent: 'center'},
   note: {fontSize: 11, lineHeight: 17, color: C.muted, marginTop: 18},
 });

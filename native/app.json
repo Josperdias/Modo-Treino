@@ -3,7 +3,7 @@
     "name": "Modo Treino",
     "slug": "modo-treino-josperd",
     "scheme": "modotreino",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/brand.png",
@@ -36,7 +36,8 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.SYSTEM_ALERT_WINDOW"
-      ]
+      ],
+      "allowBackup": true
     },
     "plugins": [
       [
@@ -56,7 +57,16 @@
           "isAccessMediaLocationEnabled": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-build-properties",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "extra": {
       "appName": "Modo Treino",

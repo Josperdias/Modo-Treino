@@ -2,7 +2,8 @@
  * Os gestos rodam na thread de UI (gesture-handler + reanimated), então seguem o dedo sem engasgar.
  * Fica dentro de um <Modal>, acima de qualquer tela. */
 import React, {useState} from 'react';
-import {Image, ImageSourcePropType, LayoutChangeEvent, Modal, StyleSheet, Text, View} from 'react-native';
+import {Image, ImageSourcePropType, LayoutChangeEvent, Modal, StyleSheet, View} from 'react-native';
+import {Text} from './text';
 import {Gesture, GestureDetector, GestureHandlerRootView} from 'react-native-gesture-handler';
 import Animated, {runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming} from 'react-native-reanimated';
 import {Icon, Press} from './ui';

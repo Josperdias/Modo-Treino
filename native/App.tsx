@@ -1,15 +1,20 @@
 import 'react-native-gesture-handler';
 import React, {useEffect, useState} from 'react';
-import {BackHandler, Image, ImageSourcePropType, LayoutChangeEvent, StatusBar, StyleSheet, Text, View} from 'react-native';
+import {BackHandler, ImageSourcePropType, LayoutChangeEvent, StatusBar, StyleSheet, View} from 'react-native';
+import {Text} from './src/text';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import Animated, {FadeIn, FadeOut, SlideInRight, SlideOutRight, useAnimatedStyle, useSharedValue, withSpring} from 'react-native-reanimated';
 import {activateKeepAwakeAsync, deactivateKeepAwake} from 'expo-keep-awake';
+import {useFonts} from 'expo-font';
+import {BarlowCondensed_700Bold, BarlowCondensed_800ExtraBold, BarlowCondensed_900Black} from '@expo-google-fonts/barlow-condensed';
+import {DMSans_400Regular, DMSans_500Medium, DMSans_700Bold} from '@expo-google-fonts/dm-sans';
+import {Glyph} from './src/glyphs';
 import {AppProvider, useApp} from './src/store';
-import {Exercise, file, imageInfo, personaShort, Treino} from './src/data';
+import {Exercise, imageInfo, personaShort, Treino} from './src/data';
 import {MusicProvider} from './src/music/MusicProvider';
 import MiniPlayer from './src/music/MiniPlayer';
-import MusicScreen from './src/screens/MusicScreen';
+import MusicHub, {MusicMode} from './src/screens/MusicHub';
 import HomeScreen from './src/screens/HomeScreen';
 import TrainScreen from './src/screens/TrainScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
@@ -18,9 +23,10 @@ import {EditSheet, GallerySheet, SettingsSheet} from './src/screens/Sheets';
 import ZoomView from './src/ZoomView';
 import {Bounce, Icon, IconName, Pattern, Press, ToastProvider, useToast} from './src/ui';
 import {useUpdates} from './src/updates';
+import {useBackup} from './src/backup';
 import {C, R} from './src/theme';
 
-const APP_VERSION='1.2.0';
+const APP_VERSION='1.3.0';
 
 type Tab = 'home' | 'music' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
@@ -68,6 +74,7 @@ function Shell() {
   const {state} = app;
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('home');
+  const [musicMode, setMusicMode] = useState<MusicMode>('bags');
   const [open, setOpen] = useState<Treino | null>(null);
   const [workout, setWorkout] = useState<{t: Treino; index?: number} | null>(null);
   const [editing, setEditing] = useState<Exercise | null>(null);
@@ -75,6 +82,7 @@ function Shell() {
   const [settings, setSettings] = useState(false);
   const [gallery, setGallery] = useState(false);
   const updates = useUpdates(APP_VERSION, state.notifyUpdates, app.loaded);
+  const backup = useBackup(state, APP_VERSION, app.loaded, (b) => app.update((s) => ({...s, ...b})));
 
   useEffect(() => {
     const on = state.keepAwake && !!workout;
@@ -96,7 +104,6 @@ function Shell() {
     const i = imageInfo(e, state.persona);
     setZoom({source: i.image, label: i.status === 'missing' ? `Ilustração decorativa de Josperd, não é uma demonstração de ${e.nome}` : `Ilustração de ${e.nome}`});
   };
-  const avatar = file(state.persona === 'loira' ? 'lateral_loira.png' : 'lateral_vinho.png');
 
   return (
     <SafeAreaView style={S.safe} edges={['top', 'bottom']}>
@@ -110,7 +117,7 @@ function Shell() {
           <Text style={S.brand} accessibilityRole="header">MODO <Text style={{color: C.yellow}}>TREINO.</Text></Text>
         </View>
         <Press accessibilityRole="button" accessibilityLabel="Abrir ajustes" onPress={() => setSettings(true)} style={S.chip}>
-          <View style={S.avatar}><Image source={avatar} resizeMode="contain" style={{width: '100%', height: '100%'}} /></View>
+          <Glyph persona={state.persona} size={26} spin />
           <Text style={S.chipText}>{personaShort(state.persona).toUpperCase()}</Text>
           <Icon name="settings-sharp" size={15} color="#B7C1E3" />
         </Press>
@@ -119,7 +126,7 @@ function Shell() {
       <View style={{flex: 1, backgroundColor: C.paper}}>
         <Animated.View key={tab} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)} style={{flex: 1}}>
           {tab === 'home' && <HomeScreen onOpenTreino={(t) => setOpen(t)} onStart={(t) => setWorkout({t})} />}
-          {tab === 'music' && <MusicScreen />}
+          {tab === 'music' && <MusicHub mode={musicMode} onMode={setMusicMode} />}
           {tab === 'progress' && <ProgressScreen onTrain={() => setTab('home')} />}
         </Animated.View>
         {tab === 'home' && open && (
@@ -140,7 +147,7 @@ function Shell() {
           onOpenMusic={() => { setWorkout(null); setTab('music'); }} onZoom={openZoom} onEdit={setEditing} />
       )}
       <EditSheet exercise={editing} onClose={() => setEditing(null)} onZoom={openZoom} />
-      <SettingsSheet visible={settings} onClose={() => setSettings(false)} version={APP_VERSION} status={updates.status} onCheck={() => { void updates.check(true); }} onGallery={() => setGallery(true)} />
+      <SettingsSheet visible={settings} onClose={() => setSettings(false)} version={APP_VERSION} status={updates.status} onCheck={() => { void updates.check(true); }} onGallery={() => setGallery(true)} backup={backup} />
       <GallerySheet visible={gallery} onClose={() => setGallery(false)} onZoom={openZoom} />
       {zoom && <ZoomView source={zoom.source} label={zoom.label} onClose={() => setZoom(null)} />}
     </SafeAreaView>
@@ -148,6 +155,8 @@ function Shell() {
 }
 
 export default function App() {
+  const [fontsReady, fontError] = useFonts({BarlowCondensed_700Bold, BarlowCondensed_800ExtraBold, BarlowCondensed_900Black, DMSans_400Regular, DMSans_500Medium, DMSans_700Bold});
+  if (!fontsReady && !fontError) return <View style={{flex: 1, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center'}}><Glyph persona="vinho" size={64} spin /></View>;
   return (
     <GestureHandlerRootView style={{flex: 1}}>
       <SafeAreaProvider>
@@ -167,9 +176,9 @@ const S = StyleSheet.create({
   safe: {flex: 1, backgroundColor: C.navy},
   header: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, backgroundColor: C.navy},
   sub: {fontSize: 10, fontWeight: '900', letterSpacing: 2.2, color: '#B7C1E3'},
-  brand: {fontSize: 27, fontWeight: '900', letterSpacing: -1.2, color: C.white, marginTop: 2},
+  brand: {fontSize: 30, fontWeight: '900', letterSpacing: 0.4, color: C.white, marginTop: 2},
   chip: {flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: R.pill, paddingVertical: 4, paddingLeft: 4, paddingRight: 11, borderWidth: 2, borderColor: '#4A5580'},
   avatar: {width: 32, height: 32, borderRadius: 16, backgroundColor: C.paper, overflow: 'hidden', padding: 2},
-  chipText: {fontSize: 12, fontWeight: '900', color: C.white, letterSpacing: 0.8},
+  chipText: {fontSize: 13, fontWeight: '900', color: C.white, letterSpacing: 1},
   layer: {...StyleSheet.absoluteFillObject, backgroundColor: C.paper, zIndex: 5},
 });

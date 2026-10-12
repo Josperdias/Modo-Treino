@@ -1,0 +1,43 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  /* o gesto é todo tratado pelo OrbitControls: nada de rolagem/zoom da página */
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+#globe {
+  position: fixed;
+  inset: 0;
+}
+#globe canvas {
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+/* Etiqueta de hover (só aparece com mouse; no toque fica oculta) */
+#tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -140%);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(16, 23, 51, 0.82);
+  border: 1px solid rgba(233, 160, 191, 0.45);
+  color: #fff3d2;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: opacity 0.12s;
+}
+#tip.on { opacity: 1; }

@@ -1,11 +1,13 @@
 import React, {useEffect, useState} from 'react';
-import {Alert, Image, Keyboard, Linking, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {Alert, Image, Keyboard, Linking, ScrollView, StyleSheet, View} from 'react-native';
+import {Text, TextInput} from '../text';
 import {DEFAULT_SOUNDS, playSound, SOUND_STYLES} from '../../SoundFX';
 import {EXERCISES, Exercise, file, imageInfo, Persona, personaName, Treino} from '../data';
 import {useApp} from '../store';
-import {exportBackup, exportCsv, importBackup} from '../backup';
+import {BackupApi, shareBackup, shareCsv} from '../backup';
 import {GITHUB_REPO} from '../updates';
-import {Btn, Card, Chips, Icon, Kicker, Press, Sheet, Switch} from '../ui';
+import {Btn, Card, Chips, Icon, Kicker, Pop, Press, Sheet, Switch} from '../ui';
+import {Glyph} from '../glyphs';
 import {C, INK, R, shadow, T} from '../theme';
 
 const REST_EX = [0, 30, 45, 60, 90, 120, 180];
@@ -19,32 +21,33 @@ export function PersonaPicker() {
       {(['vinho', 'loira'] as Persona[]).map((p) => {
         const on = state.persona === p;
         return (
-          <Press key={p} accessibilityRole="button" accessibilityState={{selected: on}} accessibilityLabel={p === 'loira' ? 'Escolher Camila Camomila, a ruivinha' : 'Escolher Josperd'}
-            onPress={() => update((s) => ({...s, persona: p}))} style={[PS.card, on && PS.on]}>
-            <View style={PS.img}><Image source={file(p === 'loira' ? 'lateral_loira.png' : 'lateral_vinho.png')} resizeMode="contain" style={{width: '100%', height: '100%'}} /></View>
-            <Text style={PS.name}>{p === 'loira' ? 'CAMILA · RUIVINHA' : 'JOSPERD'}</Text>
-            <Text style={PS.sub}>{state.persona === p ? '● Selecionado' : p === 'loira' ? 'a ruivinha' : 'por Josperd'}</Text>
-            {on && <View style={PS.check}><Icon name="checkmark" size={14} color={C.white} /></View>}
-          </Press>
+          <Pop key={p} accessibilityRole="button" accessibilityState={{selected: on}} accessibilityLabel={p === 'loira' ? 'Escolher Camila Camomila, a ruivinha' : 'Escolher Josperd'}
+            onPress={() => update((s) => ({...s, persona: p}))} color={on ? C.yellow : C.card} radius={R.lg} offset={on ? 3 : 5} style={{flex: 1}} innerStyle={PS.card}>
+            <View style={PS.img}>
+              <Image source={file(p === 'loira' ? 'lateral_loira.png' : 'lateral_vinho.png')} resizeMode="contain" style={{width: '100%', height: '100%'}} />
+              <View style={PS.glyph}><Glyph persona={p} size={34} spin={on} /></View>
+            </View>
+            <Text style={PS.name} numberOfLines={1}>{p === 'loira' ? 'CAMILA' : 'JOSPERD'}</Text>
+            <Text style={PS.sub}>{(p === 'loira' ? 'a ruivinha' : 'por Josperd') + (on ? '  ● ativa' : p === 'loira' ? '  ✿' : '  ★')}</Text>
+          </Pop>
         );
       })}
     </View>
   );
 }
 const PS = StyleSheet.create({
-  card: {flex: 1, backgroundColor: C.card, borderRadius: R.lg, padding: 10, alignItems: 'center', borderWidth: 2, borderColor: C.line},
-  on: {...INK, backgroundColor: '#FFF1CE'},
-  img: {width: '100%', height: 110, backgroundColor: '#F4F0E6', borderRadius: R.md, padding: 4},
-  name: {fontSize: 13, fontWeight: '900', color: C.ink, marginTop: 8, letterSpacing: 0.6},
-  sub: {fontSize: 11, color: C.muted},
-  check: {position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center'},
+  card: {padding: 10, alignItems: 'center'},
+  img: {width: '100%', height: 118, backgroundColor: '#F4F0E6', borderRadius: R.md, padding: 4, borderWidth: 2, borderColor: C.ink},
+  glyph: {position: 'absolute', top: -10, left: -10},
+  name: {fontSize: 17, fontWeight: '900', color: C.ink, marginTop: 8, letterSpacing: 0.6},
+  sub: {fontSize: 12, fontWeight: '500', color: 'rgba(20,27,52,.7)'},
 });
 
 const Section = ({title, children}: {title: string; children: React.ReactNode}) => (
   <View style={{marginBottom: 24}}><Text style={[T.kicker, {marginBottom: 10}]}>{title}</Text>{children}</View>
 );
 
-export function SettingsSheet({visible, onClose, version, status, onCheck, onGallery}: {visible: boolean; onClose: () => void; version: string; status: string; onCheck: () => void; onGallery: () => void}) {
+export function SettingsSheet({visible, onClose, version, status, onCheck, onGallery, backup}: {visible: boolean; onClose: () => void; version: string; status: string; onCheck: () => void; onGallery: () => void; backup: BackupApi}) {
   const {state, update} = useApp();
   const snd = state.sounds || DEFAULT_SOUNDS;
   const setSnd = (patch: Partial<typeof snd>) => update((v) => ({...v, sounds: {...v.sounds, ...patch}}));
@@ -101,12 +104,30 @@ export function SettingsSheet({visible, onClose, version, status, onCheck, onGal
           </Card>
         </Section>
 
-        <Section title="Seus dados">
-          <Text style={[T.body, {marginBottom: 12}]}>Tudo fica só neste aparelho. Exporte um backup antes de trocar de versão ou de celular.</Text>
-          <View style={{gap: 8}}>
-            <Btn kind="ghost" small icon="download-outline" text="EXPORTAR BACKUP (JSON)" onPress={() => { void exportBackup(state, version); }} />
-            <Btn kind="ghost" small icon="document-text-outline" text="EXPORTAR PLANILHA (CSV)" onPress={() => { void exportCsv(state); }} />
-            <Btn kind="ghost" small icon="push-outline" text="IMPORTAR BACKUP" onPress={() => { void importBackup((b) => update((s) => ({...s, ...b, ...{restExercise: b.restExercise, restSet: b.restSet}}))); }} />
+        <Section title="Backup dos seus dados">
+          <Card color={C.mint} offset={4}>
+            {backup.supported ? (backup.folder ? (
+              <>
+                <Text style={T.h3}>Backup automático ligado ✓</Text>
+                <Text style={[T.small, {marginTop: 4}]}>{backup.last ? `Último backup: ${backup.last}.` : 'Ainda sem backup nesta pasta.'} O app guarda sozinho depois de cada treino ou ajuste.</Text>
+                <View style={{gap: 8, marginTop: 12}}>
+                  <Btn small icon="cloud-upload-outline" text="SALVAR AGORA" disabled={backup.busy} onPress={() => { void backup.saveNow(); }} />
+                  <Btn small kind="dark" icon="cloud-download-outline" text="RESTAURAR DO BACKUP" disabled={backup.busy} onPress={() => { void backup.restore(); }} />
+                  <Btn small kind="ghost" icon="folder-open-outline" text="TROCAR PASTA" onPress={() => { void backup.choose(); }} />
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={T.h3}>Backup sem complicação</Text>
+                <Text style={[T.small, {marginTop: 4}]}>Escolha uma pasta uma única vez (por exemplo, Documentos). Depois o app guarda tudo lá sozinho, e restaurar é um toque. Sem arquivos para procurar.</Text>
+                <Btn icon="folder-open-outline" text="ESCOLHER PASTA DO BACKUP" disabled={backup.busy} onPress={() => { void backup.choose(); }} style={{marginTop: 12}} />
+              </>
+            )) : <Text style={T.small}>O backup por pasta funciona no app Android. No navegador, use “Enviar backup”.</Text>}
+          </Card>
+          <Text style={[T.small, {marginTop: 10}]}>Tudo fica só neste aparelho e na pasta que você escolher. Nada vai para servidores.</Text>
+          <View style={{gap: 8, marginTop: 10}}>
+            <Btn kind="ghost" small icon="share-outline" text="ENVIAR BACKUP PARA OUTRO APP" onPress={() => { void shareBackup(state, version); }} />
+            <Btn kind="ghost" small icon="document-text-outline" text="ENVIAR PLANILHA (CSV)" onPress={() => { void shareCsv(state); }} />
           </View>
         </Section>
         <Text style={[T.small, {textAlign: 'center'}]}>Modo Treino · versão {version} · by Josperd</Text>

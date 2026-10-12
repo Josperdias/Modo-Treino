@@ -2,6 +2,25 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.3.0] — 2026-10-12
+
+### Novo
+- **Rádio do mundo com globo 3D** (aba **Rádio**): milhares de estações do diretório aberto Radio Browser como pontos num globo 3D (three.js).
+  Arraste para girar, pinça para zoom, toque num ponto ou num país; busca por nome/país/estilo, **Surpreenda-me**, painel com **OUVIR** e **NA BOLSA**.
+  Toca com a tela apagada e fora do app (notificação/tela de bloqueio). O globo roda numa WebView só nesta tela; o resto do app segue nativo.
+  O app só toca o stream público de cada rádio (nada é baixado nem hospedado). Precisa de internet. Libera tráfego `http` (muitas rádios ainda não têm https).
+- **Bolsas de música**: as playlists viraram **bolsas** desenhadas e animadas (abrem, fitas espiam, notas flutuam enquanto toca). **Rádios também entram nas bolsas.**
+- **Backup sem escolher arquivo**: escolha uma pasta **uma vez** e o app guarda os dados lá sozinho; **Restaurar** é um toque. Enviar para outro app continua possível.
+- **Importar músicas por três caminhos**: lista do celular, **uma pasta** (sem permissão de áudio) ou **arquivos** (agora o seletor mostra qualquer arquivo; filtramos MP3/M4A/etc. por extensão).
+- **★ Josperd e ✿ Camila**: estrela e flor como símbolos dos personagens (perfil e escolha), e **estrelinhas** que piscam no cartão inicial.
+
+### Visual refeito (estilo "adesivo")
+- Tipografia **Barlow Condensed + DM Sans** (OFL), botões e cartões com borda de tinta e **sombra dura que afunda ao tocar**, texturas, animações escalonadas.
+- Botões com texto que **cabe na tela** (encolhe em vez de cortar).
+
+### Mudanças
+- Fitas → **bolsas** em todo o app. 4 abas: Início, Músicas, Rádio, Progresso.
+
 ## [1.2.0] — 2026-10-12
 
 ### App Android refeito
