@@ -18,12 +18,13 @@ import { lerFaixa } from './icy.js';
 // Constantes visuais
 // ---------------------------------------------------------------------------
 const R = 100;                     // raio do globo em unidades three-globe
-const COR_OCEANO = '#0c1236';         // espaço profundo: azul-marinho quase roxo
 // Visual retrô de fita cassete: planeta de pontinhos (hexágonos) em rosa, azul, amarelo, menta, lilás e pêssego, num espaço
 // estrelado azul-roxo com halo rosa→azul. Países vizinhos nunca repetem a cor (coloração de grafo). As rádios são pinos
 // índigo com contorno creme (leem bem sobre qualquer tom); a escolhida fica vermelha e a que está tocando, verde.
-const PALETA = ['#F29BC0', '#8FB8F5', '#FFD369', '#8EE0C0', '#BFA8F5', '#FFB58A'];   // rosa, azul, amarelo, menta, lilás, pêssego
-const PREFERIDA = { BR: 3 };                                                           // Brasil: menta/verde
+// Países em rosa, roxo e azul elétrico (4 tons, vizinhos nunca repetem) sobre um oceano índigo profundo.
+const PALETA = ['#FF4FA3', '#B05CFF', '#3FA9FF', '#FF8AC9'];   // rosa-choque, roxo, azul elétrico, rosa-claro
+const PREFERIDA = {};
+const COR_OCEANO = '#0A0630';
 const COR_ESTACAO = rgb('#1D1F66');
 const COR_TOCANDO = rgb('#22B35E');
 const COR_SELECIONADA = rgb('#E63950');
@@ -160,7 +161,7 @@ const globe = Globe({
   .showGraticules(false)        // grade própria, mais discreta e escondida sob a terra
   // base: planeta de pontinhos (hexágonos) coloridos por país
   .hexPolygonResolution(3)
-  .hexPolygonMargin(0.3)
+  .hexPolygonMargin(0.22)
   .hexPolygonAltitude(0.004)
   .hexPolygonColor((f) => PALETA[f.properties.cor % PALETA.length])
   .hexPolygonsTransitionDuration(0)
@@ -430,7 +431,7 @@ let paisHover = null;         // iso2 sob o mouse
 let filtroIds = null;         // Set de ids visíveis (filtro por estilo/busca); null = todas
 
 function tamanhoEstacao(c) {
-  return 4.2 + 2.4 * Math.min(1, Math.log10((c || 0) + 1) / 4);   // 4,2 – 6,6 px (diâmetro do núcleo)
+  return 3.6 + 2.2 * Math.min(1, Math.log10((c || 0) + 1) / 4);   // 3,6 – 5,8 px (diâmetro do núcleo)
 }
 
 function reconstruirTodas() {

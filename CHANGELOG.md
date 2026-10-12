@@ -7,7 +7,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 Ajustes a partir do uso no aparelho real.
 
 ### Rádio do mundo
-- **Planeta retrô de fita cassete**: volta o planeta de **pontinhos** (hexágonos), agora em **rosa, azul, amarelo, menta, lilás e pêssego**, num **espaço estrelado** azul-roxo com halo rosa→azul. Países vizinhos **nunca repetem a cor** (o Brasil é verde) e têm fronteira fina e **nome em português** (aparecem mais nomes quanto mais perto você chega).
+- **Planeta neon retrô**: volta o planeta de **pontinhos** (hexágonos), agora em **rosa-choque, roxo e azul elétrico** (neon retrô), num **espaço estrelado** índigo com halo rosa→azul. Países vizinhos **nunca repetem a cor** e têm fronteira fina e **nome em português** (aparecem mais nomes quanto mais perto você chega).
 - **Pontos que se leem**: as rádios são **pinos índigo com contorno creme**; ao tocar numa, ela fica **vermelha**; ao começar a tocar, **verde** (com anel pulsando). Legenda na tela.
 - **Rádios espalhadas pelo país**: quando muitas rádios têm a mesma coordenada (centro da cidade/país), elas são espalhadas dentro do próprio país em vez de virar um ponto só. A localização continua aproximada.
 - **Nome da faixa**: o app lê os metadados do stream (ICY) a cada 20 s e mostra "♪ Artista – Música" no cartão da rádio, no player e no mini player (e na tela de bloqueio). Rádios que não publicam isso mostram "Esta rádio não informa a faixa".
