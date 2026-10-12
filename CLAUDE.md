@@ -7,7 +7,7 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
 - `main` é estável; criar branches `feat/*`, `fix/*`, `art/*`, `chore/*`.
 - Pull requests pequenos com: resumo, lista de telas afetadas, testes e screenshots responsivas.
 - Nunca mesclar automaticamente mudanças não testadas em `main`.
-- GitHub Actions verifica JavaScript, JSON e presença das 14 fichas; futuras ações CI nativas podem rodar typecheck com dependências instaladas.
+- O CI (`check.yml`) roda: estrutura e lógica, site no Chromium e app (typecheck, bundle Android e interface via react-native-web). PRs só entram com tudo verde.
 - Antes de aceitar código de GitHub externo, conferir licença e arquivos de licença; nunca copiar grandes trechos indiscriminadamente.
 - Nunca tentar integrar o Morphe, baixar áudio do YouTube ou tocar áudio invisível em segundo plano a partir do YouTube.
 - Nunca apresentar capa decorativa como demonstração de exercício ausente.
@@ -23,8 +23,24 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
 ## Comandos
 
 - Web: `python3 -m http.server 8000 -d site`
-- Native: `cd native && npm install && npx expo start`
-- Quick check: `python3 tests/verify.py`
+- Native: `cd native && npm ci && npx expo start`
+- Testes rápidos: `npm test` (estrutura + lógica) — `python3 tests/verify.py`, `node --test "tests/*.test.mjs"`
+- Site no Chromium: `npm ci && npx playwright install chromium && npm run test:e2e`
+- App (typecheck + bundle): `cd native && npx tsc --noEmit && npx expo export --platform android`
+- Prints reais das telas: `node scripts/capturar-prints.mjs screenshots/<versao> --native <pasta do expo export --platform web>`
+
+## Regras de código (aprendidas em testes)
+
+- **Lógica compartilhada**: edite SOMENTE `shared/logic.js` e rode `node scripts/sync-shared.mjs` (copia para `site/` e `native/`).
+  O CI falha se as cópias divergirem. Toda regra nova de série/volume/versão/backup entra aqui **com teste**.
+- **Ilustração inteira**: nunca use `object-fit: cover` / `resizeMode="cover"` em arte de exercício. As artes têm proporções diferentes;
+  use `contain`. O selo "JOSPERD / CAMILA" fica **fora** da arte, nunca por cima.
+- **Camadas do site**: modo execução (z 90) < player (100) < cronômetro (110) < aviso (120) < janela de edição (140). O aviso
+  (`.toast`) tem `pointer-events:none`; um elemento invisível que captura toques é bug.
+- **Versão única**: `native/package.json`, `native/app.json`, `package.json`, `native/App.tsx`, `site/updates.js` e `site/sw.js`
+  precisam ter o mesmo número (o `verify.py` confere).
+- **APK de teste** = `assembleRelease` (JS embutido). Nunca volte para `assembleDebug`: sem Metro, o app abre em tela vermelha.
+- Fontes: só OFL embutidas (Barlow Condensed, DM Sans). Não adicione Le Cartoonie sem licença.
 
 ## Sons opcionais (v1.0.1)
 
