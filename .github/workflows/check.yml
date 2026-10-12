@@ -41,6 +41,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node --test tests/e2e/site.e2e.mjs
+      - name: Site servido em subcaminho (como no GitHub Pages)
+        run: node --test tests/e2e/pages-subpath.e2e.mjs
 
   native:
     name: App Expo (typecheck, bundle Android, testes de interface)

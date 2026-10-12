@@ -43,3 +43,16 @@ jobs:
           path: site
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Conferir que o site está no ar (HTTP 200 e conteúdo certo)
+        run: |
+          URL="${{ steps.deployment.outputs.page_url }}"
+          echo "Site: $URL"
+          check() { for i in 1 2 3 4 5 6 7 8; do code=$(curl -s -o /tmp/page.html -w '%{http_code}' "$1"); if [ "$code" = 200 ] && grep -q "$2" /tmp/page.html; then echo "ok $1"; return 0; fi; echo "tentativa $i: HTTP $code"; sleep 10; done; return 1; }
+          check "$URL" "Modo Treino"
+          check "${URL}baixar/" "NO BOLSO"
+          {
+            echo "## Site publicado"
+            echo ""
+            echo "- Site: $URL"
+            echo "- Download do app: ${URL}baixar/"
+          } >> "$GITHUB_STEP_SUMMARY"
