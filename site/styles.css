@@ -210,10 +210,6 @@ body.guided-open{overflow:hidden}
 .g-chip{display:inline-block;font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:999px;border:1.5px solid var(--ink);background:#fffdf8;color:var(--ink)}
 .g-chip.fallback{background:#ffe6a1}.g-chip.missing{background:#ffc5d3}
 .g-art .availability{display:block;margin:0;text-align:center}
-.g-lightbox{position:absolute;inset:0;z-index:5;background:rgba(10,15,32,.94);display:grid;place-items:center;padding:56px 12px 12px}
-.g-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}
-.g-lightbox-close{position:absolute;top:10px;right:10px;width:46px;height:46px;border-radius:50%;border:2px solid #fff;background:transparent;color:#fff;display:grid;place-items:center}
-.g-lightbox-close .svg{width:22px;height:22px}
 @media (min-width:900px){#guided .g-art{align-self:stretch;max-height:calc(100vh - 230px)}}
 .g-nav{width:56px}
 .g-main{font-size:14px;letter-spacing:.2px;padding:0 12px;gap:8px}
@@ -222,3 +218,31 @@ body.guided-open{overflow:hidden}
 .toast{pointer-events:none}
 /* dentro do modo execução o aviso sobe só até acima dos botões, sem cobrir título nem botão principal */
 body.guided-open .toast{bottom:112px}
+
+/* ===== v1.1.0 — ZOOM da ilustração (roda do mouse, pinça, toque duplo, arrastar, botões) ===== */
+.is-zoomable{cursor:zoom-in}
+body.zoom-open{overflow:hidden}
+#zoom .zoom-view{position:fixed;inset:0;z-index:150;background:#0a0f20;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+.zoom-stage{flex:1;min-height:0;display:grid;place-items:center;overflow:hidden;touch-action:none;cursor:zoom-in;user-select:none;-webkit-user-select:none;padding:12px}
+.zoom-stage.is-zoomed{cursor:grab}
+.zoom-stage.is-zoomed:active{cursor:grabbing}
+.zoom-img{max-width:100%;max-height:100%;object-fit:contain;transform-origin:center;will-change:transform;user-select:none;-webkit-user-drag:none;border-radius:12px}
+.zoom-bar{display:flex;gap:10px;align-items:center;justify-content:center;padding:10px 12px 6px;flex-wrap:wrap}
+.zoom-bar button{min-width:48px;height:48px;border-radius:14px;border:2px solid #4a5580;background:#1d2748;color:#fff;font-weight:900;font-size:20px;padding:0 14px}
+.zoom-bar button:last-child{border-color:#fff}
+.zoom-bar button .svg{width:20px;height:20px}
+.zoom-bar button[data-z="reset"]{font-size:12px;letter-spacing:.8px}
+.zoom-bar output{min-width:64px;text-align:center;color:var(--yellow);font-family:var(--title);font-weight:900;font-size:26px}
+.zoom-hint{margin:0;padding:0 12px 12px;text-align:center;font-size:11px;color:#b9c3da}
+
+/* ===== mini player de música dentro do modo execução ===== */
+.g-ph{border:0!important;visibility:hidden}
+.g-mini{display:flex;align-items:center;gap:6px;background:#1d2748;color:#fff;padding:6px 12px;border-bottom:1px solid #36406a}
+.g-mini-note{width:34px;height:34px;border-radius:9px;background:#f9c4d6;color:var(--ink);display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.g-mini-note.is-on{animation:g-pulse2 1.6s ease-in-out infinite}
+.g-mini-text{flex:1;min-width:0;display:flex;flex-direction:column}
+.g-mini-text strong{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-mini-text small{font-size:10px;color:#b9c3da;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-mini>button{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:#fff;font-size:18px;display:grid;place-items:center}
+.g-mini>button.g-mini-play{background:var(--yellow);color:var(--ink);font-weight:900}
+@media (prefers-reduced-motion:reduce){.g-mini-note.is-on{animation:none}}
