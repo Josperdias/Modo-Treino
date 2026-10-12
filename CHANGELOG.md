@@ -2,6 +2,63 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.3.0] — 2026-10-12
+
+### Novo
+- **Rádio do mundo com globo 3D** (aba **Rádio**): milhares de estações do diretório aberto Radio Browser como pontos num globo 3D (three.js).
+  Arraste para girar, pinça para zoom, toque num ponto ou num país; busca por nome/país/estilo, **Surpreenda-me**, painel com **OUVIR** e **NA BAG**.
+  Toca com a tela apagada e fora do app (notificação/tela de bloqueio). O globo roda numa WebView só nesta tela; o resto do app segue nativo.
+  O app só toca o stream público de cada rádio (nada é baixado nem hospedado). Precisa de internet. Libera tráfego `http` (muitas rádios ainda não têm https).
+- **Fitas e bags**: **fita = cada música do celular** (um cassete por música, lida direto do aparelho, sem importar) e **bag = playlist** de fitas e/ou rádios (uma bag desenhada e animada). A aba Músicas tem três modos: **FITAS**, **BAGS** e **RÁDIO**. Em cada fita, ⋯ → *Colocar na bag*; na bag dá para reordenar, tirar (com desfazer) e achar rádios no globo.
+- **Backup sem escolher arquivo**: escolha uma pasta **uma vez** e o app guarda os dados lá sozinho; **Restaurar** é um toque. Enviar para outro app continua possível.
+- **Importar músicas por três caminhos**: lista do celular, **uma pasta** (sem permissão de áudio) ou **arquivos** (agora o seletor mostra qualquer arquivo; filtramos MP3/M4A/etc. por extensão).
+- **★ Josperd e ✿ Camila**: estrela e flor como símbolos dos personagens (perfil e escolha). No cartão inicial, **estrelinhas** que piscam para o Josperd e **florzinhas** para a Camila, em áreas livres, sem cobrir texto.
+
+### Mais controle sobre a música
+- **Tocar tudo / Aleatório** nas fitas e **Tocar / Aleatório** em cada bag; **volume** com barra e mudo; **velocidade** (0,75x a 1,5x); **timer para dormir** (15 a 60 min).
+- Menu de cada fita (⋯): **tocar agora**, **colocar na bag** (a mesma fita pode estar em várias bags) e, para arquivos copiados, apagar a cópia do app.
+- Telas pensadas também para celulares estreitos (320 dp): títulos e botões encolhem em vez de cortar; miniaturas dos exercícios maiores.
+
+### Visual refeito (estilo "adesivo")
+- Tipografia **Barlow Condensed + DM Sans** (OFL), botões e cartões com borda de tinta e **sombra dura que afunda ao tocar**, texturas, animações escalonadas.
+- Botões com texto que **cabe na tela** (encolhe em vez de cortar).
+
+### Mudanças
+- Playlists agora se chamam **bags**; **fita** é a música. 3 abas: Início, Músicas (Fitas · Bags · Rádio) e Progresso.
+
+## [1.2.0] — 2026-10-12
+
+### App Android refeito
+- **Interface nova, mais limpa**: **3 abas** (Início, Músicas, Progresso) em vez de 6. Ajustes e a coleção de ilustrações abrem em folhas
+  a partir do perfil. Visual editorial mantido (cabeçalho azul-marinho, hero "VAI LÁ. FAZ VALER.", cartões rosa e azul com contorno), agora com
+  **texturas** (pontos e listras), pôsteres inclinados que flutuam, contagem animada nas estatísticas, transições entre telas,
+  botões com mola e anel de progresso.
+- **Descanso só entre um exercício e outro.** Entre séries do mesmo exercício não há mais contagem, a não ser que você ligue em
+  Ajustes → Descanso (entre exercícios: Sem/30/45/60/90/120/180 s; entre séries: Sem/15/30/45/60/90 s). O ajuste antigo vira "entre exercícios".
+- **Fitas com as músicas do próprio celular, sem importar nem copiar** (permissão de leitura de áudio do Android; nada de foto/vídeo).
+  Busca, seleção múltipla, **tirar da fita não apaga o arquivo** (com **Desfazer**), reordenar, várias fitas com a mesma música, fitas novas e
+  renomear. "Escolher arquivos" continua existindo para o que não aparece na lista. Bibliotecas da versão anterior são migradas.
+- **Zoom com os dedos de verdade** (gesture-handler + reanimated, na thread de UI): pinça centrada nos dedos, arrastar com limites,
+  toque duplo, botões +/−/AJUSTAR; máximo 600%.
+- Cassete animado (carretéis giram, a fita passa de um lado ao outro), controles da tela de bloqueio quando o sistema permite.
+- Acabamento: confete no treino completo, equalizador na música tocando, segmentos de progresso que enchem, ícones das abas que saltam, brilhos no hero,
+  "respiração" no cronômetro e no botão principal, faixa **Últimos 7 dias** no Progresso e texturas no cabeçalho e nos cartões.
+  Tudo respeita **"remover animações"** do sistema (as animações em laço ficam paradas).
+- Modo execução com a barra azul-marinho no topo (sempre abaixo da barra de status) e os botões do rodapé como antes: anterior, **CONCLUIR SÉRIE ✓** e próximo.
+- Acessibilidade: o fundo some para leitores de tela quando o modo execução está aberto; papéis e estados também no navegador.
+- Permissões enxutas: removido o microfone (que o `expo-audio` pedia por padrão) e as de foto/vídeo/janela sobreposta.
+
+### Lógica compartilhada (`shared/logic.js`, com testes)
+- `restPlan`, `normalizeRest`, e as operações de fita `tapeAdd/tapeRemove/tapeInsert/tapeMove/forgetTrack/resolveTape/nextTrackId/searchTracks`.
+- Backup agora guarda `restExercise` e `restSet` (e continua lendo o `rest` antigo).
+
+### Testes
+- Interface do app reescrita (27 testes), incluindo **pinça e toque duplo com toques reais** simulados no Chromium e o caso "tirar da fita não apaga".
+- 41 testes de lógica.
+
+### Não verificado
+- Reprodução, permissão de áudio, lista de músicas e segundo plano **em Android real** (o ambiente de desenvolvimento não tem aparelho).
+
 ## [1.1.1] — 2026-10-12
 
 ### Novo

@@ -1,0 +1,58 @@
+Globo de radios - creditos e licencas de terceiros
+===================================================
+
+Este arquivo acompanha native/assets/globe/globe.html (gerado por scripts/build-globe.mjs).
+O HTML embute, num unico arquivo e sem nenhuma requisicao de rede, os componentes abaixo.
+Cada pacote mantem o aviso de copyright original no respectivo pacote npm.
+
+Componentes principais
+----------------------
+three.js 0.186 ................ MIT   (c) 2010-2026 three.js authors - https://github.com/mrdoob/three.js
+globe.gl 2.46 ................. MIT   (c) Vasco Asturiano - https://github.com/vasturiano/globe.gl
+three-globe 2.45 .............. MIT   (c) Vasco Asturiano - https://github.com/vasturiano/three-globe
+h3-js 4.5 (hexagonos) ......... Apache-2.0  (c) Uber Technologies, Inc. - https://github.com/uber/h3-js
+topojson-client 3.1 ........... ISC   (c) Mike Bostock - https://github.com/topojson/topojson-client
+
+Dados geograficos
+-----------------
+world-atlas 2.0 (countries-110m.json): pacote ISC (c) Mike Bostock - https://github.com/topojson/world-atlas
+Dados Natural Earth (https://www.naturalearthdata.com/) - dominio publico.
+As fronteiras sao as do Natural Earth em escala 1:110m e nao expressam posicao sobre disputas territoriais.
+Codigos de pais: ISO 3166-1 (convertidos de numerico para alpha-2 no build com o pacote "iso-3166-1", MIT,
+usado so em tempo de build e nao embutido no HTML).
+
+Dependencias embutidas (transitivas de globe.gl / three-globe)
+---------------------------------------------------------------
+MIT: @babel/runtime, @turf/boolean-point-in-polygon, @turf/helpers, @turf/invariant, @tweenjs/tween.js,
+     accessor-fn, d3-octree, data-bind-mapper, float-tooltip, frame-ticker, index-array-by, kapsule,
+     lodash-es, point-in-polygon-hao, polished, preact, three-conic-polygon-geometry,
+     three-geojson-geometry, three-render-objects, three-slippy-map-globe, tinycolor2
+ISC: d3-array, d3-color, d3-delaunay, d3-format, d3-geo, d3-geo-voronoi, d3-interpolate, d3-scale,
+     d3-scale-chromatic, d3-selection, d3-time, d3-time-format, d3-tricontour, delaunator, earcut, internmap
+Unlicense (dominio publico): robust-predicates
+
+Ferramenta de build (nao embutida): esbuild - MIT - https://github.com/evanw/esbuild
+
+Codigo proprio
+--------------
+scripts/globe/*.js, scripts/globe/style.css, scripts/build-globe.mjs e os shaders de halo, estacoes e estrelas:
+projeto Modo Treino (Josperd). Nenhuma textura, fonte ou imagem de terceiros e embutida: o globo e
+desenhado apenas com geometria e shaders.
+
+Texto da licenca MIT (aplica-se aos componentes MIT acima)
+-----------------------------------------------------------
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+following conditions: The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Apache-2.0 (h3-js): texto completo em https://www.apache.org/licenses/LICENSE-2.0
+ISC e Unlicense: textos em cada pacote npm correspondente.

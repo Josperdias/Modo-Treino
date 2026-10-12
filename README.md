@@ -14,9 +14,10 @@
 
 <br>
 
-<img src="screenshots/v1.1.0/site-mobile-01-inicio.png" width="210" alt="Tela inicial do Modo Treino">
-<img src="screenshots/v1.1.0/site-mobile-04-modo-execucao-card.png" width="210" alt="Modo execução: card do exercício com os botões de séries">
-<img src="screenshots/v1.1.0/site-mobile-06-modo-execucao-descanso.png" width="210" alt="Tela de descanso com cronômetro e mini player de música">
+<img src="screenshots/v1.3.0/app-01-inicio.png" width="190" alt="App Android: tela inicial">
+<img src="screenshots/v1.3.0/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
+<img src="screenshots/v1.3.0/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
+<img src="screenshots/v1.3.0/app-10-fita-tocando.png" width="190" alt="App Android: fitas com as músicas do celular">
 
 </div>
 
@@ -26,22 +27,26 @@
 
 | | |
 |---|---|
-| 🃏 **Modo Execução** | Um card por exercício, em tela cheia. **Toque em quantas séries você fez** (tocar em "3" registra 3; tocar de novo corrige). Descanso automático com **+15s**, **Pular** e **Editar tempo**, e o próximo exercício já preparado. |
+| 🃏 **Modo Execução** | Um card por exercício, em tela cheia. **Toque em quantas séries você fez** (tocar em "3" registra 3; tocar de novo corrige). **O descanso é só entre um exercício e outro** (com **+15s** e **Pular**); descanso entre séries é opcional, nos Ajustes. |
 | 🖼️ **Ilustração inteira + zoom** | As artes do Josperd aparecem **inteiras**, sem corte. Toque na imagem para ampliar até 600% (pinça, toque duplo, roda do mouse, arrastar). |
 | 🏋️ **Treinos A e B** | 14 exercícios (6 + 8) com séries, repetições e cargas **editáveis**. Você escolhe quem treina com você: **Josperd** ou **Camila Camomila, a ruivinha**. |
 | 📈 **Histórico de verdade** | Volume por treino (séries × repetições × carga), detalhe por exercício, **recordes pessoais** e exportação em **CSV**. |
-| 📼 **Modo Música** | Importe as suas músicas, monte fitas (Treino A, Treino B, Favoritas), **crossfade de 0 a 8 s**, cassete com bobinas animadas e **mini player dentro do treino**. Tudo local; sem baixar nada de terceiros. |
+| 📼 **Fitas e bags** | **No app Android:** cada música do seu celular é uma **fita** (um cassete), lida direto do aparelho (lista, pasta ou arquivos), **sem importar nem copiar**. **Bags** são as playlists: junte **fitas e rádios** e toque tudo de uma vez. Tirar da bag **não apaga o arquivo**. Crossfade de 0 a 8 s, volume, velocidade, timer para dormir e **mini player dentro do treino**. No site, você importa os arquivos. Sem baixar nada de terceiros. |
+| 🌍 **Rádio do mundo (globo 3D)** | Milhares de rádios como pontos num **globo 3D**: gire, dê zoom, toque num ponto ou país e ouça. Toca com a tela apagada. Guarde rádios nas suas bags (playlists). (App Android; precisa de internet.) |
 | 🔊 **Sons opcionais** | Estilos *Suave*, *Arcade* e *Minimal*, contagem **3-2-1 falada em português**. **Tudo vem desligado**; você escolhe o que quer ouvir. |
 | 📴 **Funciona offline** | Ilustrações, sons e seus registros ficam no aparelho. Instale como app pelo navegador. |
 | 🔔 **Avisos de versão nova** | O app e o site avisam quando sai uma release nova (veja abaixo). **Nada se instala sozinho.** |
-| 💾 **Seus dados são seus** | Backup em JSON (validado), planilha CSV. Nada é enviado a servidor algum. |
+| 💾 **Backup sem complicação** | Escolha uma pasta **uma vez**: o app guarda seus treinos lá sozinho e **restaurar é um toque** (sem procurar arquivo). Também dá para exportar CSV. Nada vai para servidor algum. |
 
 <div align="center">
 
-<img src="screenshots/v1.1.0/site-mobile-05-modo-execucao-zoom.png" width="190" alt="Zoom na ilustração">
-<img src="screenshots/v1.1.0/site-mobile-07-modo-execucao-completo.png" width="190" alt="Treino completo">
-<img src="screenshots/v1.1.0/site-mobile-08-historico.png" width="190" alt="Histórico com recordes">
-<img src="screenshots/v1.1.0/site-mobile-11-musica-fitas.png" width="190" alt="Modo Música com fitas">
+<img src="screenshots/v1.3.0/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
+<img src="screenshots/v1.3.0/app-05-zoom.png" width="170" alt="Zoom na ilustração">
+<img src="screenshots/v1.3.0/app-08-treino-completo.png" width="170" alt="Treino completo">
+<img src="screenshots/v1.3.0/app-12-bags.png" width="170" alt="Bags: playlists de fitas e rádios">
+<img src="screenshots/v1.3.0/app-09-historico.png" width="170" alt="Histórico com recordes">
+
+<sub>Capturas do app geradas com react-native-web (mesmo código do app); as músicas do "celular" nelas são simuladas. Prints do site: <code>screenshots/v1.1.0/</code>.</sub>
 
 </div>
 
@@ -61,6 +66,9 @@ Abra **https://josperdias.github.io/Modo-Treino/** e use. Para virar app:
 > ⚠️ É um **APK de teste** (assinado com a chave de depuração do template Expo): serve para avaliação, **não é a versão da Play Store**. Exporte um backup (Ajustes → Exportar) antes de trocar de versão.
 > Não existe app para iOS; no iPhone use o site instalado pelo Safari.
 
+## 🙏 Créditos
+Ilustrações, personagens e identidade: **Josperd** (★ Josperd · ✿ Camila Camomila, a ruivinha). Fontes **Barlow Condensed** e **DM Sans** (SIL OFL). Rádios: diretório aberto [Radio Browser](https://www.radio-browser.info). Globo: three.js e globe.gl (MIT), mapa Natural Earth (domínio público). Veja `native/assets/globe/LICENSES.txt`.
+
 ## 🔔 Avisos de versão nova
 
 - **Ao abrir ou voltar para o app** (com internet), ele consulta as releases públicas deste repositório. Se existir uma versão **maior** que a instalada, mostra um aviso com **Ver release** e **Baixar APK**.
@@ -79,7 +87,7 @@ python3 -m http.server 8000 -d site          # http://localhost:8000
 cd native && npm ci && npx expo start
 
 # testes
-npm test                                      # estrutura + lógica (29 testes)
+npm test                                      # estrutura + lógica (41 testes)
 npm ci && npx playwright install chromium && npm run test:e2e   # site no Chromium (48 testes)
 ```
 

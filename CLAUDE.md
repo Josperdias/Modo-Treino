@@ -31,6 +31,10 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
 
 ## Regras de código (aprendidas em testes)
 
+- **Estrutura do app** (`native/`): `App.tsx` só monta as abas; telas em `src/screens`, música em `src/music`, estado em `src/store.tsx`, componentes em `src/ui.tsx`, zoom em `src/ZoomView.tsx`.
+- **Descanso**: padrão **só entre exercícios**; entre séries só se o usuário configurar (`restPlan` em `shared/logic.js`).
+- **Fitas**: guardam só referências. Tirar da fita **nunca** apaga arquivo; só cópias importadas pelo seletor podem ser apagadas (`forgetTrack`). Sem importar para ouvir as músicas do celular (MediaStore).
+- **Animações**: reanimated. Evite `withSpring` encadeado em `withSequence` (oscila sem parar no navegador); prefira `withTiming`.
 - **Lógica compartilhada**: edite SOMENTE `shared/logic.js` e rode `node scripts/sync-shared.mjs` (copia para `site/` e `native/`).
   O CI falha se as cópias divergirem. Toda regra nova de série/volume/versão/backup entra aqui **com teste**.
 - **Ilustração inteira**: nunca use `object-fit: cover` / `resizeMode="cover"` em arte de exercício. As artes têm proporções diferentes;

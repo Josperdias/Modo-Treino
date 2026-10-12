@@ -268,6 +268,105 @@
   }
 
   /* ---------- CSV ---------- */
+  /* ---------- descanso ---------- */
+  const REST_MAX = 600;
+  const REST_EXERCISE_DEFAULT = 60;
+  function restSecs(v, fallback) {
+    const n = Math.trunc(Number(v));
+    return Number.isFinite(n) && n >= 0 ? Math.min(REST_MAX, n) : fallback;
+  }
+  // Migra o ajuste antigo (um único "rest" aplicado a toda série) para: descanso ENTRE EXERCÍCIOS + descanso entre séries (desligado).
+  function normalizeRest(o) {
+    const src = o && typeof o === 'object' ? o : {};
+    return {
+      restExercise: restSecs(src.restExercise != null ? src.restExercise : src.rest, REST_EXERCISE_DEFAULT),
+      restSet: restSecs(src.restSet, 0),
+    };
+  }
+  // Quanto descansar depois de marcar uma série. 0 = sem descanso.
+  // Padrão: só descansa ao terminar um exercício (entre um exercício e outro); entre séries só se restSet > 0.
+  function restPlan(o) {
+    const c = normalizeRest(o);
+    if (o && o.workoutDone) return 0;
+    return o && o.exerciseDone ? c.restExercise : c.restSet;
+  }
+
+  /* ---------- fitas (listas de músicas) ----------
+   * Uma fita guarda só REFERÊNCIAS (ids de músicas). Tirar uma música da fita nunca apaga o arquivo do aparelho.
+   * Funções puras: devolvem novas listas e não alteram a entrada. */
+  function uniqueIds(ids) {
+    const seen = new Set();
+    const out = [];
+    for (const id of Array.isArray(ids) ? ids : []) {
+      if (typeof id === 'string' && id && !seen.has(id)) { seen.add(id); out.push(id); }
+    }
+    return out;
+  }
+  function tapeAdd(tapes, tapeId, trackIds) {
+    return tapes.map((t) => (t.id === tapeId ? Object.assign({}, t, {ids: uniqueIds(t.ids.concat(trackIds))}) : t));
+  }
+  function tapeRemove(tapes, tapeId, trackId) {
+    return tapes.map((t) => (t.id === tapeId ? Object.assign({}, t, {ids: t.ids.filter((id) => id !== trackId)}) : t));
+  }
+  // Põe a música de volta numa posição (usado pelo "Desfazer" de tirar da fita).
+  function tapeInsert(tapes, tapeId, trackId, index) {
+    return tapes.map((t) => {
+      if (t.id !== tapeId || t.ids.includes(trackId)) return t;
+      const ids = t.ids.slice();
+      ids.splice(Math.max(0, Math.min(ids.length, Math.trunc(index) || 0)), 0, trackId);
+      return Object.assign({}, t, {ids});
+    });
+  }
+  function tapeMove(tapes, tapeId, trackId, delta) {
+    return tapes.map((t) => {
+      if (t.id !== tapeId) return t;
+      const ids = t.ids.slice();
+      const i = ids.indexOf(trackId);
+      const j = i + delta;
+      if (i < 0 || j < 0 || j >= ids.length) return t;
+      ids.splice(j, 0, ids.splice(i, 1)[0]);
+      return Object.assign({}, t, {ids});
+    });
+  }
+  // Esquecer uma música da biblioteca do app (só cópias importadas): sai de todas as fitas.
+  function forgetTrack(lib, trackId) {
+    return Object.assign({}, lib, {
+      tracks: lib.tracks.filter((x) => x.id !== trackId),
+      tapes: lib.tapes.map((t) => Object.assign({}, t, {ids: t.ids.filter((id) => id !== trackId)})),
+    });
+  }
+  // Faixas da fita que ainda existem (o arquivo pode ter sido apagado do celular) + quantas sumiram.
+  function resolveTape(tape, tracks) {
+    const byId = new Map(tracks.map((x) => [x.id, x]));
+    const found = [];
+    let missing = 0;
+    for (const id of tape.ids) { const x = byId.get(id); if (x) found.push(x); else missing++; }
+    return {tracks: found, missing};
+  }
+  // Próxima faixa dentro da fita. dir = +1/-1. rand injetável para teste. null = acabou.
+  function nextTrackId(ids, currentId, dir, opts) {
+    const o = opts || {};
+    if (!ids.length) return null;
+    const ix = ids.indexOf(currentId);
+    if (o.shuffle && ids.length > 1) {
+      const pool = ids.filter((id) => id !== currentId);
+      return pool[Math.floor((o.rand ? o.rand() : Math.random()) * pool.length)];
+    }
+    if (ix < 0) return ids[0];
+    const n = ix + dir;
+    if (n >= 0 && n < ids.length) return ids[n];
+    return o.repeat ? ids[(n + ids.length) % ids.length] : null;
+  }
+  function searchTracks(tracks, query) {
+    const q = String(query == null ? '' : query).trim().toLowerCase();
+    if (!q) return tracks;
+    return tracks.filter((x) => (x.title + ' ' + (x.artist || '')).toLowerCase().includes(q));
+  }
+  function formatClock(seconds) {
+    const s = Math.max(0, Math.floor(Number(seconds) || 0));
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }
+
   function csvCell(v) {
     let s = String(v == null ? '' : v);
     if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // evita injeção de fórmula em planilhas
@@ -354,6 +453,8 @@
     return {
       persona: obj.persona === 'loira' ? 'loira' : 'vinho',
       rest: REST_OPTIONS.includes(obj.rest) ? obj.rest : 60,
+      restExercise: normalizeRest(obj).restExercise,
+      restSet: normalizeRest(obj).restSet,
       sets,
       override,
       sessions,
@@ -383,6 +484,18 @@
     tapSeries,
     workoutProgress,
     nextStep,
+    REST_MAX,
+    normalizeRest,
+    restPlan,
+    tapeAdd,
+    tapeRemove,
+    tapeInsert,
+    tapeMove,
+    forgetTrack,
+    resolveTape,
+    nextTrackId,
+    searchTracks,
+    formatClock,
     sessionsToCsv,
     validateBackup,
   };

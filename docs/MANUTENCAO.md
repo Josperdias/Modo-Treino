@@ -4,7 +4,7 @@
 
 O aviso só aparece quando o número da release é **maior** que o instalado, então a versão precisa subir.
 
-1. `node scripts/bump-version.mjs 1.2.0` (muda os 6 lugares: `package.json`, `native/package.json`, `native/app.json`, `native/App.tsx`, `site/updates.js`, `site/sw.js`).
+1. `node scripts/bump-version.mjs 1.3.0` (muda os 6 lugares: `package.json`, `native/package.json`, `native/app.json`, `native/App.tsx`, `site/updates.js`, `site/sw.js`).
 2. `python3 tests/verify.py` (confere que a versão é única) e atualize o `CHANGELOG.md`.
 3. Abra o PR e espere o CI ficar verde. Dê o merge (o site é republicado sozinho pelo `pages.yml`).
 4. **Actions → "Android - APK de teste" → Run workflow**, marcando **publicar**. O workflow compila o APK, confere pacote/assinatura, calcula o **SHA-256** e cria a **pré-release `v1.2.0`** com o APK anexado. (Empurrar uma tag `v*` faz o mesmo.)
@@ -28,7 +28,7 @@ localmente (`ssh-keygen -t ed25519`) e cadastre **somente a chave pública**. D�
 
 ## APK: o que é e o que não é
 - `assembleRelease` embute o JavaScript (um `assembleDebug` abriria em tela vermelha sem servidor Metro).
-- Assinado com a chave de **depuração** do template Expo. Para a Play Store seria preciso uma chave de produção guardada em *Secrets* e revisão de permissões.
+- **Assinatura**: com os 4 secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD` o workflow assina com a chave própria (`scripts/assinar-android.mjs` ajusta o `build.gradle` gerado; o build falha se o certificado não for `CN=Modo Treino`). Sem eles (ex.: PR de fork) usa a chave de **depuração** do template Expo. Use sempre a **mesma** chave: trocar de chave impede atualizar por cima (precisa desinstalar). Guarde o `.jks` e as senhas fora do repositório (`*.jks` está no `.gitignore`); perdida a chave, não há como atualizar quem já instalou. Isto não é build da Play Store (faltaria revisão de permissões).
 - ABIs: `arm64-v8a` e `armeabi-v7a` (aparelhos físicos; não roda em emulador x86).
 - Os assets do app precisam ter a **extensão igual ao formato real** (`tests/verify.py` confere): JPEG com nome `.png` derruba o `aapt2`.
 
@@ -43,3 +43,15 @@ localmente (`ssh-keygen -t ed25519`) e cadastre **somente a chave pública**. D�
 
 ## Regras de código
 Veja [CLAUDE.md](../CLAUDE.md).
+
+## Rádio do mundo (globo 3D)
+- O globo é **uma página HTML única e autocontida**: `native/assets/globe/globe.html` (three.js + globe.gl + mapa Natural Earth, sem rede). O app a carrega numa WebView só na tela de Rádio.
+- Para regenerar depois de mexer em `scripts/globe/*`: `npm ci && node scripts/build-globe.mjs` (usa esbuild). Créditos em `native/assets/globe/LICENSES.txt`.
+- Estações vêm do **Radio Browser** (`native/src/radio/api.ts`): servidores `de1/de2/fi1/nl1/at1.api.radio-browser.info`, cópia local por 3 dias. O app avisa o diretório de cada estação ouvida (boa prática do serviço).
+- `app.json` libera tráfego `http` (`usesCleartextTraffic`) porque muitas rádios ainda não têm https.
+- Para testar sem internet: abra `globe.html?demo=1` no navegador.
+- Fontes (Barlow Condensed e DM Sans, OFL) vêm dos pacotes `@expo-google-fonts/*`.
+
+## Vocabulário da música (app)
+- **Fita** = cada música do celular (um cassete por música). **Bag** = playlist de fitas e/ou rádios. **Rádio** = globo 3D; rádios entram nas bags.
+- No código, a bag é o tipo `Tape` em `native/src/music/MusicProvider.tsx` (nome histórico, guardado no armazenamento; não renomear sem migração).
