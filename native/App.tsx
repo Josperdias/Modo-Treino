@@ -26,7 +26,8 @@ import {Bounce, Icon, IconName, Pattern, Press, ToastProvider, useToast} from '.
 import {useUpdates} from './src/updates';
 import UpdateBanner from './src/UpdateBanner';
 import {useBackup} from './src/backup';
-import {limparTreino} from './src/notify';
+import {limparTreino, pedirNotificacoes} from './src/notify';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {C, R, useNarrow} from './src/theme';
 
 const APP_VERSION='1.3.2';
@@ -90,6 +91,11 @@ function Shell() {
   const backup = useBackup(state, APP_VERSION, app.loaded, (b) => app.update((s) => ({...s, ...b})));
 
   useEffect(() => { void limparTreino(); }, []); // notificação fixa que sobrou de um treino interrompido
+  // Android 13+: sem a permissão nenhuma notificação aparece (nem a do player). Pede uma vez, na primeira abertura; depois, em Ajustes.
+  useEffect(() => {
+    if (!app.loaded) return;
+    AsyncStorage.getItem('modo-treino-notif-asked').then((v) => { if (!v) { AsyncStorage.setItem('modo-treino-notif-asked', '1').catch(() => {}); void pedirNotificacoes(); } }).catch(() => {});
+  }, [app.loaded]);
 
   useEffect(() => {
     const on = state.keepAwake && !!workout;

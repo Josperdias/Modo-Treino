@@ -10,6 +10,9 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - *Depois* dispensa o aviso daquela versão (ele não volta ao reabrir); **Verificar agora** em Ajustes mostra de novo.
 - Nova permissão: `REQUEST_INSTALL_PACKAGES` (necessária para abrir o instalador).
 
+### Notificações aparecem de verdade
+- No Android 13+ **sem a permissão de notificações nenhuma notificação aparece, nem a do player**. O app agora **pede a permissão na primeira abertura** e mostra o estado em **Ajustes → Notificações** (com botão para permitir ou abrir as configurações do Android).
+
 ### Nome do arquivo e release
 - O APK deixa de ter **"-teste"** no nome: `modo-treino-1.3.2.apk`. A release agora se chama "Modo Treino 1.3.2", não é mais pré-release e traz as novidades no topo.
 

@@ -8,20 +8,38 @@ const CANAL = 'treino';
 const ID = 'treino-ativo';
 let pronto: Promise<boolean> | null = null;
 
-async function preparar(): Promise<boolean> {
-  if (Platform.OS === 'web') return false;
+export type NotifState = 'granted' | 'ask' | 'blocked' | 'unavailable';
+const toState = (p: {granted: boolean; canAskAgain: boolean}): NotifState => (p.granted ? 'granted' : p.canAskAgain ? 'ask' : 'blocked');
+
+/** O canal precisa existir ANTES de pedir a permissão (no Android 13+ o diálogo só aparece assim). */
+async function criarCanal() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CANAL, {
+    name: 'Treino em andamento', description: 'Mostra o exercício atual enquanto você treina.',
+    importance: Notifications.AndroidImportance.LOW, enableVibrate: false, showBadge: false, lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+}
+
+/** Estado da permissão de notificações (vale também para a notificação do player de música). */
+export async function estadoNotificacoes(): Promise<NotifState> {
+  if (Platform.OS === 'web') return 'unavailable';
+  try { return toState(await Notifications.getPermissionsAsync()); } catch { return 'unavailable'; }
+}
+
+/** Mostra o pedido de permissão do Android (se ainda puder). Sem ela, NENHUMA notificação aparece, nem a do player. */
+export async function pedirNotificacoes(): Promise<NotifState> {
+  if (Platform.OS === 'web') return 'unavailable';
   try {
     Notifications.setNotificationHandler({handleNotification: async () => ({shouldShowBanner: false, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false})});
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(CANAL, {
-        name: 'Treino em andamento', description: 'Mostra o exercício atual enquanto você treina.',
-        importance: Notifications.AndroidImportance.LOW, enableVibrate: false, showBadge: false, lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      });
-    }
-    let p = await Notifications.getPermissionsAsync();
-    if (!p.granted && p.canAskAgain) p = await Notifications.requestPermissionsAsync();
-    return p.granted;
-  } catch { return false; }
+    await criarCanal();
+    const atual = await Notifications.getPermissionsAsync();
+    if (atual.granted || !atual.canAskAgain) return toState(atual);
+    return toState(await Notifications.requestPermissionsAsync());
+  } catch { return 'unavailable'; }
+}
+
+async function preparar(): Promise<boolean> {
+  return (await pedirNotificacoes()) === 'granted';
 }
 
 export async function mostrarTreino(title: string, body: string): Promise<void> {
