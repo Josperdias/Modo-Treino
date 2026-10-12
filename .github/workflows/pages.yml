@@ -37,6 +37,10 @@ jobs:
           node scripts/sync-shared.mjs --check
           node --test "tests/*.test.mjs"
       - uses: actions/configure-pages@v5
+        with:
+          # Tenta ligar o Pages sozinho (Source: GitHub Actions) se ainda não estiver ligado.
+          # Se o token padrão não tiver permissão, ligue em Settings → Pages → Source: GitHub Actions.
+          enablement: true
       - run: touch site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
