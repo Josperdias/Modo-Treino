@@ -1,0 +1,62 @@
+name: Android - APK de teste
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+jobs:
+  apk:
+    name: Build Android APK debug
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android platform and build tools
+        run: sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Install JS dependencies
+        working-directory: native
+        run: npm install --no-audit --no-fund
+      - name: Generate Android project from Expo
+        working-directory: native
+        run: npx expo prebuild --platform android --no-install --clean
+      - name: Compile test APK
+        working-directory: native/android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: modo-treino-android-debug
+          path: native/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+  release:
+    name: Publish tag release for update alerts
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: apk
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: modo-treino-android-debug
+      - name: Publish GitHub release with TEST APK
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Modo Treino ${{ github.ref_name }} (APK teste)
+          files: app-debug.apk
+          draft: false
+          prerelease: true
+          body: |
+            APK de desenvolvimento (debug), apenas para avaliação no Android.
+            Não é uma versão final de produção. Baixe o arquivo `app-debug.apk` nos anexos abaixo.
+            Histórico e músicas permanecem salvos localmente, sem sincronização automática.
