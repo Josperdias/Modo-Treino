@@ -60,7 +60,7 @@ Veja [CLAUDE.md](../CLAUDE.md).
 - No código, a bag é o tipo `Tape` em `native/src/music/MusicProvider.tsx` (nome histórico, guardado no armazenamento; não renomear sem migração).
 
 ## Atualização dentro do app
-- O app consulta `api.github.com/.../releases`, mostra o aviso no topo (`native/src/UpdateBanner.tsx`) e, no Android, baixa o APK para o cache e abre o instalador (`expo-intent-launcher`, permissão `REQUEST_INSTALL_PACKAGES`). Confere só o **tamanho**; quem garante a autenticidade é o Android, que só aceita atualização assinada com a mesma chave.
+- O app consulta `api.github.com/.../releases`, mostra o aviso no topo (`native/src/UpdateBanner.tsx`) e o botão abre o download do APK pelo sistema. O fluxo de baixar e instalar DENTRO do app existe em `updates.ts` atrás de `INSTALAR_NO_APP` (hoje `false`): ele exige `REQUEST_INSTALL_PACKAGES`, que no 1.3.2 coincidiu com um erro de instalação ("problem parsing the package") num Xiaomi. Confere só o **tamanho**; quem garante a autenticidade é o Android, que só aceita atualização assinada com a mesma chave.
 - **Não renomeie o APK** de forma que o app deixe de achá-lo: ele procura o primeiro asset `*.apk` da release.
 
 ## Verificação de desenvolvedor do Google (Play Protect "App blocked")

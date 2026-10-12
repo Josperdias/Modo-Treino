@@ -36,7 +36,7 @@
 | 🔔 **Notificações** | **Música/rádio:** notificação do player com a **fita colorida** (ou o globo) e o nome da faixa. **Exercício:** notificação fixa durante o treino com o exercício atual; toque para voltar ao app. |
 | 🔊 **Sons opcionais** | Estilos *Suave*, *Arcade* e *Minimal*, contagem **3-2-1 falada em português**. **Tudo vem desligado**; você escolhe o que quer ouvir. |
 | 📴 **Funciona offline** | Ilustrações, sons e seus registros ficam no aparelho. Instale como app pelo navegador. |
-| 🔔 **Atualização no próprio app** | Quando sai versão nova, um **cartão no topo do app** mostra as novidades e o botão **Atualizar agora**: baixa aqui mesmo (com progresso) e abre o instalador do Android; **você confirma a instalação**. |
+| 🔔 **Atualização no próprio app** | Quando sai versão nova, um **cartão no topo do app** mostra as novidades e o botão **Atualizar agora**: abre o download do APK; ao terminar, toque em *Abrir* e depois em *Instalar* (**você sempre confirma a instalação**). |
 | 💾 **Backup sem complicação** | Escolha uma pasta **uma vez**: o app guarda seus treinos lá sozinho e **restaurar é um toque** (sem procurar arquivo). Também dá para exportar CSV. Nada vai para servidor algum. |
 
 <div align="center">
@@ -75,7 +75,7 @@ Ilustrações, personagens e identidade: **Josperd** (★ Josperd · ✿ Camila 
 - **Ao abrir ou voltar para o app** (com internet), ele consulta as releases públicas deste repositório. Se existir uma versão **maior** que a instalada, mostra um aviso com **Ver release** e **Baixar APK**.
 - O site mostra a mesma faixa de aviso e o cartão **"Baixe o app Android"** na página inicial (com versão e tamanho quando existe um APK publicado).
 - Um *commit* novo **não** é "versão nova": só uma **release com APK** conta.
-- No Android o botão **Atualizar agora** baixa o APK no app e abre o instalador do sistema; **a instalação sempre é confirmada por você** (nunca é silenciosa). Não há notificação push em tempo real (isso exigiria um servidor).
+- O botão **Atualizar agora** abre o download do APK pelo sistema; **a instalação sempre é confirmada por você** (nunca é silenciosa). Não há notificação push em tempo real (isso exigiria um servidor).
 - Dá para desativar em **Ajustes → Atualizações do GitHub**.
 
 ## 🧑‍💻 Para quem desenvolve
