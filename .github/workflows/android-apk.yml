@@ -155,6 +155,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.notes.outputs.tag }}
+          # sem isto a tag nova nasceria no HEAD da branch padrão, não no commit que gerou o APK
+          target_commitish: ${{ github.sha }}
           name: Modo Treino ${{ needs.apk.outputs.version }} (APK de teste)
           body_path: notes.md
           files: |
