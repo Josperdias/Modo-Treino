@@ -2,9 +2,13 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
-## [1.1.1] — em desenvolvimento
+## [1.1.1] — 2026-10-12
 
 ### Novo
+- **Cartão "Baixe o app Android"** na página inicial do site e link **"Baixar o app"** na barra lateral (com versão e tamanho quando
+  existe uma release com APK; escondidos no app instalado). A página `/baixar/` já tinha as instruções e o SHA-256.
+- **README para visitantes** (com prints, links de site/download e como funcionam os avisos) e `docs/MANUTENCAO.md`.
+- `scripts/bump-version.mjs`: sobe a versão nos 6 lugares de uma vez (o aviso de versão nova só dispara com número maior).
 - **Zoom de verdade na ilustração** (site e app): toque na imagem do card (e das listas, da galeria e da janela de edição) para
   ampliar até 600% com **pinça**, **toque duplo**, **roda do mouse**, **arrastar** (respeita as bordas) e botões **+ / − / AJUSTAR**.
   Esc fecha só o zoom. No app o zoom abre por cima do modo execução e da edição.
