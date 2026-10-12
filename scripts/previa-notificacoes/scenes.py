@@ -8,16 +8,15 @@ EX = str(RES.parents[5] / 'assets' / 'exercicios' / 'barra_w_vinho.jpg')
 NODP = RES/'drawable-nodpi'
 def pct(p, total=1000): return p
 def music(big, fita=2, playing=True, live=False, title='Fita 03 – Ritmo de treino', sub='Bag Treino A · Mix genérico', kicker='Fita', pos=84, dur=198, fav=False):
-    art = NODP/('art_radio.png' if live else f'art_fita_{fita}.png')
+    art = NODP/('art_planet.png' if live else f'art_fita_{fita}.png')
     st = {'art': {'img': str(art)}, 'title': {'text': title}, 'subtitle': {'text': sub},
-          'play': {'src': '@drawable/ic_pause' if playing else '@drawable/ic_play'},
-          'card': {'bg': '@drawable/bg_card_rose' if live else '@drawable/bg_card_sky'}}
-    if live: st['prev'] = {'gone': True}; st['next'] = {'gone': True}
+          'play': {'src': '@drawable/ic_pause' if playing else '@drawable/ic_play'}}
     if big:
-        st.update({'kicker': {'text': kicker}, 'fav': {'src': '@drawable/ic_heart_fill' if fav else '@drawable/ic_heart'},
-                   'progress_row': {'gone': live}, 'live_row': {'gone': not live},
-                   'pos': {'text': f'{pos//60}:{pos%60:02d}'}, 'dur': {'text': f'{dur//60}:{dur%60:02d}'}, 'bar': {'progress': pos/dur if dur else 0}})
-    return page('card_music_big' if big else 'card_music_small', st)
+        st.update({'kicker': {'text': kicker}, 'fav': {'src': '@drawable/ic_heart_fill' if fav else '@drawable/ic_heart'}})
+        if not live:
+            st.update({'pos': {'text': f'{pos//60}:{pos%60:02d}'}, 'dur': {'text': f'{dur//60}:{dur%60:02d}'}, 'bar': {'progress': pos/dur if dur else 0}})
+    layout = ('card_radio_' if live else 'card_music_') + ('big' if big else 'small')
+    return page(layout, st)
 def workout(big, resting=False, paused=False, title='Rosca direta na barra W', kicker='A1 · Bíceps', pill='Séries feitas: 2/5', image=True, persona='vinho', left='00:42'):
     st = {'title': {'text': title}, 'pill_text': {'text': pill, 'gone': resting}, 'clock': {'text': 'Descanso ' + left, 'gone': not resting},
           'primary': {'src': ('@drawable/ic_play' if paused else '@drawable/ic_pause') if resting else '@drawable/ic_check'},

@@ -44,8 +44,9 @@ def shape_or_other(node, item):
     if t == 'shape':
         shape = node.get(A+'shape', 'rectangle')
         css = 'position:absolute;inset:0;box-sizing:border-box;'
-        s = node.find('solid'); st = node.find('stroke'); c = node.find('corners')
+        s = node.find('solid'); st = node.find('stroke'); c = node.find('corners'); g = node.find('gradient')
         if s is not None: css += f'background:{color(s.get(A+"color"))};'
+        if g is not None: css += f'background:linear-gradient({"to bottom" if g.get(A+"angle") == "270" else "to right"},{color(g.get(A+"startColor"))},{color(g.get(A+"endColor"))});'
         if st is not None: css += f'border:{dp(st.get(A+"width"))}px solid {color(st.get(A+"color"))};'
         if shape == 'oval': css += 'border-radius:50%;'
         elif c is not None and c.get(A+'radius'): css += f'border-radius:{dp(c.get(A+"radius"))}px;'
@@ -76,7 +77,7 @@ def render(node, ctx, parent_orient=None, parent_tag=None):
     tag = node.tag; get = lambda k, d=None: node.get(A+k, d)
     vid = (get('id') or '').replace('@+id/','').replace('@id/','')
     st = ctx.s.get(vid, {})
-    if st.get('gone'): return ''
+    if st.get('gone') or (get('visibility') == 'gone' and not st.get('show') and 'gone' not in st): return ''
     css = ['box-sizing:border-box', 'position:relative', 'flex-shrink:0' if get('layout_weight') is None else 'min-width:0']
     w, h = get('layout_width'), get('layout_height'); weight = get('layout_weight')
     horiz = parent_orient == 'horizontal'

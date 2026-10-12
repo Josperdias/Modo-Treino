@@ -121,6 +121,9 @@ if (nativeDir) {
   await page.getByLabel('Ver rádios por país').click(); await pause(700); await shot(page, 'app-15-radio-paises'); await page.getByLabel('Fechar').last().click();
   await page.getByRole('tab', {name: 'Início', exact: true}).click(); await pause();
   await page.getByLabel('Abrir ajustes').click(); await page.getByText('Ajustes', {exact: true}).waitFor(); await pause(); await shot(page, 'app-16-ajustes');
+  await page.getByLabel('Fechar').last().click(); await pause(300);
+  await page.getByRole('tab', {name: 'Buscar', exact: true}).click(); await pause(600); await shot(page, 'app-19-buscar-atalhos');
+  await page.getByLabel('Campo de busca').fill('trapezio'); await pause(800); await shot(page, 'app-20-buscar-resultados');
   await ctx.close();
   // aviso de versão nova no topo (release simulada): contexto à parte para não aparecer nas outras telas
   const ctx2 = await browser.newContext({viewport: {width: 390, height: 844}, deviceScaleFactor: 2, reducedMotion: 'reduce'});

@@ -14,4 +14,8 @@
   <color name="mt_rose">#FFF6C9D8</color>
   <color name="mt_lime">#FFE3F76B</color>
   <color name="mt_sage">#FF9FCDB4</color>
+  <color name="mt_space_top">#FF2B1D7C</color>
+  <color name="mt_space_bottom">#FF0A1033</color>
+  <color name="mt_neon">#FF5B4BE0</color>
+  <color name="mt_lilac">#FFC9D1FF</color>
 </resources>

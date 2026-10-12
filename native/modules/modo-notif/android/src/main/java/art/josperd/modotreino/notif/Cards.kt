@@ -12,7 +12,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Build
 import android.os.SystemClock
@@ -75,30 +74,9 @@ object Cards {
     return PendingIntent.getActivity(ctx, 0, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   }
 
-  /** Fita (já recortada, fundo transparente) ou o globo da rádio com cantos arredondados e contorno de tinta. */
-  private fun art(ctx: Context, res: Int, framed: Boolean): Bitmap = synchronized(artCache) {
-    artCache.getOrPut(res) {
-      val src = BitmapFactory.decodeResource(ctx.resources, res)
-      if (!framed) return@getOrPut src
-      val w = src.width
-      val h = src.height
-      val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-      val c = Canvas(out)
-      val p = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-      val r = h * 0.12f
-      val inset = h * 0.02f
-      val box = RectF(inset, inset, w - inset, h - inset)
-      c.drawRoundRect(box, r, r, p)
-      p.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-      c.drawBitmap(src, null, Rect(0, 0, w, h), p)
-      p.xfermode = null
-      p.style = Paint.Style.STROKE
-      p.strokeWidth = h * 0.035f
-      p.color = 0xFF0B1033.toInt()
-      c.drawRoundRect(box, r, r, p)
-      src.recycle()
-      out
-    }
+  /** Fita ou planeta: PNG com fundo transparente, usado como está. */
+  private fun art(ctx: Context, res: Int): Bitmap = synchronized(artCache) {
+    artCache.getOrPut(res) { BitmapFactory.decodeResource(ctx.resources, res) }
   }
 
   /** Ilustração do exercício: recurso do app (release) ou arquivo. Reduzida para não pesar na notificação; mantém a proporção inteira ("contain"). */
@@ -143,14 +121,15 @@ object Cards {
 
   /* ----------------------------------------------------------------- música */
 
-  fun musicViews(ctx: Context, s: MusicState): Pair<RemoteViews, RemoteViews> {
+  fun musicViews(ctx: Context, s: MusicState): Pair<RemoteViews, RemoteViews> =
+    if (s.live) radioViews(ctx, s) else fitaViews(ctx, s)
+
+  private fun fitaViews(ctx: Context, s: MusicState): Pair<RemoteViews, RemoteViews> {
     val small = RemoteViews(ctx.packageName, R.layout.card_music_small)
     val big = RemoteViews(ctx.packageName, R.layout.card_music_big)
-    val bmp = if (s.art < 0) art(ctx, R.drawable.art_radio, true) else art(ctx, FITAS[s.art.coerceIn(0, FITAS.size - 1)], false)
-    val cardBg = if (s.live) R.drawable.bg_card_rose else R.drawable.bg_card_sky
-    val showSkip = !s.live && s.skip
+    val bmp = art(ctx, FITAS[s.art.coerceIn(0, FITAS.size - 1)])
+    val showSkip = s.skip
     for (v in arrayOf(small, big)) {
-      v.setInt(R.id.card, "setBackgroundResource", cardBg)
       v.setImageViewBitmap(R.id.art, bmp)
       v.setTextViewText(R.id.title, s.title)
       v.setTextViewText(R.id.subtitle, s.subtitle)
@@ -167,13 +146,30 @@ object Cards {
     big.setContentDescription(R.id.fav, if (s.fav) "Tirar das favoritas" else "Favoritar")
     big.setOnClickPendingIntent(R.id.fav, act(ctx, "music", "fav"))
     big.setOnClickPendingIntent(R.id.open, act(ctx, "music", "open"))
-    big.setViewVisibility(R.id.progress_row, if (s.live) View.GONE else View.VISIBLE)
-    big.setViewVisibility(R.id.live_row, if (s.live) View.VISIBLE else View.GONE)
-    if (!s.live) {
-      big.setTextViewText(R.id.pos, clock(s.position))
-      big.setTextViewText(R.id.dur, if (s.duration > 0) clock(s.duration) else "--:--")
-      big.setProgressBar(R.id.bar, 1000, if (s.duration > 0) (1000L * s.position / s.duration).toInt().coerceIn(0, 1000) else 0, false)
+    big.setTextViewText(R.id.pos, clock(s.position))
+    big.setTextViewText(R.id.dur, if (s.duration > 0) clock(s.duration) else "--:--")
+    big.setProgressBar(R.id.bar, 1000, if (s.duration > 0) (1000L * s.position / s.duration).toInt().coerceIn(0, 1000) else 0, false)
+    return small to big
+  }
+
+  /** Rádio ao vivo: espaço estrelado com o planeta de pontinhos; sem anterior/próxima nem barra de tempo. */
+  private fun radioViews(ctx: Context, s: MusicState): Pair<RemoteViews, RemoteViews> {
+    val small = RemoteViews(ctx.packageName, R.layout.card_radio_small)
+    val big = RemoteViews(ctx.packageName, R.layout.card_radio_big)
+    val bmp = art(ctx, R.drawable.art_planet)
+    for (v in arrayOf(small, big)) {
+      v.setImageViewBitmap(R.id.art, bmp)
+      v.setTextViewText(R.id.title, s.title)
+      v.setTextViewText(R.id.subtitle, s.subtitle)
+      v.setImageViewResource(R.id.play, if (s.playing) R.drawable.ic_pause else R.drawable.ic_play)
+      v.setContentDescription(R.id.play, if (s.playing) "Pausar" else "Tocar")
+      v.setOnClickPendingIntent(R.id.play, act(ctx, "music", "toggle"))
     }
+    big.setTextViewText(R.id.kicker, s.kicker)
+    big.setImageViewResource(R.id.fav, if (s.fav) R.drawable.ic_heart_fill else R.drawable.ic_heart)
+    big.setContentDescription(R.id.fav, if (s.fav) "Tirar das favoritas" else "Favoritar")
+    big.setOnClickPendingIntent(R.id.fav, act(ctx, "music", "fav"))
+    big.setOnClickPendingIntent(R.id.open, act(ctx, "music", "open"))
     return small to big
   }
 

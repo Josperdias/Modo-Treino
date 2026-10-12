@@ -1,7 +1,7 @@
 // Gera as artes das notificações do app:
 //  - native/assets/notif/radio.png (512x512): o globo de pontinhos no espaço (usado também no cartão "Tocando agora" do app);
-//  - native/modules/modo-notif/.../drawable-nodpi/: as 8 fitas (cassete) com fundo transparente, a arte da rádio recortada
-//    em paisagem e os ladrilhos de pontinhos dos cartões (azul-céu, amarelo, rosa, menta).
+//  - native/modules/modo-notif/.../drawable-nodpi/: as 8 fitas (cassete) com fundo transparente, o planeta da rádio (transparente)
+//    e os ladrilhos de pontinhos/estrelas dos cartões (azul-céu, amarelo, rosa, menta, espaço).
 //   node scripts/gerar-arte-notificacao.mjs        (precisa de Chromium via Playwright)
 import {createRequire} from 'node:module';
 import {mkdirSync} from 'node:fs';
@@ -74,6 +74,39 @@ const globo = () => {
   </svg>`;
 };
 
+// planeta de pontinhos com halo e fundo transparente (cartão da rádio); mesmas cores e semente do globo
+const planeta = () => {
+  const cores = ['#F29BC0', '#8FB8F5', '#FFD369', '#8EE0C0', '#BFA8F5', '#FFB58A'];
+  let s = 20261012; const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  const cx = 160, cy = 160, R = 108;
+  let pontos = '';
+  const manchas = Array.from({length: 7}, (_, i) => ({x: cx + (rnd() - 0.5) * 150, y: cy + (rnd() - 0.5) * 150, r: 26 + rnd() * 34, c: cores[i % cores.length]}));
+  for (let y = cy - R; y <= cy + R; y += 7) for (let x = cx - R; x <= cx + R; x += 7) {
+    const xx = x + ((Math.round((y - cy) / 7)) % 2 ? 3.5 : 0);
+    if ((xx - cx) ** 2 + (y - cy) ** 2 > (R - 4) ** 2) continue;
+    const m = manchas.find((k) => (xx - k.x) ** 2 + (y - k.y) ** 2 < k.r ** 2);
+    if (m) pontos += `<circle cx="${xx.toFixed(1)}" cy="${y}" r="2.5" fill="${m.c}"/>`;
+  }
+  return `
+  <svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
+    <defs>
+      <radialGradient id="h" cx=".5" cy=".5" r=".5"><stop offset=".66" stop-color="#E9A0BF" stop-opacity="0"/><stop offset=".78" stop-color="#E9A0BF" stop-opacity=".6"/><stop offset=".9" stop-color="#6B5BFF" stop-opacity=".3"/><stop offset="1" stop-color="#4674DB" stop-opacity="0"/></radialGradient>
+      <radialGradient id="o" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#2A3A8C"/><stop offset="1" stop-color="#0A1033"/></radialGradient>
+    </defs>
+    <circle cx="${cx}" cy="${cy}" r="${R * 1.42}" fill="url(#h)"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#o)" stroke="#E9A0BF" stroke-width="3" stroke-opacity=".9"/>
+    ${pontos}
+    <g transform="translate(${cx + 22} ${cy - 14})"><circle r="16" fill="none" stroke="#2EE06E" stroke-width="3" opacity=".55"/><circle r="8" fill="#22B35E" stroke="#fff" stroke-width="2.5"/></g>
+  </svg>`;
+};
+// ladrilho 64x64 de estrelinhas (fundo do cartão da rádio)
+const estrelas = () => {
+  let s = 777; const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  let o = '';
+  for (let i = 0; i < 7; i++) o += `<circle cx="${(rnd() * 64).toFixed(1)}" cy="${(rnd() * 64).toFixed(1)}" r="${(0.7 + rnd() * 1.1).toFixed(1)}" fill="${['#FFFFFF', '#F7A8C8', '#AAC8F8'][i % 3]}" opacity="${(0.4 + rnd() * 0.5).toFixed(2)}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">${o}</svg>`;
+};
+
 const browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 const page = await browser.newPage({deviceScaleFactor: 1});
 const pngEm = async (dir, svg, w, h, nome, transparente = false) => {
@@ -84,12 +117,11 @@ const pngEm = async (dir, svg, w, h, nome, transparente = false) => {
 };
 const png = (svg, w, h, nome, transparente = false) => pngEm(OUT, svg, w, h, nome, transparente);
 await png(globo(), 512, 512, 'radio.png');
-// recorte paisagem do globo (100:64) para o cartão da rádio; o Android arredonda e põe o contorno
-const globoPaisagem = globo().replace('width="512" height="512" viewBox="0 0 512 512"', 'width="320" height="205" viewBox="0 60 512 327.7"');
-await pngEm(MOD, globoPaisagem, 320, 205, 'art_radio.png');
 for (let i = 0; i < TAPES.length; i++) await pngEm(MOD, cassete(TAPES[i]), 320, 205, `art_fita_${i}.png`, true);
 await pngEm(MOD, ladrilho('rgba(120,160,230,.59)'), 40, 40, 'dots_sky.png', true);
 await pngEm(MOD, ladrilho('rgba(225,160,20,.51)'), 40, 40, 'dots_yellow.png', true);
 await pngEm(MOD, ladrilho('rgba(225,110,160,.51)'), 40, 40, 'dots_rose.png', true);
 await pngEm(MOD, ladrilho('rgba(70,170,120,.47)'), 40, 40, 'dots_mint.png', true);
+await pngEm(MOD, planeta(), 320, 320, 'art_planet.png', true);
+await pngEm(MOD, estrelas(), 64, 64, 'dots_space.png', true);
 await browser.close();
