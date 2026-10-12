@@ -36,11 +36,9 @@ jobs:
           python3 tests/verify.py
           node scripts/sync-shared.mjs --check
           node --test "tests/*.test.mjs"
+      # Se falhar aqui com "Get Pages site failed", o Pages ainda não foi ligado: Settings → Pages → Source: GitHub Actions.
+      # (O parâmetro `enablement: true` NÃO funciona com o GITHUB_TOKEN padrão: "Resource not accessible by integration".)
       - uses: actions/configure-pages@v5
-        with:
-          # Tenta ligar o Pages sozinho (Source: GitHub Actions) se ainda não estiver ligado.
-          # Se o token padrão não tiver permissão, ligue em Settings → Pages → Source: GitHub Actions.
-          enablement: true
       - run: touch site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
