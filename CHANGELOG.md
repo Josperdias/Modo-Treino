@@ -2,6 +2,12 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.3.4] — 2026-10-12
+
+### Manifesto enxuto (menos "ruído" para o Play Protect)
+- Saem as permissões que o app **não usa**: **microfone** (`RECORD_AUDIO`), `RECEIVE_BOOT_COMPLETED`, o registro de push (`c2dm`) e **15 permissões de "badge" de launchers** (Huawei, Sony, HTC, Samsung, Oppo…) que uma biblioteca de notificações trazia. Ficam: internet, ler músicas, notificações, vibrar, manter ligado e áudio em segundo plano.
+- Novo guia **`docs/VERIFICACAO-GOOGLE.md`** com tudo pronto para registrar o app no Google (pacote e SHA-256 do certificado). **O bloqueio "App blocked to protect your device" só some com esse registro**: ele é sobre o desenvolvedor, não sobre permissões.
+
 ## [1.3.3] — 2026-10-12
 
 ### Correção de instalação
