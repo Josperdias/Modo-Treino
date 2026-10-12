@@ -2,7 +2,9 @@ name: Android - APK de teste
 # Gera um APK STANDALONE (JavaScript embutido) para instalar em aparelhos Android de teste.
 # - Pull request / manual: gera o artefato "modo-treino-android-apk" (30 dias).
 # - Tag v* ou execução manual com "publicar" marcado: também cria uma pré-release com o APK e o SHA-256.
-# O APK é assinado com a chave de DEPURAÇÃO do template Expo: serve para teste, NÃO para Play Store.
+# Assinatura: se os secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS e ANDROID_KEY_PASSWORD
+# existem, o APK é assinado com a chave própria do projeto (permite atualizar por cima de uma versão anterior).
+# Sem eles (ex.: PR de fork) cai na chave de DEPURAÇÃO do template Expo. Nenhuma das duas serve para Play Store sem revisão.
 on:
   workflow_dispatch:
     inputs:
@@ -30,6 +32,8 @@ jobs:
     timeout-minutes: 90
     outputs:
       version: ${{ steps.meta.outputs.version }}
+      sign: ${{ steps.meta.outputs.sign }}
+      cert: ${{ steps.meta.outputs.cert }}
       apk: ${{ steps.meta.outputs.apk }}
     steps:
       - uses: actions/checkout@v4
@@ -64,13 +68,38 @@ jobs:
         env:
           CI: '1'
           EXPO_NO_TELEMETRY: '1'
+      - name: Chave de assinatura (se os secrets existirem)
+        id: sign
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KS_KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KS_ALIAS" ] && [ -n "$KS_KEYPASS" ]; then
+            printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/modo-treino.jks"
+            echo "MT_KEYSTORE_FILE=$RUNNER_TEMP/modo-treino.jks" >> "$GITHUB_ENV"
+            echo "mode=propria" >> "$GITHUB_OUTPUT"
+            echo "Assinatura: chave própria do projeto."
+          else
+            echo "mode=teste" >> "$GITHUB_OUTPUT"
+            echo "Assinatura: chave de teste do template (secrets ausentes)."
+          fi
       - name: Compilar (release, arm64 + armeabi-v7a)
         working-directory: native/android
+        env:
+          MT_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MT_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          node ../../scripts/assinar-android.mjs app/build.gradle
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
       - name: Conferir, nomear e calcular SHA-256
         id: meta
+        env:
+          SIGN_MODE: ${{ steps.sign.outputs.mode }}
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./native/app.json').expo.version")
@@ -85,6 +114,9 @@ jobs:
           "$BT/aapt2" dump badging "$OUT" | grep -E "^package:|^sdkVersion|^targetSdkVersion|application-label:" | tee dist/badging.txt
           grep -q "name='art.josperd.modotreino'" dist/badging.txt
           grep -q "versionName='${VERSION}'" dist/badging.txt
+          if [ "$SIGN_MODE" = propria ]; then
+            grep -q "certificate DN: CN=Modo Treino" dist/assinatura.txt || { echo "::error::APK não foi assinado com a chave própria (CN=Modo Treino)"; exit 1; }
+          fi
           unzip -l "$OUT" | grep -E "classes.dex|assets/index.android.bundle|AndroidManifest.xml"
           unzip -l "$OUT" | grep -q "assets/index.android.bundle" || { echo "::error::APK sem bundle JS embutido (não seria standalone)"; exit 1; }
           (cd dist && sha256sum "modo-treino-${VERSION}-teste.apk" > SHA256SUMS.txt && cat SHA256SUMS.txt)
@@ -93,6 +125,8 @@ jobs:
           CERT=$(grep -m1 "certificate SHA-256 digest" dist/assinatura.txt | awk '{print $NF}')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "apk=modo-treino-${VERSION}-teste.apk" >> "$GITHUB_OUTPUT"
+          echo "sign=$SIGN_MODE" >> "$GITHUB_OUTPUT"
+          echo "cert=$CERT" >> "$GITHUB_OUTPUT"
           {
             echo "## APK de teste — Modo Treino ${VERSION}"
             echo ""
@@ -106,7 +140,8 @@ jobs:
             echo "| Data (UTC) | $(date -u +'%Y-%m-%d %H:%M') |"
             echo "| ABIs | arm64-v8a, armeabi-v7a (aparelhos físicos; não roda em emulador x86) |"
             echo ""
-            echo "Assinado com a chave de depuração do template Expo: **somente teste**, não é build de produção."
+            if [ "$SIGN_MODE" = propria ]; then echo "Assinado com a **chave própria** do projeto (mesma chave em todas as versões: atualiza por cima)."; else echo "Assinado com a chave de depuração do template Expo: **somente teste**."; fi
+            echo "Não é build de produção da Play Store."
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
@@ -148,6 +183,12 @@ jobs:
             echo "2. Abra o arquivo e permita instalar de \"fonte desconhecida\" só para esta instalação."
             echo "3. Confira o SHA-256 acima com \`sha256sum\` (Linux/Mac) ou \`certutil -hashfile arquivo SHA256\` (Windows)."
             echo ""
+            if [ "${{ needs.apk.outputs.sign }}" = propria ]; then
+              echo "**Assinatura:** chave própria do projeto (SHA-256 do certificado: \`${{ needs.apk.outputs.cert }}\`). Versões futuras com a mesma chave atualizam por cima."
+              echo ""
+              echo "> Se você instalou antes uma versão assinada com a chave de teste (1.1.1 ou anterior), o Android recusa a atualização: exporte o backup em Ajustes, desinstale e instale esta."
+              echo ""
+            fi
             echo "Seus treinos e músicas ficam só no aparelho. Exporte um backup (Ajustes) antes de trocar de versão."
             echo "O app avisa quando houver release nova, mas **nunca instala sozinho**."
           } > notes.md

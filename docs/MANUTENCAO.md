@@ -28,7 +28,7 @@ localmente (`ssh-keygen -t ed25519`) e cadastre **somente a chave pública**. D�
 
 ## APK: o que é e o que não é
 - `assembleRelease` embute o JavaScript (um `assembleDebug` abriria em tela vermelha sem servidor Metro).
-- Assinado com a chave de **depuração** do template Expo. Para a Play Store seria preciso uma chave de produção guardada em *Secrets* e revisão de permissões.
+- **Assinatura**: com os 4 secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD` o workflow assina com a chave própria (`scripts/assinar-android.mjs` ajusta o `build.gradle` gerado; o build falha se o certificado não for `CN=Modo Treino`). Sem eles (ex.: PR de fork) usa a chave de **depuração** do template Expo. Use sempre a **mesma** chave: trocar de chave impede atualizar por cima (precisa desinstalar). Guarde o `.jks` e as senhas fora do repositório (`*.jks` está no `.gitignore`); perdida a chave, não há como atualizar quem já instalou. Isto não é build da Play Store (faltaria revisão de permissões).
 - ABIs: `arm64-v8a` e `armeabi-v7a` (aparelhos físicos; não roda em emulador x86).
 - Os assets do app precisam ter a **extensão igual ao formato real** (`tests/verify.py` confere): JPEG com nome `.png` derruba o `aapt2`.
 
