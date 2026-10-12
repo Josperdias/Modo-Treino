@@ -64,6 +64,9 @@ export type MusicAPI = {
   playNext: (id: string) => void;
   copyToTape: (track: Track, tapeId: string) => void;
   playTape: (shuffle: boolean, tapeId?: string) => void;
+  /** Rádio tocando: nome da faixa lido dos metadados do stream (quando a rádio os publica). */
+  radioTrack: {id: string; title: string | null; state: 'buscando' | 'ok' | 'sem'} | null;
+  setRadioTrack: (id: string, title: string | null, icy: boolean) => void;
   /** Nome da fila quando não é uma bag (ex.: "Todas as fitas"); null quando toca a bag selecionada. */
   queueName: string | null;
 };
@@ -96,6 +99,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   const [clock, setClock] = useState(0);
   const [queueName, setQueueName] = useState<string | null>(null);
   const queueRef = useRef<Track[] | null>(null);
+  const [radioTrack, setRadioTrackState] = useState<{id: string; title: string | null; state: 'buscando' | 'ok' | 'sem'} | null>(null);
 
   const one = useAudioPlayer(null, {updateInterval: 300});
   const two = useAudioPlayer(null, {updateInterval: 300});
@@ -172,7 +176,8 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
         old.clearLockScreenControls?.();
         other.setActiveForLockScreen?.(true, {title: src.title, artist: src.source === 'radio' ? `Rádio · ${src.country || 'ao vivo'}` : (queueRef.current ? 'Todas as fitas' : libRef.current.tapes.find((t) => t.id === libRef.current.selected)?.name) || 'Modo Treino', albumTitle: 'Modo Treino'});
       } catch { /* controles da tela de bloqueio são um extra */ }
-      channel.current = 1 - oldIndex; nowRef.current = src; setNowTrack(src); setPlaying(true); playingRef.current = true;
+      channel.current = 1 - oldIndex; nowRef.current = src; setNowTrack(src);
+      setRadioTrackState(src.source === 'radio' ? {id: src.id, title: null, state: 'buscando'} : null); setPlaying(true); playingRef.current = true;
       if (seconds) {
         const started = Date.now();
         fadeTimer.current = setInterval(() => {
@@ -369,6 +374,14 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       libRef.current = {...cur, selected: tape.id, shuffle};
       setLib((v) => ({...v, selected: tape.id, shuffle}));
       void playById(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], false);
+    },
+    radioTrack,
+    setRadioTrack: (id, title, icy) => {
+      if (nowRef.current?.id !== 'radio:' + id) return;      // resposta atrasada de outra rádio
+      setRadioTrackState({id: nowRef.current.id, title, state: title ? 'ok' : icy ? 'buscando' : 'sem'});
+      if (title) { // tela de bloqueio: faixa em cima, nome da rádio embaixo
+        try { (channel.current === 0 ? one : two).updateLockScreenMetadata?.({title, artist: nowRef.current.title, albumTitle: 'Modo Treino'}); } catch { /* extra */ }
+      }
     },
     queueName,
   };

@@ -26,7 +26,7 @@ import {useUpdates} from './src/updates';
 import {useBackup} from './src/backup';
 import {C, R, useNarrow} from './src/theme';
 
-const APP_VERSION='1.3.0';
+const APP_VERSION='1.3.1';
 
 type Tab = 'home' | 'music' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [

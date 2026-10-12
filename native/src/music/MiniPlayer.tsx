@@ -16,7 +16,7 @@ export default function MiniPlayer({onOpen}: {onOpen: () => void; dark?: boolean
         <View style={[MP.disc, m.playing && {backgroundColor: C.pink}]}><Icon name="musical-notes" size={16} color={C.ink} /></View>
         <View style={{flex: 1}}>
           <Text numberOfLines={1} style={[MP.title, dark && {color: C.white}]}>{m.now?.title || `Bag ${m.activeTape.name}`}</Text>
-          <Text numberOfLines={1} style={[MP.sub, dark && {color: '#B7C1E3'}]}>{m.live ? 'Rádio ao vivo' : (m.queueName ?? m.activeTape.name)} · {m.playing ? 'tocando' : 'pausado'}</Text>
+          <Text numberOfLines={1} style={[MP.sub, dark && {color: '#B7C1E3'}]}>{m.live ? (m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : 'Rádio ao vivo') : `${m.queueName ?? m.activeTape.name} · ${m.playing ? 'tocando' : 'pausado'}`}</Text>
         </View>
       </Press>
       <Press accessibilityRole="button" accessibilityLabel="Tocar ou pausar" onPress={m.playPause} style={MP.play} quiet><Icon name={m.playing ? 'pause' : 'play'} size={20} color={C.ink} /></Press>

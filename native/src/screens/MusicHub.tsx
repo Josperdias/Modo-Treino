@@ -36,7 +36,7 @@ export default function MusicHub({mode, onMode}: {mode: MusicMode; onMode: (m: M
       <View style={{flex: 1}}>
         {mode === 'tapes' && <MusicScreen />}
         {mode === 'bags' && <BagsScreen onRadio={() => onMode('radio')} />}
-        {radioSeen && <View style={radio ? StyleSheet.absoluteFill : S.hidden} pointerEvents={radio ? 'auto' : 'none'}><RadioScreen /></View>}
+        {radioSeen && <View style={radio ? StyleSheet.absoluteFill : S.hidden} pointerEvents={radio ? 'auto' : 'none'}><RadioScreen active={radio} /></View>}
       </View>
     </View>
   );

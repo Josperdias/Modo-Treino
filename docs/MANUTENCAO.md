@@ -50,6 +50,9 @@ Veja [CLAUDE.md](../CLAUDE.md).
 - Estações vêm do **Radio Browser** (`native/src/radio/api.ts`): servidores `de1/de2/fi1/nl1/at1.api.radio-browser.info`, cópia local por 3 dias. O app avisa o diretório de cada estação ouvida (boa prática do serviço).
 - `app.json` libera tráfego `http` (`usesCleartextTraffic`) porque muitas rádios ainda não têm https.
 - Para testar sem internet: abra `globe.html?demo=1` no navegador.
+- **Nome da faixa (ICY)**: a própria página do globo (`scripts/globe/icy.js`) abre uma conexão curta ao stream com `Icy-MetaData: 1`, lê 1–3 blocos de metadados e fecha. No Android a página é aberta como `file://` (cópia em cache) com `allowUniversalAccessFromFileURLs`, senão o CORS das rádios bloquearia a leitura. Rádios sem ICY (HLS, alguns AAC) não têm nome de faixa; isso é esperado. Teste: `node --test tests/icy.test.mjs`.
+- **Desempenho**: a aba Rádio manda `pause`/`resume` ao globo ao entrar/sair; sem isso o WebGL continua desenhando escondido e trava as outras abas.
+- **versionCode**: `node scripts/bump-version.mjs X.Y.Z` também grava `android.versionCode` (X*10000+Y*100+Z).
 - Fontes (Barlow Condensed e DM Sans, OFL) vêm dos pacotes `@expo-google-fonts/*`.
 
 ## Vocabulário da música (app)

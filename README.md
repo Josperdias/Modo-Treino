@@ -14,10 +14,10 @@
 
 <br>
 
-<img src="screenshots/v1.3.0/app-01-inicio.png" width="190" alt="App Android: tela inicial">
-<img src="screenshots/v1.3.0/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
-<img src="screenshots/v1.3.0/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
-<img src="screenshots/v1.3.0/app-10-fita-tocando.png" width="190" alt="App Android: fitas com as músicas do celular">
+<img src="screenshots/v1.3.1/app-01-inicio.png" width="190" alt="App Android: tela inicial">
+<img src="screenshots/v1.3.1/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
+<img src="screenshots/v1.3.1/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
+<img src="screenshots/v1.3.1/app-10-fita-tocando.png" width="190" alt="App Android: fitas com as músicas do celular">
 
 </div>
 
@@ -32,7 +32,7 @@
 | 🏋️ **Treinos A e B** | 14 exercícios (6 + 8) com séries, repetições e cargas **editáveis**. Você escolhe quem treina com você: **Josperd** ou **Camila Camomila, a ruivinha**. |
 | 📈 **Histórico de verdade** | Volume por treino (séries × repetições × carga), detalhe por exercício, **recordes pessoais** e exportação em **CSV**. |
 | 📼 **Fitas e bags** | **No app Android:** cada música do seu celular é uma **fita** (um cassete), lida direto do aparelho (lista, pasta ou arquivos), **sem importar nem copiar**. **Bags** são as playlists: junte **fitas e rádios** e toque tudo de uma vez. Tirar da bag **não apaga o arquivo**. Crossfade de 0 a 8 s, volume, velocidade, timer para dormir e **mini player dentro do treino**. No site, você importa os arquivos. Sem baixar nada de terceiros. |
-| 🌍 **Rádio do mundo (globo 3D)** | Milhares de rádios como pontos num **globo 3D**: gire, dê zoom, toque num ponto ou país e ouça. Toca com a tela apagada. Guarde rádios nas suas bags (playlists). (App Android; precisa de internet.) |
+| 🌍 **Rádio do mundo (globo 3D)** | **Mundo em estilo de atlas antigo** (países em tons de areia, terracota e sálvia, fronteiras em sépia, nomes em português) e milhares de rádios como pontos (pino índigo = rádio, **vermelho = escolhida**, **verde = tocando**). Gire, dê zoom, toque num ponto ou país, filtre por **estilo** (pop, rock, sertanejo, MPB…), veja **rádios por país** e o **nome da faixa que está tocando** (quando a rádio informa). Toca com a tela apagada. Guarde rádios nas suas bags (playlists). (App Android; precisa de internet.) |
 | 🔊 **Sons opcionais** | Estilos *Suave*, *Arcade* e *Minimal*, contagem **3-2-1 falada em português**. **Tudo vem desligado**; você escolhe o que quer ouvir. |
 | 📴 **Funciona offline** | Ilustrações, sons e seus registros ficam no aparelho. Instale como app pelo navegador. |
 | 🔔 **Avisos de versão nova** | O app e o site avisam quando sai uma release nova (veja abaixo). **Nada se instala sozinho.** |
@@ -40,11 +40,11 @@
 
 <div align="center">
 
-<img src="screenshots/v1.3.0/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
-<img src="screenshots/v1.3.0/app-05-zoom.png" width="170" alt="Zoom na ilustração">
-<img src="screenshots/v1.3.0/app-08-treino-completo.png" width="170" alt="Treino completo">
-<img src="screenshots/v1.3.0/app-12-bags.png" width="170" alt="Bags: playlists de fitas e rádios">
-<img src="screenshots/v1.3.0/app-09-historico.png" width="170" alt="Histórico com recordes">
+<img src="screenshots/v1.3.1/app-02-escolha-treino.png" width="170" alt="Escolha do treino A ou B">
+<img src="screenshots/v1.3.1/app-14-radio-globo.png" width="170" alt="Rádio do mundo: globo 3D com países">
+<img src="screenshots/v1.3.1/app-08-treino-completo.png" width="170" alt="Treino completo">
+<img src="screenshots/v1.3.1/app-12-bags.png" width="170" alt="Bags: playlists de fitas e rádios">
+<img src="screenshots/v1.3.1/app-09-historico.png" width="170" alt="Histórico com recordes">
 
 <sub>Capturas do app geradas com react-native-web (mesmo código do app); as músicas do "celular" nelas são simuladas. Prints do site: <code>screenshots/v1.1.0/</code>.</sub>
 

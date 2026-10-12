@@ -74,4 +74,14 @@ export function search(stations: Station[], query: string, tag?: string | null, 
   return out;
 }
 
-export const GENRES = ['pop', 'rock', 'jazz', 'hip hop', 'electronic', 'classical', 'reggae', 'news', 'sertanejo', 'samba'];
+/** Estilos para filtrar o globo. `tag` é o que o Radio Browser usa; `label` é o que o app mostra. */
+export const GENRES: {tag: string; label: string}[] = [
+  {tag: 'pop', label: 'Pop'}, {tag: 'rock', label: 'Rock'}, {tag: 'hip hop', label: 'Hip hop'}, {tag: 'electronic', label: 'Eletrônica'},
+  {tag: 'jazz', label: 'Jazz'}, {tag: 'classical', label: 'Clássica'}, {tag: 'reggae', label: 'Reggae'}, {tag: 'latin', label: 'Latina'},
+  {tag: 'sertanejo', label: 'Sertanejo'}, {tag: 'samba', label: 'Samba'}, {tag: 'mpb', label: 'MPB'}, {tag: 'funk', label: 'Funk'},
+  {tag: 'gospel', label: 'Gospel'}, {tag: 'country', label: 'Country'}, {tag: 'metal', label: 'Metal'}, {tag: 'blues', label: 'Blues'},
+  {tag: 'dance', label: 'Dance'}, {tag: 'news', label: 'Notícias'}, {tag: 'talk', label: 'Conversa'}, {tag: 'sports', label: 'Esportes'},
+];
+
+/** ids de todas as estações de um estilo (para o globo mostrar só elas). */
+export const idsDoEstilo = (stations: Station[], tag: string): string[] => stations.filter((s) => s.tg.toLowerCase().split(',').includes(tag)).map((s) => s.i);

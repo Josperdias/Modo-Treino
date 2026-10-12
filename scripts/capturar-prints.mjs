@@ -115,8 +115,9 @@ if (nativeDir) {
   await page.getByLabel('Editar a bag Treino A').click(); await pause(700); await shot(page, 'app-13-editar-bag');
   await page.getByLabel('Fechar').last().click();
   await page.getByRole('tab', {name: 'Rádio do mundo'}).click(); await pause(7000); await shot(page, 'app-14-radio-globo');
+  await page.getByLabel('Ver rádios por país').click(); await pause(700); await shot(page, 'app-15-radio-paises'); await page.getByLabel('Fechar').last().click();
   await page.getByRole('tab', {name: 'Início', exact: true}).click(); await pause();
-  await page.getByLabel('Abrir ajustes').click(); await page.getByText('Ajustes', {exact: true}).waitFor(); await pause(); await shot(page, 'app-15-ajustes');
+  await page.getByLabel('Abrir ajustes').click(); await page.getByText('Ajustes', {exact: true}).waitFor(); await pause(); await shot(page, 'app-16-ajustes');
   await ctx.close(); nat.s.close();
 }
 await browser.close(); site.s.close();

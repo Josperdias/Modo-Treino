@@ -1,5 +1,5 @@
-import React, {useEffect, useMemo, useState} from 'react';
-import {Alert, ScrollView, StyleSheet, View} from 'react-native';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
+import {Alert, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import {Text, TextInput} from '../text';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {formatClock, searchTracks} from '../../logic';
@@ -51,9 +51,30 @@ const TIMERS = [0, 15, 30, 45, 60];
 const RATES = [0.75, 1, 1.25, 1.5];
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-const PAGE = 40;
+const ROW_H = 84;   // altura fixa da linha: a lista calcula a posição sem medir cada item (rolagem lisa)
 
-/** FITAS: cada música do celular é uma fita (um cassete). Toque numa fita para ouvir; coloque fitas em bags (playlists) na aba BAGS. */
+type RowProps = {t: Track; current: boolean; playing: boolean; sub: string; onPlay: (t: Track) => void; onMenu: (t: Track) => void};
+/** Uma fita na lista. Sem animações por linha e memoizada: só re-renderiza quando a própria fita muda de estado. */
+const FitaRow = React.memo(function FitaRow({t, current, playing, sub, onPlay, onMenu}: RowProps) {
+  return (
+    <View style={P.rowWrap}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Tocar ${t.title}`} onPress={() => onPlay(t)} android_ripple={{color: 'rgba(20,27,52,.12)'}}
+        style={({pressed}) => [P.row, current && P.rowOn, pressed && {opacity: 0.85}]}>
+        <MiniTape id={t.id} />
+        <View style={{flex: 1}}>
+          <Text numberOfLines={2} style={P.rowTitle}>{t.title}</Text>
+          <Text style={T.small} numberOfLines={1}>{current ? (playing ? 'Tocando agora' : 'Pausada') : sub}</Text>
+        </View>
+        {current && playing && <Equalizer active />}
+        <Pressable accessibilityRole="button" accessibilityLabel={`Mais opções de ${t.title}`} onPress={() => onMenu(t)} hitSlop={6} style={P.iconBtn}><Icon name="ellipsis-horizontal" size={20} /></Pressable>
+      </Pressable>
+    </View>
+  );
+});
+
+const subOf = (t: Track) => (t.duration ? formatClock(t.duration) : t.source === 'file' ? 'Arquivo copiado para o app' : 'No celular');
+
+/** FITAS: cada música do celular é uma fita (um cassete colorido). Toque numa fita para ouvir; coloque fitas em bags (playlists) na aba BAGS. */
 export default function MusicScreen() {
   const m = useMusic();
   const toast = useToast();
@@ -61,16 +82,23 @@ export default function MusicScreen() {
   const [menu, setMenu] = useState<Track | null>(null);
   const [pickBag, setPickBag] = useState(false);
   const [q, setQ] = useState('');
-  const [shown, setShown] = useState(PAGE);
   const list = useMemo(() => searchTracks(m.library, q), [m.library, q]);
-  useEffect(() => { setShown(PAGE); }, [q]);
   const progress = m.duration > 0 ? m.position / m.duration : 0;
   const context = m.queueName ?? `Bag ${m.activeTape.name}`;
-  const sub = (t: Track) => t.duration ? formatClock(t.duration) : t.source === 'file' ? 'Arquivo copiado para o app' : 'No celular';
   const where = (t: Track) => m.lib.tapes.filter((b) => b.ids.includes(t.id)).map((b) => b.name);
 
-  return (
-    <ScrollView contentContainerStyle={P.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+  // O contexto do player muda a cada ~300 ms (posição); os callbacks da lista ficam estáveis via ref para as linhas não re-renderizarem.
+  const mRef = useRef(m); mRef.current = m;
+  const listRef = useRef(list); listRef.current = list;
+  const onPlay = useCallback((t: Track) => { void mRef.current.playFita(t, listRef.current); }, []);
+  const onMenu = useCallback((t: Track) => { setPickBag(false); setMenu(t); }, []);
+  const nowId = m.now?.id;
+  const renderItem = useCallback(({item}: {item: Track}) => (
+    <FitaRow t={item} current={nowId === item.id} playing={m.playing} sub={subOf(item)} onPlay={onPlay} onMenu={onMenu} />
+  ), [nowId, m.playing, onPlay, onMenu]);
+
+  const header = (
+    <View>
       <Animated.View entering={FadeInDown.duration(380)}>
         <Kicker>Sua sonoplastia particular / 001</Kicker>
         <Text style={[T.h1, {marginTop: 4, marginBottom: 16, fontSize: 40, lineHeight: 38}]}>Suas fitas,{'\n'}seu ritmo.</Text>
@@ -86,7 +114,7 @@ export default function MusicScreen() {
             <Text numberOfLines={1} style={[P.song, {flex: 1}]}>{m.now?.title || 'Toque ▶ ou escolha uma fita'}</Text>
             {m.live && <View style={P.live}><View style={P.liveDot} /><Text style={P.liveText}>AO VIVO</Text></View>}
           </View>
-          <Text style={[T.small, {marginTop: 2}]} numberOfLines={1}>{m.now ? (m.live ? `${flag(m.now.cc)} ${m.now.country || 'Rádio'}` : context) : `${m.library.length} fita(s) · ${m.activeTape.ids.length} item(ns) na bag ${m.activeTape.name}`}</Text>
+          <Text style={[T.small, {marginTop: 2}]} numberOfLines={1}>{m.now ? (m.live ? (m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : `${flag(m.now.cc)} ${m.now.country || 'Rádio'}`) : context) : `${m.library.length} fita(s) · ${m.activeTape.ids.length} item(ns) na bag ${m.activeTape.name}`}</Text>
           {!m.live && <View style={{marginTop: 12}}><SeekBar /></View>}
           <View style={P.controls}>
             <Press accessibilityRole="button" accessibilityLabel={m.lib.shuffle ? 'Desligar aleatório' : 'Ligar aleatório'} accessibilityState={{selected: m.lib.shuffle}} onPress={() => m.setShuffle(!m.lib.shuffle)} style={P.small} quiet><Icon name="shuffle" size={22} color={m.lib.shuffle ? C.blue : C.muted} /></Press>
@@ -126,26 +154,30 @@ export default function MusicScreen() {
             <Btn small kind="ghost" icon="shuffle" text="ALEATÓRIO" label="Tocar todas as fitas em ordem aleatória" onPress={() => m.playAll(true, list)} style={{flex: 1}} />
           </View>
           {list.length === 0 && <Text style={[T.body, {textAlign: 'center', padding: 20}]}>Nenhuma fita com esse nome.</Text>}
-          {list.slice(0, shown).map((t) => {
-            const current = m.now?.id === t.id;
-            return (
-              <View key={t.id} style={{marginBottom: 8}}>
-                <Pop accessibilityRole="button" accessibilityLabel={`Tocar ${t.title}`} onPress={() => { void m.playFita(t, list); }} color={current ? '#FFF1BF' : C.card} radius={R.md} offset={3} quiet innerStyle={P.row}>
-                  <MiniTape id={t.id} on={current} />
-                  <View style={{flex: 1}}>
-                    <Text numberOfLines={2} style={P.rowTitle}>{t.title}</Text>
-                    <Text style={T.small} numberOfLines={1}>{current ? (m.playing ? 'Tocando agora' : 'Pausada') : sub(t)}</Text>
-                  </View>
-                  {current && m.playing && <Equalizer active />}
-                  <Press accessibilityRole="button" accessibilityLabel={`Mais opções de ${t.title}`} onPress={() => { setPickBag(false); setMenu(t); }} style={P.iconBtn} quiet><Icon name="ellipsis-horizontal" size={20} /></Press>
-                </Pop>
-              </View>
-            );
-          })}
-          {list.length > shown && <Btn kind="ghost" small icon="chevron-down" text={`VER MAIS (${list.length - shown})`} label="Mostrar mais fitas" onPress={() => setShown((n) => n + PAGE)} style={{marginTop: 4}} />}
         </>
       )}
-      <Text style={P.disclaimer}>As fitas são as músicas do seu celular e tocam offline; nada é copiado nem apagado. Para montar playlists, use as BAGS. Rádios precisam de internet. Links do YouTube não são reproduzidos. Em segundo plano, o som depende do Android e das suas permissões.</Text>
+    </View>
+  );
+
+  return (
+    <View style={{flex: 1}}>
+      <FlatList
+        data={m.library.length ? list : []}
+        keyExtractor={(t) => t.id}
+        renderItem={renderItem}
+        extraData={`${nowId}|${m.playing}`}
+        getItemLayout={(_, i) => ({length: ROW_H, offset: ROW_H * i, index: i})}
+        initialNumToRender={10}
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={40}
+        windowSize={9}
+        removeClippedSubviews
+        contentContainerStyle={P.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={header}
+        ListFooterComponent={<Text style={P.disclaimer}>As fitas são as músicas do seu celular e tocam offline; nada é copiado nem apagado. Para montar playlists, use as BAGS. Rádios precisam de internet. Links do YouTube não são reproduzidos. Em segundo plano, o som depende do Android e das suas permissões.</Text>}
+      />
 
       <Sheet visible={settings} onClose={() => setSettings(false)} title="Controles do player">
         <Text style={[T.h3, {marginBottom: 4}]}>Transição entre músicas</Text>
@@ -182,7 +214,7 @@ export default function MusicScreen() {
           </View>
         )}
       </Sheet>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -208,7 +240,9 @@ const P = StyleSheet.create({
   search: {flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.white, borderRadius: R.pill, paddingHorizontal: 16, height: 48, marginBottom: 12, borderWidth: 2, borderColor: C.ink},
   searchInput: {flex: 1, fontSize: 15, color: C.ink},
   iconBtn: {width: 40, height: 40, borderRadius: 20, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
-  row: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10},
+  rowWrap: {height: ROW_H, paddingBottom: 8},
+  row: {flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, backgroundColor: C.card, borderRadius: R.md, borderWidth: 2, borderColor: C.ink, borderBottomWidth: 4},
+  rowOn: {backgroundColor: '#FFF1BF'},
   rowTitle: {fontSize: 15, fontWeight: '700', color: C.ink},
   disclaimer: {fontSize: 11, lineHeight: 17, color: C.muted, marginTop: 24},
 });

@@ -2,6 +2,25 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.3.1] — 2026-10-12
+
+Ajustes a partir do uso no aparelho real.
+
+### Rádio do mundo
+- **Mundo nostálgico e pontos que se leem**: o planeta deixou de ser amarelo e ganhou cara de **atlas antigo** (países em areia, terracota, sálvia, rosa-poeira e mostarda, fronteiras em tinta sépia, mar azul-petróleo) com o **nome dos países em português** (aparecem mais nomes quanto mais perto você chega). As rádios são **pinos índigo com contorno creme**; ao tocar numa, ela fica **vermelha**; ao começar a tocar, **verde** (com anel pulsando). Legenda na tela.
+- **Nome da faixa**: o app lê os metadados do stream (ICY) a cada 20 s e mostra "♪ Artista – Música" no cartão da rádio, no player e no mini player (e na tela de bloqueio). Rádios que não publicam isso mostram "Esta rádio não informa a faixa".
+- **País certinho**: o cartão mostra a bandeira e o país por extenso; novo botão **PAÍSES** lista todos com a quantidade de rádios; vários pontos juntos viram o botão **+N** para escolher pelo nome.
+- **Estilos**: 20 estilos (Pop, Rock, Sertanejo, MPB, Funk, Samba, Gospel, Notícias…); ao escolher um, o globo mostra **só** as rádios daquele estilo.
+- O globo **para de desenhar quando você sai da aba** Rádio (antes continuava rodando escondido, o que travava as outras abas e gastava bateria).
+
+### Fitas
+- Lista **virtualizada**: rola até o fim sem o botão "ver mais" (só as linhas visíveis existem) e as linhas ficaram leves (sem animação por linha).
+- **Fitas coloridas**: cada música tem seu cassete, em 8 cores, para reconhecer de relance.
+
+### Técnico
+- `android.versionCode` agora acompanha a versão (1.3.1 = 10301) e o `verify.py` confere. O 1.3.0 saiu com versionCode 1 (padrão do Expo).
+- Leitor ICY (`scripts/globe/icy.js`) com testes contra um servidor de verdade.
+
 ## [1.3.0] — 2026-10-12
 
 ### Novo

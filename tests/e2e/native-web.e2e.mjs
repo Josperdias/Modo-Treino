@@ -521,6 +521,20 @@ test('biblioteca antiga (arquivos copiados, sem "source") continua funcionando c
   await context.close();
 });
 
+test('rádio: estações do diretório, estilos em português e lista de países com contagem', {skip}, async () => {
+  const {context, page} = await open();
+  const mk = (i, cc, co, tags) => ({stationuuid: 'u' + i, name: `Rádio ${co} ${i}`, url_resolved: 'https://example.com/s' + i, countrycode: cc, country: co, state: '', tags, geo_lat: -10 + i, geo_long: -50 + i, clickcount: 100 - i, bitrate: 128});
+  const radios = [...[1, 2, 3, 4, 5, 6].map((i) => mk(i, 'BR', 'Brazil', 'pop,hits')), ...[7, 8].map((i) => mk(i, 'PT', 'Portugal', 'rock')), mk(9, 'FR', 'France', 'jazz')];
+  await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
+  await tab(page, 'Músicas'); await musicTab(page, 'Rádio do mundo');
+  await page.getByText('9 estações').waitFor();
+  for (const g of ['Pop', 'Eletrônica', 'Clássica', 'Notícias', 'Esportes']) await page.getByLabel(`Estilo ${g}`, {exact: true}).waitFor();
+  await page.getByLabel('Ver rádios por país').click();
+  await page.getByLabel(/^(Brazil|Brasil), 6 rádios$/).waitFor();
+  await page.getByLabel(/^(Portugal), 2 rádios$/).waitFor();
+  await context.close();
+});
+
 test('player compacto: aparece nas telas, some na aba Músicas e fica no modo execução e no descanso', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}});
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1);

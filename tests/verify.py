@@ -59,6 +59,10 @@ versions={
 }
 assert len(set(versions.values()))==1, f'versões divergentes: {versions}'
 print('OK: versão única', next(iter(versions.values())))
+_maj,_min,_pat=[int(x) for x in next(iter(versions.values())).split('.')]
+_vc=json.loads((ROOT/'native/app.json').read_text())['expo']['android'].get('versionCode')
+assert _vc==_maj*10000+_min*100+_pat, f'android.versionCode {_vc} deveria ser {_maj*10000+_min*100+_pat} (rode scripts/bump-version.mjs)'
+print('OK: versionCode do Android', _vc)
 
 # 3) site sem dependência externa de fontes/CDN e com fontes OFL + licenças
 for f in ['site/index.html','site/styles.css','site/baixar/index.html','site/baixar/baixar.css']:
