@@ -7,11 +7,23 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 Ajustes a partir do uso no aparelho real.
 
 ### Rádio do mundo
-- **Mundo nostálgico e pontos que se leem**: o planeta deixou de ser amarelo e ganhou cara de **atlas antigo** (países em areia, terracota, sálvia, rosa-poeira e mostarda, fronteiras em tinta sépia, mar azul-petróleo) com o **nome dos países em português** (aparecem mais nomes quanto mais perto você chega). As rádios são **pinos índigo com contorno creme**; ao tocar numa, ela fica **vermelha**; ao começar a tocar, **verde** (com anel pulsando). Legenda na tela.
+- **Planeta retrô de fita cassete**: volta o planeta de **pontinhos** (hexágonos), agora em **rosa, azul, amarelo, menta, lilás e pêssego**, num **espaço estrelado** azul-roxo com halo rosa→azul. Países vizinhos **nunca repetem a cor** (o Brasil é verde) e têm fronteira fina e **nome em português** (aparecem mais nomes quanto mais perto você chega).
+- **Pontos que se leem**: as rádios são **pinos índigo com contorno creme**; ao tocar numa, ela fica **vermelha**; ao começar a tocar, **verde** (com anel pulsando). Legenda na tela.
+- **Rádios espalhadas pelo país**: quando muitas rádios têm a mesma coordenada (centro da cidade/país), elas são espalhadas dentro do próprio país em vez de virar um ponto só. A localização continua aproximada.
 - **Nome da faixa**: o app lê os metadados do stream (ICY) a cada 20 s e mostra "♪ Artista – Música" no cartão da rádio, no player e no mini player (e na tela de bloqueio). Rádios que não publicam isso mostram "Esta rádio não informa a faixa".
 - **País certinho**: o cartão mostra a bandeira e o país por extenso; novo botão **PAÍSES** lista todos com a quantidade de rádios; vários pontos juntos viram o botão **+N** para escolher pelo nome.
 - **Estilos**: 20 estilos (Pop, Rock, Sertanejo, MPB, Funk, Samba, Gospel, Notícias…); ao escolher um, o globo mostra **só** as rádios daquele estilo.
 - O globo **para de desenhar quando você sai da aba** Rádio (antes continuava rodando escondido, o que travava as outras abas e gastava bateria).
+
+### Tocando agora
+- Tocar no **mini player** abre o cartão **"Tocando agora"**: a **fita girando** (ou o globo, se for rádio), nome, de onde vem, barra de progresso com tempo, **repetir · anterior · play/pausar · próxima · coração** e volume. O coração guarda na bag **Favoritas**.
+
+### Notificações
+- **Música/rádio**: a notificação do player ganhou **arte da fita** (uma cor por música, igual ao cassete da lista) ou **globo** para rádios, com nome, de onde vem (fita da bag X / país da rádio) e o **nome da faixa** quando a rádio informa. Controles: o que o sistema oferece para o player (tocar/pausar). *Anterior/Próxima e o cassete girando na notificação não são possíveis com o motor de áudio atual.*
+- **Exercício** (separada): fixa durante o modo execução, mostra "Treino A · exercício 3/6" e a série atual; ao tocar nela, volta para o treino. Liga/desliga em Ajustes → *Notificação do exercício*. Pede a permissão de notificações na primeira vez (Android 13+).
+
+### Instalação
+- A página `/baixar/` agora explica o **aviso do Play Protect** (app fora da Play Store que o Google ainda não analisou) e como seguir com segurança.
 
 ### Fitas
 - Lista **virtualizada**: rola até o fim sem o botão "ver mais" (só as linhas visíveis existem) e as linhas ficaram leves (sem animação por linha).

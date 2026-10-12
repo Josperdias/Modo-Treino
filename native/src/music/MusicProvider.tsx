@@ -10,6 +10,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus} from 'expo-audio';
 import {forgetTrack, nextTrackId, resolveTape, tapeAdd, tapeInsert, tapeMove, tapeRemove} from '../../logic';
+import {flag} from '../data';
+import {arteDaFita, arteDaRadio, arteDaRadioPronta} from './artwork';
 import {askPermission, DeviceTrack, Permission, pickMusicFolder, readPermission, scanDevice, scanFolder} from './device';
 
 export type Track = {id: string; title: string; artist?: string; uri: string; duration?: number; source: 'device' | 'file' | 'radio'; cc?: string; country?: string};
@@ -64,6 +66,9 @@ export type MusicAPI = {
   playNext: (id: string) => void;
   copyToTape: (track: Track, tapeId: string) => void;
   playTape: (shuffle: boolean, tapeId?: string) => void;
+  /** Coração do player: guarda/tira a fita (ou rádio) na bag "Favoritas" (criada se não existir). */
+  isFav: (id: string) => boolean;
+  toggleFav: (track: Track) => void;
   /** Rádio tocando: nome da faixa lido dos metadados do stream (quando a rádio os publica). */
   radioTrack: {id: string; title: string | null; state: 'buscando' | 'ok' | 'sem'} | null;
   setRadioTrack: (id: string, title: string | null, icy: boolean) => void;
@@ -173,8 +178,13 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       other.pause(); other.replace({uri: src.uri}); other.volume = seconds ? 0 : vol; other.play();
       try { other.setPlaybackRate?.(src.source === 'radio' ? 1 : libRef.current.rate || 1); } catch { /* velocidade é um extra */ }
       try {
+        // notificação de música do sistema: fita colorida (ou globo, se for rádio), nome e de onde vem
+        const arte = await (src.source === 'radio' ? arteDaRadio() : arteDaFita(src.id));
+        const bag = queueRef.current ? 'Todas as fitas' : libRef.current.tapes.find((t) => t.id === libRef.current.selected)?.name;
         old.clearLockScreenControls?.();
-        other.setActiveForLockScreen?.(true, {title: src.title, artist: src.source === 'radio' ? `Rádio · ${src.country || 'ao vivo'}` : (queueRef.current ? 'Todas as fitas' : libRef.current.tapes.find((t) => t.id === libRef.current.selected)?.name) || 'Modo Treino', albumTitle: 'Modo Treino'});
+        other.setActiveForLockScreen?.(true, src.source === 'radio'
+          ? {title: src.title, artist: `${flag(src.cc)} ${src.country || 'Rádio'} · ao vivo`, albumTitle: 'Rádio do mundo', artworkUrl: arte}
+          : {title: src.title, artist: bag ? `Fita · ${bag}` : 'Fita', albumTitle: 'Modo Treino', artworkUrl: arte});
       } catch { /* controles da tela de bloqueio são um extra */ }
       channel.current = 1 - oldIndex; nowRef.current = src; setNowTrack(src);
       setRadioTrackState(src.source === 'radio' ? {id: src.id, title: null, state: 'buscando'} : null); setPlaying(true); playingRef.current = true;
@@ -375,12 +385,20 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       setLib((v) => ({...v, selected: tape.id, shuffle}));
       void playById(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], false);
     },
+    isFav: (id) => !!lib.tapes.find((t) => t.id === 'fav')?.ids.includes(id),
+    toggleFav: (track) => setLib((v) => {
+      const tapes = v.tapes.some((t) => t.id === 'fav') ? v.tapes : [...v.tapes, {id: 'fav', name: 'Favoritas', ids: []}];
+      const had = tapes.find((t) => t.id === 'fav')!.ids.includes(track.id);
+      const tracks = v.tracks.some((x) => x.id === track.id) ? v.tracks : [...v.tracks, track];
+      const next = {...v, tracks, tapes: tapes.map((t) => (t.id === 'fav' ? {...t, ids: had ? t.ids.filter((x) => x !== track.id) : [...t.ids, track.id]} : t))};
+      return had ? pruneRefs(next) : next;
+    }),
     radioTrack,
     setRadioTrack: (id, title, icy) => {
       if (nowRef.current?.id !== 'radio:' + id) return;      // resposta atrasada de outra rádio
       setRadioTrackState({id: nowRef.current.id, title, state: title ? 'ok' : icy ? 'buscando' : 'sem'});
       if (title) { // tela de bloqueio: faixa em cima, nome da rádio embaixo
-        try { (channel.current === 0 ? one : two).updateLockScreenMetadata?.({title, artist: nowRef.current.title, albumTitle: 'Modo Treino'}); } catch { /* extra */ }
+        try { (channel.current === 0 ? one : two).updateLockScreenMetadata?.({title, artist: `${nowRef.current.title} · ${flag(nowRef.current.cc)} ${nowRef.current.country || ''}`.trim(), albumTitle: 'Rádio do mundo', artworkUrl: arteDaRadioPronta()}); } catch { /* extra */ }
       }
     },
     queueName,

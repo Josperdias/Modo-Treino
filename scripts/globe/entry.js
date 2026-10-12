@@ -10,7 +10,7 @@ import {
   LineSegments, LineBasicMaterial, Mesh, Points, ShaderMaterial, SphereGeometry, AmbientLight,
   DirectionalLight, Float32BufferAttribute, Vector3,
 } from 'three';
-import { feature } from 'topojson-client';
+import { feature, neighbors } from 'topojson-client';
 import { gerarDemo } from './demo.js';
 import { lerFaixa } from './icy.js';
 
@@ -18,16 +18,17 @@ import { lerFaixa } from './icy.js';
 // Constantes visuais
 // ---------------------------------------------------------------------------
 const R = 100;                     // raio do globo em unidades three-globe
-const COR_OCEANO = '#16384f';         // mar de atlas antigo: azul-petróleo
-// Visual de atlas antigo: terra em tons desbotados (areia, terracota, sálvia, rosa-poeira, mostarda, celadon, malva, cáqui),
-// fronteiras em tinta sépia e mar azul-petróleo. As rádios são pinos índigo com contorno creme (leem bem sobre qualquer tom);
-// a escolhida fica vermelha e a que está tocando, verde.
-const COR_TERRA = ['#D8B98A', '#C98F6B', '#A9B77E', '#D9A5A0', '#E2C971', '#8FB3A8', '#C4A0BC', '#B7A07A'];
-const COR_ESTACAO = rgb('#2B2D6E');
+const COR_OCEANO = '#0c1236';         // espaço profundo: azul-marinho quase roxo
+// Visual retrô de fita cassete: planeta de pontinhos (hexágonos) em rosa, azul, amarelo, menta, lilás e pêssego, num espaço
+// estrelado azul-roxo com halo rosa→azul. Países vizinhos nunca repetem a cor (coloração de grafo). As rádios são pinos
+// índigo com contorno creme (leem bem sobre qualquer tom); a escolhida fica vermelha e a que está tocando, verde.
+const PALETA = ['#F29BC0', '#8FB8F5', '#FFD369', '#8EE0C0', '#BFA8F5', '#FFB58A'];   // rosa, azul, amarelo, menta, lilás, pêssego
+const PREFERIDA = { BR: 3 };                                                           // Brasil: menta/verde
+const COR_ESTACAO = rgb('#1D1F66');
 const COR_TOCANDO = rgb('#22B35E');
 const COR_SELECIONADA = rgb('#E63950');
-const ROSA = '#E9B27C';           // brilho quente do aro (sépia/âmbar)
-const AZUL = '#5F8AA6';           // azul-poeira
+const ROSA = '#E9A0BF';
+const AZUL = '#4674DB';
 const ALT_ESTACAO = 0.014;         // estações ficam logo acima dos hexágonos (altitude 0.004)
 const ZOOM_MIN_ALT = 0.32;         // altitude mínima/máxima da câmera (em raios do globo)
 const ZOOM_MAX_ALT = 2.6;
@@ -63,11 +64,22 @@ function post(msg) {
 // ---------------------------------------------------------------------------
 function carregarPaises() {
   if (!dados.topology) return [];
+  const geoms = dados.topology.objects.countries.geometries;
   const fc = feature(dados.topology, dados.topology.objects.countries);
+  // coloração de grafo (gulosa, mais vizinhos primeiro): países que se tocam nunca ficam com a mesma cor
+  const viz = neighbors(geoms);
+  const cor = new Array(geoms.length).fill(-1);
+  const ordem = geoms.map((_, i) => i).sort((a, b) => viz[b].length - viz[a].length);
+  const iso2De = (f) => dados.iso[f.id] || dados.iso[String(f.id)] || (f.properties.name === 'Kosovo' ? 'XK' : null);
+  ordem.forEach((i) => {
+    const usadas = new Set(viz[i].map((j) => cor[j]));
+    const pref = PREFERIDA[iso2De(fc.features[i])];
+    const livre = [...PALETA.keys()].find((c) => !usadas.has(c));
+    cor[i] = pref != null && !usadas.has(pref) ? pref : (livre != null ? livre : i % PALETA.length);
+  });
   return fc.features
-    .map((f) => {
-      const iso2 = dados.iso[f.id] || dados.iso[String(f.id)] || (f.properties.name === 'Kosovo' ? 'XK' : null);
-      f.properties = { iso2, name: f.properties.name };
+    .map((f, i) => {
+      f.properties = { iso2: iso2De(f), name: f.properties.name, cor: cor[i] };
       return f;
     })
     .filter((f) => f.properties.name !== 'Antarctica'); // sem rádios, só poluiria a base do globo
@@ -146,19 +158,19 @@ const globe = Globe({
   .backgroundColor('rgba(0,0,0,0)')
   .showAtmosphere(false)        // halo próprio (rosa → azul), mais bonito que o padrão de cor única
   .showGraticules(false)        // grade própria, mais discreta e escondida sob a terra
-  // base: países preenchidos, cada um num tom, com fronteira clara
-  .polygonsTransitionDuration(0)
-  .polygonAltitude(0.004)
-  .polygonCapCurvatureResolution(4)
-  .polygonCapColor((f) => COR_TERRA[hashStr(f.properties.name || '') % COR_TERRA.length])
-  .polygonSideColor(() => 'rgba(0,0,0,0)')
-  .polygonStrokeColor(() => 'rgba(74,45,26,0.65)')
-  // destaque do país escolhido: pontinhos claros por cima da cor dele + contorno grosso
+  // base: planeta de pontinhos (hexágonos) coloridos por país
   .hexPolygonResolution(3)
   .hexPolygonMargin(0.3)
-  .hexPolygonAltitude(0.0075)
-  .hexPolygonColor(() => 'rgba(255,248,225,0.5)')
+  .hexPolygonAltitude(0.004)
+  .hexPolygonColor((f) => PALETA[f.properties.cor % PALETA.length])
   .hexPolygonsTransitionDuration(0)
+  // fronteiras finas por cima (sem preenchimento: só a linha)
+  .polygonsTransitionDuration(0)
+  .polygonAltitude(0.0062)
+  .polygonCapCurvatureResolution(4)
+  .polygonCapColor(() => 'rgba(0,0,0,0)')
+  .polygonSideColor(() => 'rgba(0,0,0,0)')
+  .polygonStrokeColor(() => 'rgba(16,14,60,0.5)')
   // contorno do país destacado: linha com espessura de verdade (o stroke de polígono é sempre 1 px)
   .pathPointLat((p) => p[1]).pathPointLng((p) => p[0]).pathPointAlt(0.0095)
   .pathColor((d) => (d.papel === 'sel' ? '#ffffff' : 'rgba(255,255,255,0.65)'))
@@ -177,9 +189,9 @@ if (dprParam > 0) renderer.setPixelRatio(dprParam);
 // Oceano: esfera azul-marinho escuro; sem textura.
 const matOceano = globe.globeMaterial();
 matOceano.color = new Color(COR_OCEANO);
-matOceano.emissive = new Color('#06141d');
+matOceano.emissive = new Color('#03050f');
 matOceano.shininess = 10;
-matOceano.specular = new Color('#2a4d63');
+matOceano.specular = new Color('#141d44');
 
 // Luzes: ambiente forte (o amarelo da terra não pode escurecer) + uma direcional suave para dar volume.
 const luzAmb = new AmbientLight(0xffffff, Math.PI * 0.82);
@@ -207,7 +219,7 @@ camera.updateProjectionMatrix();
   }
   const g = new BufferGeometry();
   g.setAttribute('position', new Float32BufferAttribute(pos, 3));
-  const m = new LineBasicMaterial({ color: 0xe9d9b5, transparent: true, opacity: 0.17, depthWrite: false });
+  const m = new LineBasicMaterial({ color: AZUL, transparent: true, opacity: 0.2, depthWrite: false });
   const linhas = new LineSegments(g, m);
   linhas.renderOrder = 1;
   globe.scene().add(linhas);
@@ -267,7 +279,7 @@ const VERT_VISTA = `
 // ---- Estrelinhas discretas ao fundo ----
 const uStarTime = { value: 0 };
 (function estrelas() {
-  const n = 700;
+  const n = 1500;
   const pos = new Float32Array(n * 3), tam = new Float32Array(n), cor = new Float32Array(n * 3), sem = new Float32Array(n);
   let s = 1234567;
   const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
@@ -275,7 +287,7 @@ const uStarTime = { value: 0 };
   for (let i = 0; i < n; i++) {
     const u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, q = Math.sqrt(1 - u * u), rr = 3000;
     pos.set([rr * q * Math.cos(a), rr * u, rr * q * Math.sin(a)], i * 3);
-    tam[i] = 1.0 + rnd() * rnd() * 2.6;
+    tam[i] = 1.2 + rnd() * rnd() * 3.2;
     const t = tons[(rnd() * tons.length) | 0];
     cor.set([t.r, t.g, t.b], i * 3);
     sem[i] = rnd();
@@ -293,7 +305,7 @@ const uStarTime = { value: 0 };
       uniform float uTime; uniform float uPR; varying vec3 vC; varying float vA;
       void main(){
         vC = aColor;
-        vA = 0.35 + 0.4 * aSeed + 0.2 * sin(uTime * (0.6 + aSeed * 1.4) + aSeed * 40.0);
+        vA = 0.5 + 0.4 * aSeed + 0.25 * sin(uTime * (0.6 + aSeed * 1.4) + aSeed * 40.0);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         gl_PointSize = aSize * uPR;
       }`,
@@ -457,6 +469,47 @@ globe
   .ringPropagationSpeed((d) => (d.tipo === 'tocando' ? 3.4 : 2.4) * escalaAnel)
   .ringRepeatPeriod((d) => (d.tipo === 'tocando' ? 1500 : 2200));
 
+// Muitas rádios têm a MESMA coordenada (a do centro da cidade ou do país). Para não virarem um único ponto, as que se
+// empilham são espalhadas em espiral dentro do próprio país (o raio cresce com a quantidade; a posição é determinística).
+// A localização continua aproximada; o ponto só deixa de esconder as outras.
+function dentroDoPais(f, lat, lng) {
+  for (const p of f.__polys) {
+    const b = p.bbox;
+    if (lng < b[0] || lng > b[2] || lat < b[1] || lat > b[3]) continue;
+    if (!dentroDoAnel(lng, lat, p.rings[0])) continue;
+    let buraco = false;
+    for (let k = 1; k < p.rings.length; k++) if (dentroDoAnel(lng, lat, p.rings[k])) { buraco = true; break; }
+    if (!buraco) return true;
+  }
+  return false;
+}
+function espalhar(lista) {
+  const grupos = new Map();
+  lista.forEach((e) => {
+    const k = Math.round(e.lat / 0.05) + ',' + Math.round(e.lng / 0.05);
+    (grupos.get(k) || grupos.set(k, []).get(k)).push(e);
+  });
+  grupos.forEach((g) => {
+    if (g.length < 3) return;
+    g.sort((a, b) => (a.i < b.i ? -1 : 1));
+    const rMax = Math.min(7, 0.55 * Math.sqrt(g.length));       // graus
+    const f = g[0].cc ? paisPorIso.get(g[0].cc) : null;
+    const lat0 = g[0].lat, lng0 = g[0].lng;
+    g.forEach((e, k) => {
+      const base = rMax * Math.sqrt((k + 0.5) / g.length);
+      const ang0 = k * 2.399963 + (hashStr(e.i) % 628) / 100;
+      for (let t = 0; t < 4; t++) {                                // se cair fora do país, tenta mais perto do centro
+        const r = base * Math.pow(0.6, t), ang = ang0 + t * 0.9;
+        const la = Math.max(-85, Math.min(85, lat0 + r * Math.sin(ang)));
+        const lo = lng0 + (r * Math.cos(ang)) / Math.max(0.2, Math.cos((lat0 * Math.PI) / 180));
+        if (!f || dentroDoPais(f, la, lo)) { e.lat = la; e.lng = lo; break; }
+      }
+      const a = (e.lat * Math.PI) / 180, b = (e.lng * Math.PI) / 180;
+      e.x = Math.cos(a) * Math.cos(b); e.y = Math.cos(a) * Math.sin(b); e.z = Math.sin(a);
+    });
+  });
+}
+
 function setStations(arr) {
   const lista = [];
   (Array.isArray(arr) ? arr : []).forEach((e) => {
@@ -469,6 +522,7 @@ function setStations(arr) {
       seed: (hashStr(String(e.i)) % 1000) / 1000, on: true,
     });
   });
+  espalhar(lista);
   estacoes = lista;
   idxPorId = new Map(lista.map((e, k) => [e.i, k]));
   if (tocandoId != null && !idxPorId.has(tocandoId)) tocandoId = null;
@@ -515,19 +569,9 @@ function toleranciaGraus() {
 // Países: base preenchida (uma vez) + destaque do país escolhido (pontinhos claros e contorno grosso)
 // ---------------------------------------------------------------------------
 const semHex = dados.semHex || {};
-function hexDe(f) {
-  // O h3-js lança erro em anéis degenerados do 110m; esses polígonos são pulados só no destaque.
-  const ruins = semHex[f.properties.name];
-  if (!ruins) return [f];
-  const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
-  const ok = polys.filter((_, k) => !ruins.includes(k));
-  return ok.length ? [{ type: 'Feature', properties: f.properties, geometry: { type: 'MultiPolygon', coordinates: ok } }] : [];
-}
-
 function atualizarPaises() {
   const fh = paisHover && paisHover !== paisSel ? paisPorIso.get(paisHover) : null;
   const fs = paisSel ? paisPorIso.get(paisSel) : null;
-  globe.hexPolygonsData(fs ? hexDe(fs) : []);
   // contornos (linhas com espessura de verdade) do país escolhido e, com mouse, do país sob o cursor
   const caminhos = [];
   [[fh, 'hover'], [fs, 'sel']].forEach(([f, papel]) => {
@@ -538,6 +582,15 @@ function atualizarPaises() {
 }
 
 function construirTerra() {
+  // O h3-js lança erro em anéis degenerados do 110m; esses polígonos ficam fora dos hexágonos (mas mantêm a fronteira).
+  const hexPaises = paises.map((f) => {
+    const ruins = semHex[f.properties.name];
+    if (!ruins) return f;
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const ok = polys.filter((_, k) => !ruins.includes(k));
+    return ok.length ? { type: 'Feature', properties: f.properties, geometry: { type: 'MultiPolygon', coordinates: ok } } : null;
+  }).filter(Boolean);
+  globe.hexPolygonsData(hexPaises);
   globe.polygonsData(paises);
 }
 
@@ -566,7 +619,9 @@ function agendarRotacao(ms) {
 controls.addEventListener('start', pararRotacao);
 controls.addEventListener('end', () => agendarRotacao());
 
-function focus({ lat, lng, altitude, ms }) {
+function focus({ lat, lng, altitude, ms, id }) {
+  const est = id != null && idxPorId.has(String(id)) ? estacoes[idxPorId.get(String(id))] : null;
+  if (est) { lat = est.lat; lng = est.lng; }                    // a posição do ponto no globo (já espalhada)
   if (!isFinite(lat) || !isFinite(lng)) return;
   const alt = Math.min(2.5, Math.max(0.6, isFinite(altitude) ? +altitude : globe.pointOfView().altitude));
   const dur = isFinite(ms) ? Math.max(0, +ms) : 1200;

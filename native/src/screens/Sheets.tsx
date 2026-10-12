@@ -67,6 +67,7 @@ export function SettingsSheet({visible, onClose, version, status, onCheck, onGal
 
         <Section title="Tela">
           <Switch value={state.keepAwake} onChange={(v) => update((s) => ({...s, keepAwake: v}))} title="Manter a tela ligada no treino" desc="Evita apagar durante o modo execução. Gasta mais bateria." />
+          <Switch value={state.notifyWorkout} onChange={(v) => update((s) => ({...s, notifyWorkout: v}))} title="Notificação do exercício" desc="Mostra o exercício atual na barra do celular durante o treino; toque nela para voltar ao app." />
         </Section>
 
         <Section title="Sons do app">

@@ -69,10 +69,21 @@
    </ol>
   </section>
 
+  <section class="steps" aria-labelledby="pp-title">
+   <h2 id="pp-title">O ANDROID MOSTROU UM AVISO DO PLAY PROTECT?</h2>
+   <p>É esperado. O Play Protect avisa sobre qualquer app instalado <strong>fora da Play Store</strong> que o Google ainda não analisou (“app não verificado”, “desenvolvedor desconhecido” ou “não foi possível verificar”). Isso <strong>não quer dizer que o app tenha vírus</strong>: quer dizer que o Google nunca viu este app.</p>
+   <ol>
+    <li>Toque em <strong>Mais detalhes</strong> e depois em <strong>Instalar mesmo assim</strong>. Se aparecer <strong>Verificar app</strong>, pode tocar: o arquivo é enviado ao Google para análise e, depois dela, o aviso costuma sumir neste aparelho.</li>
+    <li>Confira que o <strong>SHA-256</strong> do arquivo é o mostrado acima. É a prova de que você instalou o arquivo certo.</li>
+    <li>O app é assinado com a <strong>chave própria do projeto</strong> (a mesma em todas as versões, por isso atualiza por cima) e pede só as permissões de que precisa: internet, ler músicas, notificações e manter o áudio tocando.</li>
+   </ol>
+   <p>Para o aviso <strong>desaparecer de vez</strong> para todo mundo, o app precisa ser publicado na Google Play (por exemplo, em teste fechado), o que exige uma conta de desenvolvedor do Google Play. Ainda não é o caso.</p>
+  </section>
+
   <section class="note" aria-labelledby="note-title">
    <h2 id="note-title">LEIA ANTES</h2>
    <ul>
-    <li>É um <strong>APK de teste</strong> (debug), feito para avaliação. Não é a versão da Play Store e pode ter falhas.</li>
+    <li>É um <strong>APK de teste</strong> (versão release com JavaScript embutido, assinada com a chave do projeto), feito para avaliação. Não é a versão da Play Store e pode ter falhas.</li>
     <li>O app <strong>não se instala nem se atualiza sozinho</strong>. Ele só avisa quando há uma versão nova publicada; você decide baixar.</li>
     <li>Esta página faz uma única consulta pública à API do GitHub para achar a última versão. Não há rastreamento nem cookies.</li>
     <li>Antes de trocar de versão, <strong>exporte um backup</strong> (Ajustes → Exportar). Se o Android recusar a atualização por cima (conflito de assinatura), desinstale, instale a nova versão e importe o backup.</li>

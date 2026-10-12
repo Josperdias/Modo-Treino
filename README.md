@@ -17,7 +17,7 @@
 <img src="screenshots/v1.3.1/app-01-inicio.png" width="190" alt="App Android: tela inicial">
 <img src="screenshots/v1.3.1/app-04-cartao-exercicio.png" width="190" alt="App Android: cartão do exercício com os botões de séries">
 <img src="screenshots/v1.3.1/app-07-descanso-entre-exercicios.png" width="190" alt="App Android: descanso entre exercícios">
-<img src="screenshots/v1.3.1/app-10-fita-tocando.png" width="190" alt="App Android: fitas com as músicas do celular">
+<img src="screenshots/v1.3.1/app-10b-tocando-agora.png" width="190" alt="App Android: Tocando agora, com a fita girando">
 
 </div>
 
@@ -32,7 +32,8 @@
 | 🏋️ **Treinos A e B** | 14 exercícios (6 + 8) com séries, repetições e cargas **editáveis**. Você escolhe quem treina com você: **Josperd** ou **Camila Camomila, a ruivinha**. |
 | 📈 **Histórico de verdade** | Volume por treino (séries × repetições × carga), detalhe por exercício, **recordes pessoais** e exportação em **CSV**. |
 | 📼 **Fitas e bags** | **No app Android:** cada música do seu celular é uma **fita** (um cassete), lida direto do aparelho (lista, pasta ou arquivos), **sem importar nem copiar**. **Bags** são as playlists: junte **fitas e rádios** e toque tudo de uma vez. Tirar da bag **não apaga o arquivo**. Crossfade de 0 a 8 s, volume, velocidade, timer para dormir e **mini player dentro do treino**. No site, você importa os arquivos. Sem baixar nada de terceiros. |
-| 🌍 **Rádio do mundo (globo 3D)** | **Mundo em estilo de atlas antigo** (países em tons de areia, terracota e sálvia, fronteiras em sépia, nomes em português) e milhares de rádios como pontos (pino índigo = rádio, **vermelho = escolhida**, **verde = tocando**). Gire, dê zoom, toque num ponto ou país, filtre por **estilo** (pop, rock, sertanejo, MPB…), veja **rádios por país** e o **nome da faixa que está tocando** (quando a rádio informa). Toca com a tela apagada. Guarde rádios nas suas bags (playlists). (App Android; precisa de internet.) |
+| 🌍 **Rádio do mundo (globo 3D)** | **Planeta retrô de pontinhos** (rosa, azul, amarelo e menta, no espaço estrelado) com **países de nome em português**; rádios espalhadas dentro de cada país (pino índigo = rádio, **vermelho = escolhida**, **verde = tocando**). Gire, dê zoom, toque num ponto ou país, filtre por **estilo** (pop, rock, sertanejo, MPB…), veja **rádios por país** e o **nome da faixa que está tocando** (quando a rádio informa). Toca com a tela apagada. Guarde rádios nas suas bags (playlists). (App Android; precisa de internet.) |
+| 🔔 **Notificações** | **Música/rádio:** notificação do player com a **fita colorida** (ou o globo) e o nome da faixa. **Exercício:** notificação fixa durante o treino com o exercício atual; toque para voltar ao app. |
 | 🔊 **Sons opcionais** | Estilos *Suave*, *Arcade* e *Minimal*, contagem **3-2-1 falada em português**. **Tudo vem desligado**; você escolhe o que quer ouvir. |
 | 📴 **Funciona offline** | Ilustrações, sons e seus registros ficam no aparelho. Instale como app pelo navegador. |
 | 🔔 **Avisos de versão nova** | O app e o site avisam quando sai uma release nova (veja abaixo). **Nada se instala sozinho.** |

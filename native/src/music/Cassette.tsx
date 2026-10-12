@@ -4,6 +4,7 @@ import {Text} from '../text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, G, Line, Rect} from 'react-native-svg';
 import {C} from '../theme';
+import {tapeIndex} from './tapeIndex';
 
 const W = 320, H = 200;
 const LEFT = {x: 98, y: 124}, RIGHT = {x: 222, y: 124};
@@ -81,12 +82,11 @@ const TAPES: {body: string; label: string; ink: string}[] = [
   {body: '#1FB5C9', label: '#C7F1F7', ink: '#0B5D69'},   // turquesa
   {body: '#E0453F', label: '#FFD0CD', ink: '#7C1814'},   // vermelho
 ];
-const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
 const BORDER = '#0B1033';
 
 /** Mini cassete de UMA música (uma fita), colorido por música. Estático e leve de propósito: listas com centenas de fitas. */
 export const MiniTape = React.memo(function MiniTape({id, size = 76}: {id: string; size?: number; on?: boolean}) {
-  const t = TAPES[hash(id) % TAPES.length];
+  const t = TAPES[tapeIndex(id)];
   return (
     <Svg width={size} height={size * 0.64} viewBox="0 0 100 64">
       <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.body} stroke={BORDER} strokeWidth={3} />

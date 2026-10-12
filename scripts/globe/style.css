@@ -46,8 +46,8 @@ html, body {
 #rotulos { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .rotulo {
   position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap; opacity: 0;
-  font: 700 11px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0.2px; color: #eaf2ff;
-  text-shadow: 0 0 3px #04102a, 0 0 3px #04102a, 0 0 6px #04102a, 0 1px 2px #000;
+  font: 800 11px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0.2px; color: #fff6dc;
+  text-shadow: 0 0 2px #0a0830, 0 0 3px #0a0830, 0 0 6px #0a0830, 0 1px 2px #000;
   transition: opacity 0.18s;
 }
 .rotulo.sel { font-size: 14px; color: #fff; }

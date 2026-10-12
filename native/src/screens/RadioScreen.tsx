@@ -53,7 +53,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
   // estilo escolhido: o globo mostra só as rádios desse estilo
   useEffect(() => { if (ready) globe.current?.post({cmd: 'filter', ids: tag ? idsDoEstilo(stations, tag) : null}); }, [ready, tag, stations]);
 
-  const focus = (s: Station, altitude = 0.9) => globe.current?.post({cmd: 'focus', lat: s.lat, lng: s.lng, altitude, ms: 1100});
+  const focus = (s: Station, altitude = 0.9) => globe.current?.post({cmd: 'focus', id: s.i, lat: s.lat, lng: s.lng, altitude, ms: 1100});
   const pick = (s: Station, move = true) => { setSelected(s); setNear([]); if (move) focus(s); };
   const play = (s: Station) => { pick(s, false); countClick(s.i); void m.playRadio(toTrack(s)); };
 
@@ -98,7 +98,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
 
   return (
     <View style={S.root}>
-      <LinearGradient colors={['#0A1622', '#102335', '#173247']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#080C24', '#17104A', '#0E2250']} style={StyleSheet.absoluteFill} />
       <View style={S.globe}><GlobeView ref={globe} onEvent={onEvent} /></View>
 
       <View style={S.top} pointerEvents="box-none">
@@ -153,7 +153,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
           </Pop>
         </View>
         <View style={S.legend} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <View style={[S.dot, {backgroundColor: '#2B2D6E'}]} /><Text style={S.legendText}>rádio</Text>
+          <View style={[S.dot, {backgroundColor: '#1D1F66'}]} /><Text style={S.legendText}>rádio</Text>
           <View style={[S.dot, {backgroundColor: '#E63950'}]} /><Text style={S.legendText}>escolhida</Text>
           <View style={[S.dot, {backgroundColor: '#22B35E'}]} /><Text style={S.legendText}>tocando</Text>
         </View>

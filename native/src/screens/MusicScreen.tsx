@@ -9,43 +9,9 @@ import {C, R, T, useNarrow} from '../theme';
 import Cassette, {MiniTape} from '../music/Cassette';
 import {PermissionCard, SourceButtons} from '../music/LibrarySources';
 import {Track, useMusic} from '../music/MusicProvider';
+import {SeekBar, VolumeBar} from '../music/PlayerBits';
 
 const FADES = [0, 2, 3, 5, 8];
-
-function SeekBar() {
-  const m = useMusic();
-  const [w, setW] = useState(0);
-  const pct = m.duration > 0 ? Math.min(1, m.position / m.duration) : 0;
-  return (
-    <View>
-      <Press accessibilityRole="adjustable" accessibilityLabel="Posição da música" accessibilityValue={{text: `${formatClock(m.position)} de ${formatClock(m.duration)}`}} quiet haptic={false} scaleTo={1}
-        onLayout={(e) => setW(e.nativeEvent.layout.width)} onPress={(e) => { if (w > 0 && m.duration > 0) m.seek((e.nativeEvent.locationX / w) * m.duration); }} style={P.seek}>
-        <View style={P.seekTrack}><View style={[P.seekFill, {width: `${pct * 100}%`}]} /></View>
-        <View style={[P.seekKnob, {left: `${pct * 100}%`}]} />
-      </Press>
-      <View style={P.times}><Text style={T.small}>{formatClock(m.position)}</Text><Text style={T.small}>{formatClock(m.duration)}</Text></View>
-    </View>
-  );
-}
-
-function VolumeBar() {
-  const m = useMusic();
-  const [w, setW] = useState(0);
-  const v = m.lib.volume ?? 1;
-  return (
-    <View style={P.volRow}>
-      <Press accessibilityRole="button" accessibilityLabel={v === 0 ? 'Ativar som' : 'Silenciar'} onPress={() => m.setVolume(v === 0 ? 1 : 0)} quiet haptic={false} style={{padding: 4}}>
-        <Icon name={v === 0 ? 'volume-mute' : v < 0.5 ? 'volume-low' : 'volume-high'} size={20} color={C.ink} />
-      </Press>
-      <Press accessibilityRole="adjustable" accessibilityLabel="Volume" accessibilityValue={{text: `${Math.round(v * 100)} por cento`}} quiet haptic={false} scaleTo={1} style={[P.seek, {flex: 1}]}
-        onLayout={(e) => setW(e.nativeEvent.layout.width)} onPress={(e) => { if (w > 0) m.setVolume(e.nativeEvent.locationX / w); }}>
-        <View style={P.seekTrack}><View style={[P.seekFill, {width: `${v * 100}%`, backgroundColor: C.sky}]} /></View>
-        <View style={[P.seekKnob, {left: `${v * 100}%`}]} />
-      </Press>
-      <Text style={P.volPct}>{Math.round(v * 100)}%</Text>
-    </View>
-  );
-}
 
 const TIMERS = [0, 15, 30, 45, 60];
 const RATES = [0.75, 1, 1.25, 1.5];

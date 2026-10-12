@@ -30,7 +30,8 @@
       "permissions": [
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "blockedPermissions": [
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
@@ -66,6 +67,13 @@
           "android": {
             "usesCleartextTraffic": true
           }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notif/icone.png",
+          "color": "#162039"
         }
       ]
     ],
