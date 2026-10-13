@@ -4,7 +4,7 @@
  * - Uma bag guarda só referências: tirar uma fita da bag NUNCA apaga o arquivo.
  * Sem YouTube e sem áudio invisível. */
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
-import {Alert} from 'react-native';
+import {Alert, AppState} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -12,7 +12,17 @@ import {setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus} from 'expo-audi
 import {forgetTrack, nextTrackId, resolveTape, tapeAdd, tapeInsert, tapeMove, tapeRemove} from '../../logic';
 import {flag} from '../data';
 import {tapeIndex} from './tapeIndex';
+import {clampFadeSeconds, shouldHandleFinish} from './playbackSafety';
+import {parseSeekAction} from './seekAction';
+import {insertNextInQueue} from './queueNext';
 import {ModoNotif} from '../../modules/modo-notif';
+import {ModoPlayback, NativeState} from '../../modules/modo-playback';
+import {buildNativeQueue} from './nativePilotQueue';
+import {nativePlaylistForTrack, nativeRadioQueue, nativeTrackFromId} from './nativeIntegration';
+
+// Ativar somente no APK de homologação: EXPO_PUBLIC_MODO_NATIVE_AUDIO=1.
+// O código legado (incluindo as notificações ilustradas) segue padrão de produção.
+const NATIVE_AUDIO_TEST = process.env.EXPO_PUBLIC_MODO_NATIVE_AUDIO === '1' && ModoPlayback.available;
 import {askPermission, DeviceTrack, Permission, pickMusicFolder, readPermission, scanDevice, scanFolder} from './device';
 
 export type Track = {id: string; title: string; artist?: string; uri: string; duration?: number; source: 'device' | 'file' | 'radio'; cc?: string; country?: string};
@@ -106,6 +116,10 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   const [queueName, setQueueName] = useState<string | null>(null);
   const queueRef = useRef<Track[] | null>(null);
   const [radioTrack, setRadioTrackState] = useState<{id: string; title: string | null; state: 'buscando' | 'ok' | 'sem'} | null>(null);
+  const [nativeState, setNativeState] = useState<NativeState | null>(null);
+  const nativeQueue = useRef<Track[]>([]);
+  const nativeCommand = useRef(0);
+  const nativeActive = NATIVE_AUDIO_TEST;
 
   const one = useAudioPlayer(null, {updateInterval: 300});
   const two = useAudioPlayer(null, {updateInterval: 300});
@@ -114,6 +128,11 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   const channel = useRef(0);
   const fadeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const changing = useRef(false);
+  // Último comando recebido durante a troca: não deve ser descartado por um toque rápido.
+  const queuedBegin = useRef<{src: Track; withFade: boolean} | null>(null);
+  const beginRef = useRef<(src: Track, withFade: boolean) => Promise<void>>(async () => {});
+  // Evita avançar várias faixas quando didJustFinish reaparece durante re-renderizações.
+  const handledFinish = useRef<string | null>(null);
   const currentPlayer = channel.current === 0 ? one : two;
   const currentStatus = channel.current === 0 ? stOne : stTwo;
   const libRef = useRef(lib);
@@ -122,6 +141,42 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   useEffect(() => { libRef.current = lib; }, [lib]);
   useEffect(() => { nowRef.current = nowTrack; }, [nowTrack]);
   useEffect(() => { playingRef.current = playing; }, [playing]);
+
+  // O Media3 é a fonte do clock e do avanço de fila no APK experimental.
+  // Eventos do serviço chegam ao JS quando disponível; o progresso da UI é consultado
+  // somente enquanto a tela está ativa, sem controlar o avanço das músicas.
+  useEffect(() => {
+    if (!nativeActive) return;
+    let mounted = true;
+    const apply = (state: NativeState) => {
+      if (!mounted) return;
+      setNativeState(state);
+      const found = nativeTrackFromId(state.mediaId, nativeQueue.current, libRef.current.tracks) ||
+        (state.mediaId ? {id: state.mediaId, title: state.title || 'Fita', artist: state.artist || undefined,
+          uri: state.uri || '', source: state.mediaId.startsWith('radio:') ? 'radio' as const : 'file' as const} : null);
+      if (found && nowRef.current?.id !== found.id) {
+        nowRef.current = found; setNowTrack(found);
+        setRadioTrackState(found.source === 'radio' ? {id: found.id, title: null, state: 'buscando'} : null);
+      }
+      if (state.count === 0) { nowRef.current = null; setNowTrack(null); }
+      playingRef.current = state.playing; setPlaying(state.playing);
+    };
+    const unsubscribe = ModoPlayback.onState(apply);
+    // Um único motor ativo: nunca iniciar expo-audio no mesmo caminho.
+    one.pause(); two.pause();
+    ModoNotif.musicStop();
+    void ModoPlayback.getState().then(apply).catch(() => {});
+    let ticker: ReturnType<typeof setInterval> | undefined;
+    const updatePolling = (status: string) => {
+      if (ticker) { clearInterval(ticker); ticker = undefined; }
+      if (status === 'active') ticker = setInterval(() => {
+        void ModoPlayback.getState().then(apply).catch(() => {});
+      }, 950);
+    };
+    updatePolling(AppState.currentState);
+    const appSub = AppState.addEventListener('change', updatePolling);
+    return () => { mounted = false; unsubscribe(); appSub.remove(); if (ticker) clearInterval(ticker); };
+  }, [nativeActive, one, two]);
 
   useEffect(() => {
     AsyncStorage.getItem(KEY).then((raw) => {
@@ -133,11 +188,17 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
         }
       } catch { /* biblioteca antiga ilegível: começa vazia */ }
     }).finally(() => setLoaded(true));
-    setAudioModeAsync({playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'mixWithOthers'}).catch(() => {});
+    setAudioModeAsync({playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix'}).catch(() => {});
     readPermission().then(setPermission).catch(() => {});
   }, []);
   useEffect(() => { if (loaded) void scanRef.current(false); }, [loaded]);
   useEffect(() => { if (loaded) AsyncStorage.setItem(KEY, JSON.stringify(lib)).catch(() => {}); }, [lib, loaded]);
+  // Pausa, troca manual e timer não podem deixar o canal anterior audível durante um crossfade.
+  const cancelFade = useCallback(() => {
+    if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
+    const vol = Math.max(0, Math.min(1, libRef.current.volume ?? 1));
+    one.volume = vol; two.volume = vol;
+  }, [one, two]);
   useEffect(() => () => { if (fadeTimer.current) clearInterval(fadeTimer.current); }, []);
 
   // timer para dormir: pausa quando chega a hora
@@ -146,11 +207,13 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     const t = setInterval(() => {
       setClock(Date.now());
       if (Date.now() >= sleepAt) {
-        one.pause(); two.pause(); setPlaying(false); playingRef.current = false; setSleepAt(null);
+        if (nativeActive) void ModoPlayback.pause().catch(() => {});
+        else { cancelFade(); one.pause(); two.pause(); }
+        setPlaying(false); playingRef.current = false; setSleepAt(null);
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [sleepAt, one, two]);
+  }, [sleepAt, one, two, cancelFade, nativeActive]);
 
   const activeTape = useMemo(() => lib.tapes.find((t) => t.id === lib.selected) || lib.tapes[0], [lib]);
   const resolved = useMemo(() => resolveTape(activeTape, lib.tracks), [activeTape, lib.tracks]);
@@ -166,19 +229,56 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const begin = useCallback(async (src: Track, withFade = true) => {
-    if (changing.current) return;
+    if (nativeActive) {
+      const command = ++nativeCommand.current;
+      // Fitas/bags são somente referências: a fila não exclui nem copia arquivos.
+      // O serviço nativo controla todas as próximas faixas com a tela bloqueada.
+      const selected = libRef.current.tapes.find(t => t.id === libRef.current.selected);
+      const playlist = src.source === 'radio' && !selected?.ids.includes(src.id)
+        ? nativeRadioQueue(src)
+        : nativePlaylistForTrack(src, queueRef.current, selected, libRef.current.tracks);
+      try {
+        const {items, index} = buildNativeQueue(playlist, src.id);
+        // Nunca permitir sessões simultâneas de expo-audio e Media3.
+        cancelFade(); one.pause(); two.pause(); ModoNotif.musicStop();
+        const snapshot = await ModoPlayback.loadQueue(items, index, true);
+        if (command !== nativeCommand.current) return;
+        nativeQueue.current = playlist;
+        nowRef.current = src; setNowTrack(src); setNativeState(snapshot);
+        playingRef.current = snapshot.playing; setPlaying(snapshot.playing);
+        setRadioTrackState(src.source === 'radio' ? {id: src.id, title: null, state: 'buscando'} : null);
+        await Promise.all([
+          ModoPlayback.setVolume(libRef.current.volume),
+          ModoPlayback.setRate(src.source === 'radio' ? 1 : libRef.current.rate),
+          ModoPlayback.setRepeat(libRef.current.repeat),
+          ModoPlayback.setShuffle(libRef.current.shuffle && src.source !== 'radio'),
+        ]);
+      } catch {
+        if (command === nativeCommand.current) Alert.alert('Não foi possível tocar', 'O Media3 não conseguiu abrir esta fita ou rádio. O motor antigo permanece disponível na build padrão.');
+      }
+      return;
+    }
+    if (changing.current) {
+      // Ao clicar em outra música durante a troca, vence o comando mais recente.
+      queuedBegin.current = {src, withFade};
+      return;
+    }
     changing.current = true;
     try {
       const oldIndex = channel.current;
       const old = oldIndex === 0 ? one : two;
       const other = oldIndex === 0 ? two : one;
       const hadSound = Boolean(nowRef.current && playingRef.current);
-      const seconds = hadSound && withFade && src.source !== 'radio' ? Math.min(8, Math.max(0, libRef.current.fade)) : 0;
-      if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
+      const seconds = hadSound && withFade && src.source !== 'radio'
+        ? clampFadeSeconds(libRef.current.fade, oldIndex === 0 ? stOne.duration : stTwo.duration)
+        : 0;
+      // Qualquer transição anterior é interrompida antes de iniciar uma nova.
+      cancelFade();
       const vol = Math.max(0, Math.min(1, libRef.current.volume ?? 1));
       other.pause(); other.replace({uri: src.uri}); other.volume = seconds ? 0 : vol; other.play();
       try { other.setPlaybackRate?.(src.source === 'radio' ? 1 : libRef.current.rate || 1); } catch { /* velocidade é um extra */ }
       channel.current = 1 - oldIndex; nowRef.current = src; setNowTrack(src);
+      handledFinish.current = null;
       setRadioTrackState(src.source === 'radio' ? {id: src.id, title: null, state: 'buscando'} : null); setPlaying(true); playingRef.current = true;
       if (seconds) {
         const started = Date.now();
@@ -190,9 +290,16 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       } else { old.pause(); old.volume = vol; }
     } catch {
       Alert.alert('Não foi possível tocar', src.source === 'radio' ? 'Esta rádio não respondeu agora. Tente outra.' : 'Confira se a música ainda está no celular.');
+      cancelFade(); one.pause(); two.pause();
       setPlaying(false); playingRef.current = false;
-    } finally { changing.current = false; }
-  }, [one, two]);
+    } finally {
+      changing.current = false;
+      const pending = queuedBegin.current;
+      queuedBegin.current = null;
+      if (pending && pending.src.id !== nowRef.current?.id) void beginRef.current(pending.src, pending.withFade);
+    }
+  }, [one, two, stOne.duration, stTwo.duration, cancelFade, nativeActive]);
+  beginRef.current = begin;
 
   const playById = useCallback((id: string, withFade = true) => {
     const t = queueRef.current?.find((x) => x.id === id) ?? libRef.current.tracks.find((x) => x.id === id);
@@ -200,41 +307,73 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   }, [begin]);
 
   const skip = useCallback((delta: number) => {
+    if (nativeActive) {
+      if (nowRef.current?.source !== 'radio') void (delta > 0 ? ModoPlayback.next() : ModoPlayback.previous()).catch(() => {});
+      return;
+    }
     const next = nextId(delta);
     if (next) void playById(next, true);
-    else { currentPlayer.pause(); setPlaying(false); playingRef.current = false; }
-  }, [playById, nextId, currentPlayer]);
+    else { cancelFade(); one.pause(); two.pause(); setPlaying(false); playingRef.current = false; }
+  }, [playById, nextId, one, two, cancelFade, nativeActive]);
 
   // Prepara a próxima faixa antes da atual acabar: dois canais com curva de potência igual. Rádio ao vivo não tem fim.
   useEffect(() => {
-    if (!nowTrack || !playing || changing.current) return;
+    if (nativeActive || !nowTrack || !playing || changing.current) return;
     if (nowTrack.source === 'radio') { if (currentStatus.didJustFinish) { setPlaying(false); playingRef.current = false; } return; }
     const pos = currentStatus.currentTime || 0;
     const duration = currentStatus.duration || 0;
     const fade = lib.fade;
-    if (currentStatus.didJustFinish) {
+    if (shouldHandleFinish({didJustFinish: currentStatus.didJustFinish, playing, changing: changing.current,
+      handledId: handledFinish.current, currentId: nowTrack.id})) {
+      handledFinish.current = nowTrack.id;
       const next = nextId(1);
       if (next && next !== nowTrack.id) void playById(next, false);
-      else if (next && next === nowTrack.id) { void currentPlayer.seekTo(0); currentPlayer.play(); }
-      else { setPlaying(false); playingRef.current = false; }
+      else if (next && next === nowTrack.id) {
+        // Repetição de uma única fita: espere a cabeça voltar ao início.
+        void currentPlayer.seekTo(0).then(() => {
+          handledFinish.current = null;
+          currentPlayer.play();
+        }).catch(() => { setPlaying(false); playingRef.current = false; });
+      }
+      else { cancelFade(); one.pause(); two.pause(); setPlaying(false); playingRef.current = false; }
       return;
     }
     if (fade > 0 && duration > 0 && duration - pos <= fade + 0.25 && duration - pos > 0) {
       const next = nextId(1);
-      if (next && next !== nowTrack.id) void playById(next, true);
+      if (next && next !== nowTrack.id && handledFinish.current !== nowTrack.id) {
+        // Bloqueia múltiplos crossfades para uma mesma faixa enquanto o React atualiza os estados.
+        handledFinish.current = nowTrack.id;
+        void playById(next, true);
+      }
     }
   }, [stOne, stTwo, nowTrack, playing, lib.fade, playById, nextId, currentPlayer, currentStatus]);
 
   const playPause = useCallback(() => {
+    if (nativeActive && nowRef.current) {
+      void (playingRef.current ? ModoPlayback.pause() : ModoPlayback.play()).catch(() => {});
+      return;
+    }
     if (!nowTrack) {
       const id = nextId(1);
       if (id) void playById(id, false);
       else Alert.alert('Sua bag está vazia', 'Coloque fitas (músicas do celular) ou uma rádio na bag, ou toque uma fita direto da lista.');
       return;
     }
-    if (playing) { currentPlayer.pause(); setPlaying(false); playingRef.current = false; }
-    else { currentPlayer.play(); setPlaying(true); playingRef.current = true; }
-  }, [nowTrack, nextId, playById, playing, currentPlayer]);
+    if (playingRef.current) {
+      cancelFade(); one.pause(); two.pause(); setPlaying(false); playingRef.current = false;
+    } else {
+      // expo-audio mantém a cabeça de leitura no fim depois da última faixa.
+      // Sem voltar a zero, tocar novamente aparenta travar após o término.
+      const ended = currentStatus.didJustFinish || (
+        currentStatus.duration > 0 && currentStatus.currentTime >= currentStatus.duration - 0.1
+      );
+      if (ended) void currentPlayer.seekTo(0).then(() => {
+        handledFinish.current = null;
+        currentPlayer.play(); setPlaying(true); playingRef.current = true;
+      }).catch(() => {});
+      else { handledFinish.current = null; currentPlayer.play(); setPlaying(true); playingRef.current = true; }
+    }
+  }, [nowTrack, nextId, playById, currentPlayer, currentStatus, one, two, cancelFade, nativeActive]);
 
   const scan = useCallback(async (ask = true) => {
     setScanning(true);
@@ -301,6 +440,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   const posBucket = Math.floor((currentStatus.currentTime || 0) / 5) * 5;
   const durNow = Math.round(currentStatus.duration || 0);
   useEffect(() => {
+    if (nativeActive) return; // Media3 mantém apenas a própria sessão/notificação de teste.
     if (!nowTrack) { ModoNotif.musicStop(); return; }
     const radio = nowTrack.source === 'radio';
     const pais = `${flag(nowTrack.cc)} ${nowTrack.country || 'Rádio'}`;
@@ -310,11 +450,12 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       kicker: radio ? 'Rádio ao vivo' : 'Fita', art: radio ? -1 : tapeIndex(nowTrack.id), playing, live: radio,
       position: radio ? 0 : posBucket, duration: radio ? 0 : durNow, fav: favNow, skip: !radio,
     });
-  }, [nowTrack, playing, radioTrack, bagName, favNow, posBucket, durNow]);
+  }, [nowTrack, playing, radioTrack, bagName, favNow, posBucket, durNow, nativeActive]);
   useEffect(() => () => { ModoNotif.musicStop(); }, []);
 
   const api: MusicAPI = {
-    lib, now, live, playing, position: currentStatus.currentTime || 0, duration: live ? 0 : currentStatus.duration || 0, library, activeTape,
+    lib, now, live, playing, position: nativeActive ? (nativeState?.positionMs ?? 0) / 1000 : currentStatus.currentTime || 0,
+    duration: live ? 0 : nativeActive ? (nativeState?.durationMs ?? 0) / 1000 : currentStatus.duration || 0, library, activeTape,
     tapeTracks: resolved.tracks, missing: resolved.missing, device, scanning, permission, scan, addFolder, importFiles,
     addToTape: (tracks) => setLib((v) => {
       const known = new Set(v.tracks.map((x) => x.id));
@@ -338,7 +479,12 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     forgetImported: (id) => {
       const t = libRef.current.tracks.find((x) => x.id === id);
       if (!t || t.source !== 'file') return;
-      if (nowRef.current?.id === id) { one.pause(); two.pause(); setPlaying(false); playingRef.current = false; setNowTrack(null); nowRef.current = null; }
+      if (nowRef.current?.id === id) {
+        if (nativeActive) void ModoPlayback.clear().catch(() => {});
+        else { cancelFade(); one.pause(); two.pause(); }
+        setPlaying(false); playingRef.current = false;
+        setNowTrack(null); nowRef.current = null; handledFinish.current = null;
+      }
       setLib((v) => forgetTrack(v, id));
       FileSystem.deleteAsync(t.uri, {idempotent: true}).catch(() => {});
     },
@@ -358,31 +504,67 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       setLib((v) => ({...v, shuffle})); libRef.current = {...libRef.current, shuffle};
       void begin(shuffle ? list[Math.floor(Math.random() * list.length)] : list[0], false);
     },
-    playRadio: (station) => begin(station, false),
-    playPause, skip, seek: (seconds) => { if (!live) void currentPlayer.seekTo(Math.max(0, seconds)); },
+    playRadio: (station) => {
+      // Estação ao vivo não herda uma fila antiga de músicas locais.
+      queueRef.current = nativeActive ? [station] : null; setQueueName(null);
+      return begin(station, false);
+    },
+    playPause, skip, seek: (seconds) => {
+      if (nativeActive) {
+        if (!live && Number.isFinite(seconds)) void ModoPlayback.seekTo(Math.max(0, seconds) * 1000).catch(() => {});
+        return;
+      }
+      if (!live && Number.isFinite(seconds)) {
+        const dur = currentStatus.duration || 0;
+        const position = Math.max(0, dur > 0 ? Math.min(dur, seconds) : seconds);
+        void currentPlayer.seekTo(position).catch(() => {});
+      }
+    },
     setFade: (seconds) => setLib((v) => ({...v, fade: Math.max(0, Math.min(8, seconds))})),
-    setShuffle: (value) => setLib((v) => ({...v, shuffle: value})),
-    setRepeat: (value) => setLib((v) => ({...v, repeat: value})),
+    setShuffle: (value) => { setLib((v) => ({...v, shuffle: value})); if (nativeActive) void ModoPlayback.setShuffle(value && !live).catch(() => {}); },
+    setRepeat: (value) => { setLib((v) => ({...v, repeat: value})); if (nativeActive) void ModoPlayback.setRepeat(value).catch(() => {}); },
     setVolume: (v) => {
       const vol = Math.max(0, Math.min(1, v));
       libRef.current = {...libRef.current, volume: vol};
       setLib((l) => ({...l, volume: vol}));
-      if (!fadeTimer.current) { one.volume = vol; two.volume = vol; }
+      if (nativeActive) void ModoPlayback.setVolume(vol).catch(() => {});
+      else if (!fadeTimer.current) { one.volume = vol; two.volume = vol; }
     },
     setRate: (r) => {
       setLib((l) => ({...l, rate: r}));
-      if (!live) { try { one.setPlaybackRate?.(r); two.setPlaybackRate?.(r); } catch { /* extra */ } }
+      if (nativeActive) { if (!live) void ModoPlayback.setRate(r).catch(() => {}); }
+      else if (!live) { try { one.setPlaybackRate?.(r); two.setPlaybackRate?.(r); } catch { /* extra */ } }
     },
     sleepLeft: sleepAt ? Math.max(0, Math.ceil((sleepAt - (clock || Date.now())) / 1000)) : 0,
     setSleep: (minutes) => setSleepAt(minutes > 0 ? Date.now() + minutes * 60000 : null),
-    // "Tocar a seguir": move a faixa para logo depois da que está tocando
-    playNext: (id) => setLib((v) => ({...v, tapes: v.tapes.map((t) => {
-      if (t.id !== v.selected) return t;
-      const rest = t.ids.filter((x) => x !== id);
-      const at = nowRef.current ? rest.indexOf(nowRef.current.id) : -1;
-      rest.splice(at + 1, 0, id);
-      return {...t, ids: rest};
-    })})),
+    // "Tocar a seguir" respeita a fila realmente em execução.
+    // Quando ouvimos "Todas as fitas", a fila temporária muda SEM modificar a bag salva.
+    playNext: (id) => {
+      const track = library.find((x) => x.id === id) ?? libRef.current.tracks.find((x) => x.id === id);
+      if (!track) return;
+      if (nativeActive && nowRef.current) {
+        // Atualiza SOMENTE a fila do motor, sem alterar uma bag persistida.
+        void ModoPlayback.insertNext({id: track.id, uri: track.uri, title: track.title, artist: track.artist, source: track.source})
+          .then(() => { nativeQueue.current = insertNextInQueue(nativeQueue.current, nowRef.current?.id, track); })
+          .catch(() => {});
+        return;
+      }
+      if (queueRef.current) {
+        queueRef.current = insertNextInQueue(queueRef.current, nowRef.current?.id, track);
+        return;
+      }
+      setLib((v) => ({
+        ...v,
+        tracks: v.tracks.some((x) => x.id === id) ? v.tracks : [...v.tracks, track],
+        tapes: v.tapes.map((t) => {
+          if (t.id !== v.selected) return t;
+          const rest = t.ids.filter((x) => x !== id);
+          const at = nowRef.current ? rest.indexOf(nowRef.current.id) : -1;
+          rest.splice(at + 1, 0, id);
+          return {...t, ids: rest};
+        }),
+      }));
+    },
     copyToTape: (track, tapeId) => setLib((v) => ({...v, tracks: v.tracks.some((x) => x.id === track.id) ? v.tracks : [...v.tracks, track], tapes: tapeAdd(v.tapes, tapeId, [track.id])})),
     playTape: (shuffle, tapeId) => {
       const cur = libRef.current;
@@ -413,15 +595,28 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   // Botões da notificação, do fone e do Bluetooth chegam aqui (a ref guarda sempre a versão mais nova das funções).
   const actions = useRef<(a: string) => void>(() => {});
   actions.current = (a) => {
+    // Busca solicitada pelo controlador nativo do Android (MediaSession).
+    // A barra ilustrada de RemoteViews permanece visualmente inalterada.
+    const seekSeconds = parseSeekAction(a, currentStatus.duration || 0);
+    if (seekSeconds !== null && nowRef.current?.source !== 'radio') {
+      void currentPlayer.seekTo(seekSeconds).catch(() => {});
+      return;
+    }
     if (a === 'toggle') playPause();
     else if (a === 'play') { if (!playingRef.current) playPause(); }
     else if (a === 'pause') { if (playingRef.current) playPause(); }
     else if (a === 'next') skip(1);
     else if (a === 'prev') skip(-1);
     else if (a === 'fav') { if (nowRef.current) api.toggleFav(nowRef.current); }
-    else if (a === 'close') { if (playingRef.current) playPause(); ModoNotif.musicStop(); }
+    else if (a === 'close') {
+      // Fechar precisa interromper ambos os canais, mesmo se estiver em transição.
+      cancelFade(); one.pause(); two.pause(); setPlaying(false); playingRef.current = false;
+      setNowTrack(null); nowRef.current = null; handledFinish.current = null;
+      queueRef.current = null; setQueueName(null);
+      ModoNotif.musicStop();
+    }
   };
-  useEffect(() => ModoNotif.onAction((e) => { if (e.kind === 'music') actions.current(e.action); }), []);
+  useEffect(() => ModoNotif.onAction((e) => { if (e.kind === 'music' && !nativeActive) actions.current(e.action); }), [nativeActive]);
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
 

@@ -1,0 +1,24 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'art.josperd.modotreino.playback'
+version = '0.1.0'
+
+android {
+  namespace 'art.josperd.modotreino.playback'
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // Expo SDK 54 expo-audio usava Media3 1.8.0. Conferir resolução do Gradle no checkout.
+  def media3Version = '1.8.0'
+  implementation "androidx.media3:media3-session:$media3Version"
+  implementation "androidx.media3:media3-exoplayer:$media3Version"
+  implementation "androidx.media3:media3-exoplayer-hls:$media3Version"
+  implementation 'androidx.core:core:1.13.1'
+}
