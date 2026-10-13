@@ -1,0 +1,3 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Sem permissões extras: o download é feito pelo DownloadManager do próprio Android (por isso NÃO precisa de REQUEST_INSTALL_PACKAGES). -->
+</manifest>

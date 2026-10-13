@@ -1,0 +1,15 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'art.josperd.modotreino.apk'
+version = '1.0.0'
+
+android {
+  namespace "art.josperd.modotreino.apk"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
