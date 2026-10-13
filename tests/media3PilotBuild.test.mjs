@@ -67,6 +67,11 @@ test('workflow só executa manualmente e nunca publica release', () => {
   assert.match(workflow, /actions\/upload-artifact@v4/);
 });
 
+test('revisão Claude: aapt2 xmltree usa --file e o artefato é enviado mesmo se uma checagem falhar', () => {
+  assert.match(workflow, /aapt2" dump xmltree --file AndroidManifest\.xml dist\/\*\.apk/);
+  assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
+});
+
 test('pacote piloto recebe applicationId diferente e aplicação é idempotente', () => {
   const template = `android {\n  buildTypes {\n    debug {\n    }\n    release {\n      signingConfig signingConfigs.debug\n    }\n  }\n}`;
   const py = String.raw`import sys; sys.path.insert(0, 'scripts'); from configure_media3_pilot import apply; text=sys.stdin.read(); once=apply(text); twice=apply(once); assert once==twice; print(once)`;

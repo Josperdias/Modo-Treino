@@ -78,7 +78,7 @@ jobs:
           "$TOOLS/apksigner" verify --verbose --print-certs dist/*.apk > dist/assinatura.txt
           "$TOOLS/aapt2" dump badging dist/*.apk > dist/badging.txt
           "$TOOLS/aapt2" dump permissions dist/*.apk > dist/permissoes.txt
-          "$TOOLS/aapt2" dump xmltree dist/*.apk AndroidManifest.xml > dist/manifest.txt
+          "$TOOLS/aapt2" dump xmltree --file AndroidManifest.xml dist/*.apk > dist/manifest.txt
           grep -q "name='art.josperd.modotreino.pilot'" dist/badging.txt
           grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' dist/permissoes.txt
           grep -q 'TapePlaybackService' dist/manifest.txt
@@ -87,9 +87,11 @@ jobs:
           cat dist/SHA256SUMS.txt
           echo 'APK experimental isolado (.pilot): instalar separadamente, jamais publicar como release normal.' >> "$GITHUB_STEP_SUMMARY"
       - name: Enviar APK experimental e evidências
+        # always(): se uma checagem acima falhar, o APK e os dumps ainda ficam disponíveis para diagnóstico
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: modo-treino-media3-piloto-s05
           path: dist/
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: warn
