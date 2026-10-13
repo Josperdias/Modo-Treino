@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <!-- WAKE_MODE_NETWORK do ExoPlayer: WAKE_LOCK (já declarada no app) + ACCESS_WIFI_STATE (permissão normal) -->
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+  <application>
+    <!-- Serviço experimental separado do antigo modo-notif; NUNCA ativar ambos para música. -->
+    <service
+      android:name="art.josperd.modotreino.playback.TapePlaybackService"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback">
+      <intent-filter>
+        <action android:name="androidx.media3.session.MediaSessionService" />
+      </intent-filter>
+    </service>
+  </application>
+</manifest>

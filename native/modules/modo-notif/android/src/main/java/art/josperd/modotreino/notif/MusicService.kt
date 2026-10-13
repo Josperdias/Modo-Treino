@@ -29,6 +29,9 @@ class MusicService : Service() {
           override fun onSkipToNext() { Bus.dispatch("music", "next") }
           override fun onSkipToPrevious() { Bus.dispatch("music", "prev") }
           override fun onStop() { Bus.dispatch("music", "close") }
+          // Permite que controladores de mídia do Android solicitem a nova posição.
+          // Não altera o layout artístico da notificação RemoteViews.
+          override fun onSeekTo(pos: Long) { Bus.dispatch("music", "seek:${pos.coerceAtLeast(0L)}") }
         })
       }
     } catch (e: Exception) { session = null } // fone/Bluetooth são um extra: sem eles o cartão continua
@@ -73,6 +76,7 @@ class MusicService : Service() {
       )
       var actions = PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP
       if (!s.live && s.skip) actions = actions or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS
+      if (!s.live && s.duration > 0) actions = actions or PlaybackState.ACTION_SEEK_TO
       ms.setPlaybackState(
         PlaybackState.Builder()
           .setActions(actions)
