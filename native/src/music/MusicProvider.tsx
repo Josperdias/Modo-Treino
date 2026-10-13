@@ -23,9 +23,9 @@ import {buildRestorePlan} from './nativeRestore';
 
 const NATIVE_SESSION_KEY = 'modotreino-native-session-v1';
 
-// Ativar somente no APK de homologação: EXPO_PUBLIC_MODO_NATIVE_AUDIO=1.
-// O código legado (incluindo as notificações ilustradas) segue padrão de produção.
-const NATIVE_AUDIO_TEST = process.env.EXPO_PUBLIC_MODO_NATIVE_AUDIO === '1' && ModoPlayback.available;
+// 1.4.2: o motor Media3 (serviço nativo) é o padrão no Android. Para voltar ao motor antigo (expo-audio + cartões ilustrados),
+// compile com EXPO_PUBLIC_MODO_NATIVE_AUDIO=0. No navegador/testes ModoPlayback.available é falso e o motor antigo continua valendo.
+const NATIVE_AUDIO_TEST = process.env.EXPO_PUBLIC_MODO_NATIVE_AUDIO !== '0' && ModoPlayback.available;
 import {askPermission, DeviceTrack, Permission, pickMusicFolder, readPermission, scanDevice, scanFolder} from './device';
 
 export type Track = {id: string; title: string; artist?: string; uri: string; duration?: number; source: 'device' | 'file' | 'radio'; cc?: string; country?: string};

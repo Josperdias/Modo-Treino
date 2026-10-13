@@ -50,8 +50,8 @@ test('fila e comandos nativos expostos pela ponte Expo', () => {
   assert.match(gradle, /media3-exoplayer-hls/);
 });
 
-test('modo Media3 permanece opt-in e a interface antiga está disponível', () => {
-  assert.match(provider, /EXPO_PUBLIC_MODO_NATIVE_AUDIO/);
+test('1.4.2: Media3 é o padrão no Android, com chave de volta ao motor antigo (=0)', () => {
+  assert.match(provider, /EXPO_PUBLIC_MODO_NATIVE_AUDIO !== '0' && ModoPlayback\.available/);
   assert.match(provider, /if \(nativeActive\)/);
   assert.match(provider, /ModoNotif\.musicStop\(\)/);
 });

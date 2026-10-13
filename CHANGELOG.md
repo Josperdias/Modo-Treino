@@ -2,6 +2,23 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.2] — 2026-10-13
+
+### Motor de música novo (Media3): a música não depende mais do app aberto
+- A reprodução agora é feita por um **serviço nativo do Android (Media3/ExoPlayer)**. Ele passa para a **próxima música sozinho**, mesmo com a **tela bloqueada** ou o app em segundo plano, e responde aos botões do **fone e do Bluetooth**.
+- **Foco de áudio**: outro app (Gemini, chamada...) pausa a música; ela só volta sozinha quando a pausa foi do sistema, nunca depois de uma pausa sua.
+- Fila, repetir, embaralhar, volume, velocidade, **Tocar a seguir** e arrastar a posição funcionam pelo serviço. Se um arquivo sumiu, ele **pula para a próxima**; a rádio que cai **tenta reconectar**. Ao reabrir o app, a fila e a posição voltam **pausadas**.
+- Rádio e músicas do celular nunca tocam juntas (um único motor).
+
+### O que muda (e o que perde por enquanto)
+- A notificação de música agora é a **padrão do Android (Media3)**: o **cartão ilustrado** (fita, barra amarela) **não aparece** nesta versão. A notificação do **treino** continua igual.
+- **Crossfade** não funciona com o motor novo (o ajuste continua na tela, mas não tem efeito). O **timer de dormir** e o **nome da faixa das rádios** continuam como antes.
+- Para voltar ao motor antigo, o app é compilado com `EXPO_PUBLIC_MODO_NATIVE_AUDIO=0`; o 1.4.1 também continua disponível nas releases.
+- Nova permissão normal: `ACCESS_WIFI_STATE` (mantém o Wi-Fi ligado para a rádio com a tela apagada).
+
+### Honestidade
+- Verificado: 83 testes, typecheck, bundle e compilação do Android no CI. **Não** verificado em aparelho real: avanço com a tela bloqueada, foco de áudio, fones/Bluetooth, HyperOS.
+
 ## [1.4.1] — 2026-10-12
 
 ### Atualização baixa DENTRO do app
