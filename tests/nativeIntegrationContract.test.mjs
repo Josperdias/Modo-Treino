@@ -5,8 +5,8 @@ const provider = fs.readFileSync('native/src/music/MusicProvider.tsx','utf8');
 const bridge = fs.readFileSync('native/modules/modo-playback/index.ts','utf8');
 const kt = fs.readFileSync('native/modules/modo-playback/android/src/main/java/art/josperd/modotreino/playback/ModoPlaybackModule.kt','utf8');
 const manifest = fs.readFileSync('native/modules/modo-playback/android/src/main/AndroidManifest.xml','utf8');
-test('opt-in defaults off and checks module availability',()=>{
-  assert.match(provider,/EXPO_PUBLIC_MODO_NATIVE_AUDIO === '1' && ModoPlayback\.available/);
+test('1.4.2: Media3 é o padrão quando o módulo existe; =0 volta ao motor antigo',()=>{
+  assert.match(provider,/EXPO_PUBLIC_MODO_NATIVE_AUDIO !== '0' && ModoPlayback\.available/);
 });
 test('legacy visual notification is never updated in Media3 test mode',()=>{
   assert.match(provider,/if \(nativeActive\) return; \/\/ Media3/);
