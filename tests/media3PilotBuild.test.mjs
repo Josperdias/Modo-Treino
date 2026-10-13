@@ -44,7 +44,9 @@ test('modo Media3 permanece opt-in e a interface antiga está disponível', () =
 
 test('workflow só executa manualmente e nunca publica release', () => {
   assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /^\s*push:|^\s*pull_request:|softprops\/action-gh-release|publish_release:/m);
+  // Único push permitido: a branch de integração (temporário até a autorização do merge); nunca PR/tag/release.
+  assert.doesNotMatch(workflow, /^\s*pull_request:|^\s*tags:|softprops\/action-gh-release|publish_release:/m);
+  assert.match(workflow, /push:\s*\n\s*branches: \['feat\/sprint05-media3-pilot-apk'\]/);
   assert.match(workflow, /EXPO_PUBLIC_MODO_NATIVE_AUDIO: '1'/);
   assert.match(workflow, /configure_media3_pilot\.py/);
   assert.match(workflow, /assembleRelease/);

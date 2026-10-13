@@ -3,6 +3,11 @@ name: Android — Piloto Media3 (apenas testes)
 # gera um APK STANDALONE separado do aplicativo normal (package .pilot).
 on:
   workflow_dispatch:
+  # TEMPORÁRIO (integração): o GitHub só deixa disparar "Run workflow" quando o arquivo já está na main,
+  # e a main não pode ser alterada antes da autorização do dono. Enquanto isso, a própria branch de
+  # integração gera o artefato (nunca release). REMOVER este bloco `push` antes de qualquer merge.
+  push:
+    branches: ['feat/sprint05-media3-pilot-apk']
 permissions:
   contents: read
 concurrency:
