@@ -28,6 +28,20 @@ test('revisão Claude: rádio mantém Wi-Fi acordado e controlador velho é recr
   assert.match(module, /MediaController\.releaseFuture\(stale\)/);
 });
 
+test('melhoria Claude: erro de faixa pula para a próxima e rádio reconecta, sem laço infinito', () => {
+  assert.match(svc, /onPlayerError\(error: PlaybackException\)/);
+  assert.match(svc, /retries < 3/);
+  assert.match(svc, /hasNextMediaItem\(\)/);
+  assert.match(svc, /seekToNextMediaItem\(\)/);
+  assert.match(svc, /removeCallbacksAndMessages\(null\)/);
+});
+
+test('melhoria Claude: sessão local é salva e restaurada PAUSADA, só no piloto', () => {
+  assert.match(provider, /modotreino-native-session-v1/);
+  assert.match(provider, /loadQueue\(plan\.items, plan\.index, false\)/);
+  assert.match(provider, /if \(!nativeActive \|\| !loaded\) return;/);
+});
+
 test('fila e comandos nativos expostos pela ponte Expo', () => {
   for (const name of ['loadQueue','insertNext','play','pause','seekTo','next','previous','getState']) {
     assert.match(module, new RegExp(`AsyncFunction\\("${name}"\\)`));

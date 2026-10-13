@@ -19,6 +19,9 @@ import {ModoNotif} from '../../modules/modo-notif';
 import {ModoPlayback, NativeState} from '../../modules/modo-playback';
 import {buildNativeQueue} from './nativePilotQueue';
 import {nativePlaylistForTrack, nativeRadioQueue, nativeTrackFromId} from './nativeIntegration';
+import {buildRestorePlan} from './nativeRestore';
+
+const NATIVE_SESSION_KEY = 'modotreino-native-session-v1';
 
 // Ativar somente no APK de homologação: EXPO_PUBLIC_MODO_NATIVE_AUDIO=1.
 // O código legado (incluindo as notificações ilustradas) segue padrão de produção.
@@ -177,6 +180,38 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     const appSub = AppState.addEventListener('change', updatePolling);
     return () => { mounted = false; unsubscribe(); appSub.remove(); if (ticker) clearInterval(ticker); };
   }, [nativeActive, one, two]);
+
+  // Piloto Media3: guarda a fila local e a posição (a cada ~5 s) e, se o serviço morreu, recoloca tudo PAUSADO ao reabrir.
+  const nativeBucket = Math.floor((nativeState?.positionMs ?? 0) / 5000);
+  useEffect(() => {
+    if (!nativeActive || !nativeState || nativeState.count === 0 || !nativeState.mediaId) return;
+    const queue = nativeQueue.current.filter((x) => x.source !== 'radio');
+    if (!queue.some((x) => x.id === nativeState.mediaId)) return;
+    AsyncStorage.setItem(NATIVE_SESSION_KEY, JSON.stringify({
+      ids: queue.map((x) => x.id), currentId: nativeState.mediaId, positionMs: nativeState.positionMs, savedAt: Date.now(),
+    })).catch(() => {});
+  }, [nativeActive, nativeState?.mediaId, nativeState?.playing, nativeBucket]);
+  useEffect(() => {
+    if (!nativeActive || !loaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const current = await ModoPlayback.getState();
+        if (cancelled || current.count > 0) return; // o serviço ainda está vivo: nada a restaurar
+        const raw = await AsyncStorage.getItem(NATIVE_SESSION_KEY);
+        const plan = buildRestorePlan(raw ? JSON.parse(raw) : null, libRef.current.tracks);
+        if (!plan || cancelled) return;
+        nativeQueue.current = plan.tracks;
+        await ModoPlayback.loadQueue(plan.items, plan.index, false); // autoplay=false: nunca toca sozinho
+        if (plan.positionMs > 0) await ModoPlayback.seekTo(plan.positionMs);
+        await Promise.all([
+          ModoPlayback.setVolume(libRef.current.volume), ModoPlayback.setRate(libRef.current.rate),
+          ModoPlayback.setRepeat(libRef.current.repeat), ModoPlayback.setShuffle(libRef.current.shuffle),
+        ]);
+      } catch { /* sem sessão para restaurar */ }
+    })();
+    return () => { cancelled = true; };
+  }, [nativeActive, loaded]);
 
   useEffect(() => {
     AsyncStorage.getItem(KEY).then((raw) => {

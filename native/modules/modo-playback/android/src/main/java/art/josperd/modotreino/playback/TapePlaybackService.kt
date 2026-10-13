@@ -1,7 +1,12 @@
 package art.josperd.modotreino.playback
 
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -14,6 +19,23 @@ import androidx.media3.session.MediaSessionService
 class TapePlaybackService : MediaSessionService() {
   private var mediaSession: MediaSession? = null
   private var exoPlayer: ExoPlayer? = null
+  private val main = Handler(Looper.getMainLooper())
+  private var retries = 0
+
+  /** Arquivo apagado/ilegível: pula para a próxima fita em vez de travar a fila com a tela bloqueada.
+   * Rádio (http/https) que cai: tenta reconectar até 3 vezes (2 s, 4 s, 6 s); só então segue para a próxima, se houver. */
+  private fun recover(player: ExoPlayer) {
+    val scheme = player.currentMediaItem?.localConfiguration?.uri?.scheme
+    val live = scheme == "http" || scheme == "https"
+    if (live && retries < 3) {
+      retries++
+      main.postDelayed({ if (exoPlayer === player) player.prepare() }, 2000L * retries)
+    } else if (player.hasNextMediaItem()) {
+      retries = 0
+      player.seekToNextMediaItem()
+      player.prepare()
+    }
+  }
 
   override fun onCreate() {
     super.onCreate()
@@ -27,6 +49,11 @@ class TapePlaybackService : MediaSessionService() {
       .build()
     player.setAudioAttributes(attributes, true) // Android gerencia audio focus e becoming noisy.
     player.setHandleAudioBecomingNoisy(true)
+    player.addListener(object : Player.Listener {
+      override fun onPlayerError(error: PlaybackException) { recover(player) }
+      override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { retries = 0 }
+      override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_READY) retries = 0 }
+    })
     exoPlayer = player
     mediaSession = MediaSession.Builder(this, player).build()
   }
@@ -36,6 +63,7 @@ class TapePlaybackService : MediaSessionService() {
   // Mantemos o comportamento padrão: swipe nas recentes não encerra áudio em execução;
   // Android pode interromper por force-stop/otimizações de bateria, sem prometer imunidade.
   override fun onDestroy() {
+    main.removeCallbacksAndMessages(null)
     mediaSession?.release()
     mediaSession = null
     exoPlayer?.release()
