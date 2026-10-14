@@ -2,6 +2,14 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [Não lançado]
+
+### Ajustes a partir do seu teste da 1.4.3
+- **Cartão da notificação cabe na moldura do Android**: a fileira de botões (♥ ⏮ ⏯ ⏭ e o botão do app) estava cortada nas pontas; agora cabe até em celulares de 360 dp.
+- **Toque na barra de tempo do cartão pula a música** (20 zonas, de 5% em 5%). Arrastar continua só no estilo PLAYER: o Android não aceita barra arrastável em cartão personalizado.
+- **Busca de fitas fixa** abaixo das abas (não rola com a lista), com contagem e botão de limpar; o teclado não se perde quando o filtro encurta a lista.
+- **Visor LCD do rádio dourado**: o fundo verde agora preenche a caixa em qualquer largura.
+
 ## [1.4.3] — 2026-10-14
 
 ### Correções (a partir do seu teste no celular)

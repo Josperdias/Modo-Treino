@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -62,8 +63,42 @@ class NotificationStyleProvider(
   /** "full" (teste): o cartão sem a moldura do Android. Só o sistema decide: com `targetSdk` 31+ ele ignora e põe a moldura mesmo assim. */
   private fun framed(): Boolean = style() != "full"
 
-  override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean =
-    system.handleCustomCommand(session, action, extras)
+  /** Toques do cartão: ♥ (avisa o app) e as 20 zonas da barra de tempo (pulam para aquele ponto). Os do player do sistema seguem com o provedor padrão. */
+  override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean {
+    if (action == TapePlaybackService.ACTION_FAV) { PlaybackBus.emit("fav"); return true }
+    if (action.startsWith(SEEK_PREFIX)) {
+      val zone = action.removePrefix(SEEK_PREFIX).toIntOrNull()
+      val player = session.player
+      val duration = player.duration
+      if (zone != null && zone in 0 until SEEK_ZONES && duration != C.TIME_UNSET && duration > 0 && player.isCurrentMediaItemSeekable) {
+        player.seekTo((duration * (zone + 0.5) / SEEK_ZONES).toLong())   // o centro da zona tocada
+        refreshCard()?.let { n -> try { NotificationManagerCompat.from(context).notify(n.notificationId, n.notification) } catch (e: SecurityException) { /* sem permissão de notificação */ } }
+      }
+      return true
+    }
+    return system.handleCustomCommand(session, action, extras)
+  }
+
+  private var seekPending: List<PendingIntent>? = null
+  private var seekFor: MediaSession? = null
+  private var favPending: PendingIntent? = null
+  private var favFor: MediaSession? = null
+
+  /** O Media3 só entrega o PendingIntent de um comando personalizado dentro de uma Action (o ícone da Action não aparece, o cartão tem o seu). Cada chamada cria um PendingIntent novo no sistema, então guarda-se um só por sessão. */
+  private fun favIntent(session: MediaSession, factory: MediaNotification.ActionFactory): PendingIntent {
+    favPending?.let { if (favFor === session) return it }
+    val icon = IconCompat.createWithResource(context, id("ic_heart", "drawable").takeIf { it != 0 } ?: android.R.drawable.btn_star)
+    return factory.createCustomAction(session, icon, "Favoritar", TapePlaybackService.ACTION_FAV, Bundle.EMPTY).actionIntent.also { favPending = it; favFor = session }
+  }
+
+  /** Um PendingIntent por zona (a ação tem o número da zona: só `extras` diferentes seriam fundidos pelo Android). Criados uma vez por sessão. */
+  private fun seekIntents(session: MediaSession, factory: MediaNotification.ActionFactory): List<PendingIntent> {
+    seekPending?.let { if (seekFor === session) return it }
+    val icon = IconCompat.createWithResource(context, id("ic_next", "drawable").takeIf { it != 0 } ?: android.R.drawable.ic_media_next)
+    return (0 until SEEK_ZONES).map { i ->
+      factory.createCustomAction(session, icon, "Ir para ${i * 100 / SEEK_ZONES}%", SEEK_PREFIX + i, Bundle.EMPTY).actionIntent
+    }.also { seekPending = it; seekFor = session }
+  }
 
   /** Recria o cartão com a posição atual (o serviço chama a cada poucos segundos enquanto toca, para a barra andar). */
   fun refreshCard(): MediaNotification? {
@@ -134,14 +169,19 @@ class NotificationStyleProvider(
     val fav = favorite()
     big.setImageViewResource(id("fav", "id"), id(if (fav) "ic_heart_fill" else "ic_heart", "drawable"))
     big.setContentDescription(id("fav", "id"), if (fav) "Tirar das favoritas" else "Favoritar")
-    // O Media3 só entrega o PendingIntent de um comando personalizado dentro de uma Action: usa-se a do ♥ (o ícone da Action não aparece, o cartão tem o seu).
-    val favAction = factory.createCustomAction(session, IconCompat.createWithResource(context, id("ic_heart", "drawable").takeIf { it != 0 } ?: android.R.drawable.btn_star), "Favoritar", TapePlaybackService.ACTION_FAV, Bundle.EMPTY)
-    big.setOnClickPendingIntent(id("fav", "id"), favAction.actionIntent)
+    big.setOnClickPendingIntent(id("fav", "id"), favIntent(session, factory))
     if (open != null) big.setOnClickPendingIntent(id("open", "id"), open)
     if (!live) {
       big.setTextViewText(id("pos", "id"), clock(posSec))
       big.setTextViewText(id("dur", "id"), if (durSec > 0) clock(durSec) else "--:--")
       big.setProgressBar(id("bar", "id"), 1000, if (durSec > 0) (1000L * posSec / durSec).toInt().coerceIn(0, 1000) else 0, false)
+      if (durSec > 0) {
+        val zones = seekIntents(session, factory)
+        for (i in 0 until SEEK_ZONES) {
+          big.setOnClickPendingIntent(id("seek_$i", "id"), zones[i])
+          big.setContentDescription(id("seek_$i", "id"), "Ir para ${i * 100 / SEEK_ZONES}% da música")
+        }
+      }
     }
 
     val smallIcon = id("ic_stat_tape", "drawable").takeIf { it != 0 } ?: android.R.drawable.ic_media_play
@@ -170,6 +210,8 @@ class NotificationStyleProvider(
 
   companion object {
     const val CHANNEL = "mt_musica"
+    const val SEEK_PREFIX = "mt_seek_"
+    const val SEEK_ZONES = 20
     /** Mesmo número da notificação padrão do Media3: trocar de estilo substitui a notificação, não cria outra. */
     const val NOTIFICATION_ID = 1001
   }

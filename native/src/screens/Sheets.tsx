@@ -86,7 +86,7 @@ function NotifPermission({visible}: {visible: boolean}) {
         <View style={{marginBottom: 12}}>
           <Text style={T.h3}>Notificação da música</Text>
           <Text style={[T.small, {marginTop: 2, marginBottom: 8}]}>
-            {estilo === 'card' ? 'Cartão ilustrado do app: a fita colorida, o nome e os botões. O Android o desenha dentro de uma moldura e não deixa arrastar o tempo.'
+            {estilo === 'card' ? 'Cartão ilustrado do app: a fita colorida, o nome e os botões. Toque na barra amarela para pular (de 5% em 5%); arrastar o tempo o Android só permite no PLAYER. O cartão fica dentro de uma moldura do Android.'
               : estilo === 'system' ? 'Player do Android: tela cheia, com a barra de tempo que você arrasta, o ♥ e a capa do app.'
               : 'Teste: o cartão ilustrado SEM a moldura do Android. Só aparece sem moldura no APK de laboratório "moldura"; no app normal o Android a coloca mesmo assim.'}
           </Text>

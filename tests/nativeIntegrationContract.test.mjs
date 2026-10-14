@@ -85,3 +85,12 @@ test('cartão de música grande: a fileira de botões cabe na moldura do Android
   }
   assert.ok(total <= 240, `a fileira soma ${total} dp: acima de 240 dp ela sai cortada nas pontas em celulares de 360 dp`);
 });
+
+test('cartão de música: toque na barra pula (20 zonas de 5%), e o ♥ e as zonas são tratados pelo provedor', () => {
+  const xml = fs.readFileSync('native/modules/modo-notif/android/src/main/res/layout/card_music_big.xml', 'utf8');
+  for (let i = 0; i < 20; i++) assert.match(xml, new RegExp(`@\\+id/seek_${i}"`), `zona ${i}`);
+  assert.ok(!/@\+id\/seek_20"/.test(xml));
+  const prov = fs.readFileSync('native/modules/modo-playback/android/src/main/java/art/josperd/modotreino/playback/NotificationStyleProvider.kt', 'utf8');
+  assert.match(prov, /SEEK_ZONES = 20/); assert.match(prov, /override fun handleCustomCommand/); assert.match(prov, /player\.seekTo\(/);
+  assert.match(prov, /seekIntents\(session, factory\)/);
+});
