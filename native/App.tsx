@@ -54,7 +54,9 @@ function TabBar({tab, onTab}: {tab: Tab; onTab: (t: Tab) => void}) {
   const pill = useAnimatedStyle(() => ({transform: [{translateX: x.value}]}));
   return (
     <View style={TB.bar} accessibilityRole="tablist" onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
-      {w > 0 && <Animated.View style={[TB.pill, {width: seg}, pill]} pointerEvents="none"><View style={TB.pillInner} /></Animated.View>}
+      <View style={TB.dots} pointerEvents="none"><Pattern kind="dots" color="#FFFFFF" opacity={0.08} size={16} /></View>
+      <View style={TB.perf} pointerEvents="none"><Pattern kind="dots" color={C.yellow} opacity={1} size={10} /></View>
+      {w > 0 && <Animated.View style={[TB.pill, {width: seg}, pill]} pointerEvents="none"><View style={TB.pillShadow} /><View style={TB.pillInner}><Pattern kind="stripes" color={C.ink} opacity={0.09} size={12} /></View></Animated.View>}
       {TABS.map((t) => {
         const on = t.key === tab;
         return (
@@ -68,9 +70,12 @@ function TabBar({tab, onTab}: {tab: Tab; onTab: (t: Tab) => void}) {
   );
 }
 const TB = StyleSheet.create({
-  bar: {flexDirection: 'row', backgroundColor: C.navy, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10},
-  pill: {position: 'absolute', top: 8, bottom: 10, left: 12},
-  pillInner: {flex: 1, marginHorizontal: 4, borderRadius: 18, backgroundColor: C.yellow},
+  bar: {flexDirection: 'row', backgroundColor: C.navy, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 10, borderTopWidth: 3, borderTopColor: '#34437A'},
+  dots: {...StyleSheet.absoluteFillObject, overflow: 'hidden'},
+  perf: {position: 'absolute', left: 0, right: 0, top: 0, height: 5, overflow: 'hidden'},
+  pill: {position: 'absolute', top: 11, bottom: 9, left: 12},
+  pillShadow: {position: 'absolute', left: 4, right: 4, top: 4, bottom: 0, borderRadius: 18, backgroundColor: C.pink},
+  pillInner: {flex: 1, marginHorizontal: 4, marginBottom: 4, borderRadius: 18, backgroundColor: C.yellow, borderWidth: 2.5, borderColor: '#FFFEFA', overflow: 'hidden'},
   item: {flex: 1, alignItems: 'center', justifyContent: 'center', height: 58, gap: 3},
   label: {fontSize: 10, fontWeight: '900', color: '#B7C1E3', letterSpacing: 0.9},
 });
