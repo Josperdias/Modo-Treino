@@ -643,6 +643,30 @@ test('Fitas: ao rolar a lista, o miniplayer (com a fita tocando) desliza para ba
   await context.close();
 });
 
+test('Fitas: a busca de cima só aparece (com animação) ao passar pelas fitas e some ao voltar ao topo', {skip}, async () => {
+  const many = Array.from({length: 18}, (_, i) => ({id: 'dev:' + i, title: 'Faixa ' + (i + 1), uri: 'file:///musica/' + i + '.mp3', duration: 200 + i, source: 'device'}));
+  const {context, page} = await open({device: {permission: 'granted', tracks: many}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Faixa 1', {exact: true}).waitFor();
+  const dock = page.getByLabel('Procurar fita aqui');
+  const scrollTo = (y) => page.evaluate((top) => {
+    const el = [...document.querySelectorAll('div')].filter((d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible').sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+    el.scrollTop = top; el.dispatchEvent(new Event('scroll', {bubbles: true}));
+  }, y);
+  await scrollTo(0); await settle(page, 500);
+  assert.equal(await dock.count(), 0, 'no topo a busca é só a do cabeçalho');
+  assert.equal(await page.getByLabel('Buscar fita').count(), 1);
+  await scrollTo(1400); await settle(page, 600);
+  await dock.waitFor();
+  await dock.fill('faixa 1'); await settle(page, 400);
+  assert.equal(await dock.inputValue(), 'faixa 1', 'o texto digitado na busca de cima fica');
+  assert.match(await body(page), /\d+\/18/, 'contagem na busca de cima');
+  await page.getByLabel('Limpar a busca (barra de cima)').click(); await settle(page, 400);
+  await scrollTo(0); await settle(page, 600);
+  assert.equal(await dock.count(), 0, 'voltando ao topo a busca de cima some');
+  await context.close();
+});
+
 test('player compacto: só aparece com música tocando; some na aba Músicas; recolhe e abre; fica no modo execução e no descanso', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
   const toolbar = page.getByRole('toolbar', {name: 'Player de música'});

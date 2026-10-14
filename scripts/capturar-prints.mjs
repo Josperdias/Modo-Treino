@@ -118,6 +118,8 @@ if (nativeDir) {
   await page.evaluate(() => { const el = [...document.querySelectorAll('div')].filter((d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible').sort((a, b) => b.scrollHeight - a.scrollHeight)[0]; if (el) { el.scrollTop = 700; el.dispatchEvent(new Event('scroll', {bubbles: true})); } });
   await pause(900); await shot(page, 'app-11c-miniplayer-fixo');
   await page.getByLabel('Recolher o player').click(); await pause(700); await shot(page, 'app-11d-miniplayer-recolhido'); await page.getByLabel('Abrir o player').click(); await pause(500);
+  await page.evaluate(() => { const el = [...document.querySelectorAll('div')].filter((d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible').sort((a, b) => b.scrollHeight - a.scrollHeight)[0]; if (el) { el.scrollTop = 1400; el.dispatchEvent(new Event('scroll', {bubbles: true})); } });
+  await pause(800); await shot(page, 'app-11e-busca-de-cima');
   await page.evaluate(() => { const el = [...document.querySelectorAll('div')].filter((d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible').sort((a, b) => b.scrollHeight - a.scrollHeight)[0]; if (el) { el.scrollTop = 0; el.dispatchEvent(new Event('scroll', {bubbles: true})); } });
   await pause(500);
   await page.getByRole('tab', {name: 'Bags: playlists'}).click(); await pause(1400); await shot(page, 'app-12-bags');

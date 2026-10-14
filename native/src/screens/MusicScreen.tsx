@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Alert, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import {Text, TextInput} from '../text';
-import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
+import Animated, {FadeInUp, FadeOutUp, FadeIn, FadeInDown} from 'react-native-reanimated';
 import {formatClock, searchTracks} from '../../logic';
 import {flag} from '../data';
 import {Btn, Card, Chips, Equalizer, Icon, Kicker, Pattern, Pop, Press, Pulse, Sheet, useToast} from '../ui';
@@ -62,7 +62,15 @@ export default function MusicScreen() {
   const searching = useRef(false);
   searching.current = q.trim().length > 0;
   useEffect(() => { setHeroGone(scrolledPast.current || q.trim().length > 0); }, [q]);
-  const onScroll = useCallback((e: {nativeEvent: {contentOffset: {y: number}}}) => { scrolledPast.current = e.nativeEvent.contentOffset.y > HERO_GONE_Y; setHeroGone(scrolledPast.current || searching.current); }, []);
+  const searchY = useRef(520);                // onde o campo de busca do cabeçalho está na lista
+  const [showDock, setShowDock] = useState(false);
+  const [dockFocused, setDockFocused] = useState(false);
+  const onScroll = useCallback((e: {nativeEvent: {contentOffset: {y: number}}}) => {
+    const y = e.nativeEvent.contentOffset.y;
+    scrolledPast.current = y > HERO_GONE_Y;
+    setHeroGone(scrolledPast.current || searching.current);
+    setShowDock(y > searchY.current + 44);       // passou do campo de busca do cabeçalho
+  }, []);
   const context = m.queueName ?? `Bag ${m.activeTape.name}`;
   const where = (t: Track) => m.lib.tapes.filter((b) => b.ids.includes(t.id)).map((b) => b.name);
 
@@ -128,6 +136,11 @@ export default function MusicScreen() {
           : <PermissionCard />
       ) : (
         <>
+          <View style={P.search} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
+            <Icon name="search" size={18} color={C.muted} />
+            <TextInput value={q} onChangeText={setQ} placeholder="Buscar fita ou artista" placeholderTextColor={C.muted} accessibilityLabel="Buscar fita" style={P.searchInput} autoCorrect={false} returnKeyType="search" />
+            {q.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Limpar a busca da fita" onPress={() => setQ('')} hitSlop={8}><Icon name="close-circle" size={20} color={C.muted} /></Pressable>}
+          </View>
           <View style={P.countRow}>
             <Text style={T.small} accessibilityLiveRegion="polite">{q.trim() ? `${list.length} de ${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'}` : `${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'}`}</Text>
             {nowIndex >= 0 && <Pressable accessibilityRole="button" accessibilityLabel="Ir para a fita que está tocando" onPress={goToNow} hitSlop={8} style={P.goNow}><Icon name="locate" size={15} /><Text style={P.goNowText}>{m.playing ? 'TOCANDO' : 'ATUAL'} · {nowIndex + 1}</Text></Pressable>}
@@ -142,21 +155,22 @@ export default function MusicScreen() {
     </View>
   );
 
-  // A busca fica FIXA acima da lista (não rola junto): dá para procurar uma música em qualquer ponto da lista, e o teclado não se perde quando o filtro encurta a lista.
-  const searchBar = m.library.length > 0 && (
-    <View style={P.searchDock}>
+  // Busca "que acompanha": o campo de sempre fica no cabeçalho da lista; quando você passa por ele rolando as fitas, uma cópia compacta desce do topo (com animação) e sai ao voltar.
+  // Fica também enquanto você digita nela (o filtro encurta a lista e o teclado não pode se perder).
+  const dockVisible = (showDock || dockFocused) && m.library.length > 0;
+  const searchDock = dockVisible && (
+    <Animated.View key="search-dock" entering={FadeInUp.duration(240)} exiting={FadeOutUp.duration(170)} style={P.searchDock}>
       <View style={P.search}>
         <Icon name="search" size={18} color={C.muted} />
-        <TextInput value={q} onChangeText={setQ} placeholder="Buscar fita ou artista" placeholderTextColor={C.muted} accessibilityLabel="Buscar fita" style={P.searchInput} autoCorrect={false} returnKeyType="search" />
+        <TextInput value={q} onChangeText={setQ} onFocus={() => setDockFocused(true)} onBlur={() => setDockFocused(false)} placeholder="Buscar fita ou artista" placeholderTextColor={C.muted} accessibilityLabel="Procurar fita aqui" style={P.searchInput} autoCorrect={false} returnKeyType="search" />
         {q.trim().length > 0 && <Text style={P.searchCount} accessibilityElementsHidden importantForAccessibility="no">{list.length}/{m.library.length}</Text>}
-        {q.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Limpar a busca da fita" onPress={() => setQ('')} hitSlop={8}><Icon name="close-circle" size={20} color={C.muted} /></Pressable>}
+        {q.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Limpar a busca (barra de cima)" onPress={() => setQ('')} hitSlop={8}><Icon name="close-circle" size={20} color={C.muted} /></Pressable>}
       </View>
-    </View>
+    </Animated.View>
   );
 
   return (
     <View style={{flex: 1}}>
-      {searchBar}
       <FlatList
         ref={listView}
         data={m.library.length ? list : []}
@@ -178,6 +192,8 @@ export default function MusicScreen() {
         ListHeaderComponent={header}
         ListFooterComponent={<Text style={P.disclaimer}>As fitas são as músicas do seu celular e tocam offline; nada é copiado nem apagado. Para montar playlists, use as BAGS. Rádios precisam de internet. Links do YouTube não são reproduzidos. Em segundo plano, o som depende do Android e das suas permissões.</Text>}
       />
+
+      {searchDock}
 
       <Sheet visible={settings} onClose={() => setSettings(false)} title="Controles do player">
         <Text style={[T.h3, {marginBottom: 4}]}>Transição entre músicas</Text>
@@ -238,7 +254,7 @@ const P = StyleSheet.create({
   fadeRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'center', padding: 8},
   sectionHead: {flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 10},
   search: {flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.white, borderRadius: R.pill, paddingHorizontal: 16, height: 46, borderWidth: 2, borderColor: C.ink},
-  searchDock: {paddingHorizontal: 20, paddingTop: 2, paddingBottom: 8},
+  searchDock: {position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10, backgroundColor: C.paper, borderBottomWidth: 2, borderBottomColor: C.line},
   searchCount: {fontSize: 12, fontWeight: '800', color: C.muted},
   searchInput: {flex: 1, fontSize: 15, color: C.ink},
   countRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -4, marginBottom: 10, paddingHorizontal: 4, minHeight: 28},
