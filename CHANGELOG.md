@@ -2,7 +2,7 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
-## [Não lançado]
+## [1.4.4] — 2026-10-14
 
 ### Ajustes a partir do seu teste da 1.4.3
 - **Cartão da notificação cabe na moldura do Android**: a fileira de botões (♥ ⏮ ⏯ ⏭ e o botão do app) estava cortada nas pontas; agora cabe até em celulares de 360 dp.
