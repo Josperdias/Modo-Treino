@@ -756,6 +756,10 @@ test('rádio: o mundo fica atrás dos controles, o cartão da estação é compa
   assert.equal(await page.getByLabel('Recolher o cartão da rádio').count(), 0, 'sem aba/recolher: o cartão é só uma faixa translúcida');
   await page.getByLabel('Guardar rádio numa bag').waitFor();
   await page.getByLabel('Ouvir rádio').waitFor();
+  await page.getByLabel('Mais informações da rádio').click();
+  await page.getByRole('heading', {name: 'Sobre a rádio'}).waitFor();
+  assert.match(await body(page), /ESTILOS[\s\S]*pop[\s\S]*128 kbps/, 'o "i" mostra estilos e qualidade da rádio');
+  await page.getByLabel('Fechar').last().click(); await settle(page, 500);
   const globe = await page.locator('iframe, webview').first().boundingBox();   // o globo começa logo abaixo do seletor FITAS/BAGS/RÁDIO, por trás da busca
   const surpresa = await page.getByLabel('Surpreenda-me com uma rádio aleatória').boundingBox();
   assert.ok(globe && surpresa && globe.y < surpresa.y, 'o globo passa por trás dos botões');

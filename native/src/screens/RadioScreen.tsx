@@ -25,6 +25,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
   const [saving, setSaving] = useState(false);
   const [near, setNear] = useState<string[]>([]);
   const [nearOpen, setNearOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);     // "i": mais informações da rádio
   const [countries, setCountries] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);   // painel "Estilos" (recolhido por padrão)
   const [names, setNames] = useState<Record<string, string>>({});
@@ -186,6 +187,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
                     ? <Text style={S.cardTrack} numberOfLines={1}>{m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : m.radioTrack?.state === 'sem' ? 'Esta rádio não informa a faixa' : 'Buscando o nome da faixa…'}</Text>
                     : <Text style={S.cardSub} numberOfLines={1}>{flag(card.cc)} {nomePais(card.cc, card.co)}{card.st ? ` · ${card.st}` : ''}{card.tg ? ` · ${card.tg.split(',')[0]}` : ''}{card.br ? ` · ${card.br} kbps` : ''}</Text>}
                 </View>
+                <Pop accessibilityRole="button" accessibilityLabel="Mais informações da rádio" onPress={() => setInfoOpen(true)} color={C.card} offset={2} radius={16} style={{width: 32, alignSelf: 'flex-start'}} innerStyle={S.infoBtn}><Icon name="information" size={20} /></Pop>
               </View>
               <View style={S.cardBtns}>
                 <Pop accessibilityRole="button" accessibilityLabel={isPlayingCard ? 'Pausar rádio' : 'Ouvir rádio'} onPress={() => (playingId === card.i ? m.playPause() : play(card))} color={C.yellow} offset={3} radius={20} style={{flex: 1}} innerStyle={S.cardBtn}>
@@ -237,6 +239,29 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
             <View style={S.countPill}><Text style={S.countPillText}>{item.n}</Text></View>
           </Press>
         )} />
+      </Sheet>
+
+      <Sheet visible={infoOpen && !!card} onClose={() => setInfoOpen(false)} title="Sobre a rádio" scroll>
+        {card ? (
+          <View style={{paddingBottom: 6}}>
+            <View style={S.infoHead}>
+              <View style={S.flagBoxLight}><Text style={{fontSize: 30}}>{flag(card.cc)}</Text></View>
+              <View style={{flex: 1}}>
+                <Text style={S.infoName}>{card.n}</Text>
+                <Text style={T.small}>{nomePais(card.cc, card.co)}{card.st ? ` · ${card.st}` : ''}</Text>
+              </View>
+            </View>
+            {playingId === card.i ? <View style={S.infoNow}><Text style={S.infoNowText}>{m.radioTrack?.title ? `♪ Tocando agora: ${m.radioTrack.title}` : m.radioTrack?.state === 'sem' ? 'Esta rádio não informa o nome da faixa.' : 'Buscando o nome da faixa…'}</Text></View> : null}
+            <View style={S.infoRow}><Text style={S.infoKey}>ESTILOS</Text>
+              {card.tg ? <View style={S.infoTags}>{card.tg.split(',').filter(Boolean).slice(0, 12).map((g) => <View key={g} style={S.infoTag}><Text style={S.infoTagText}>{g.trim()}</Text></View>)}</View> : <Text style={S.infoVal}>Não informado</Text>}
+            </View>
+            <View style={S.infoRow}><Text style={S.infoKey}>QUALIDADE</Text><Text style={S.infoVal}>{card.br ? `${card.br} kbps` : 'Não informada'}</Text></View>
+            <View style={S.infoRow}><Text style={S.infoKey}>POPULARIDADE</Text><Text style={S.infoVal}>{card.c ? `${card.c.toLocaleString('pt-BR')} ${card.c === 1 ? 'toque' : 'toques'} no diretório` : 'Sem toques registrados'}</Text></View>
+            <View style={S.infoRow}><Text style={S.infoKey}>ONDE FICA</Text><Text style={S.infoVal}>{[card.st, nomePais(card.cc, card.co)].filter(Boolean).join(', ') || 'Não informado'}{card.lat || card.lng ? `  (${card.lat.toFixed(1)}°, ${card.lng.toFixed(1)}°)` : ''}</Text></View>
+            <View style={S.infoRow}><Text style={S.infoKey}>SINAL</Text><Text style={S.infoVal}>Transmissão ao vivo pela internet. O diretório de rádios é o Radio Browser; as informações são enviadas pelas próprias rádios e podem estar incompletas.</Text></View>
+            <View style={{marginTop: 8}}><Btn kind="primary" icon="earth" text="VER NO GLOBO" label="Ver a rádio no globo" onPress={() => { setInfoOpen(false); focus(card); }} /></View>
+          </View>
+        ) : null}
       </Sheet>
 
       <Sheet visible={saving} onClose={() => setSaving(false)} title="Guardar em qual bag?">
@@ -293,6 +318,18 @@ const S = StyleSheet.create({
   cardName: {fontSize: 18, fontWeight: '900', color: C.white, letterSpacing: 0.2},
   cardSub: {fontSize: 12, fontWeight: '700', color: '#AEB9E0'},
   cardBtnText: {fontSize: 14, fontWeight: '900', letterSpacing: 0.8, color: C.ink},
+  infoBtn: {width: 32, height: 32, alignItems: 'center', justifyContent: 'center'},
+  infoHead: {flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12},
+  flagBoxLight: {width: 56, height: 56, borderRadius: 16, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink},
+  infoName: {fontSize: 24, fontWeight: '900', color: C.ink},
+  infoNow: {backgroundColor: '#DDF6E6', borderRadius: R.md, padding: 12, marginBottom: 6, borderWidth: 1.5, borderColor: '#1F8A4C'},
+  infoNowText: {fontSize: 14, fontWeight: '800', color: '#14653A'},
+  infoRow: {paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line},
+  infoKey: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: C.muted, marginBottom: 4},
+  infoVal: {fontSize: 15, lineHeight: 21, color: C.ink},
+  infoTags: {flexDirection: 'row', flexWrap: 'wrap', gap: 6},
+  infoTag: {backgroundColor: C.sky, borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1.5, borderColor: C.ink},
+  infoTagText: {fontSize: 12, fontWeight: '800', color: C.ink},
   listRow: {flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line},
   listName: {fontSize: 16, fontWeight: '700', color: C.ink},
   cardTrack: {fontSize: 12, fontWeight: '800', color: '#5BE38D'},
