@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react';
-import {Platform, StyleSheet, View} from 'react-native';
+import {Platform, StyleSheet, View, useWindowDimensions} from 'react-native';
+import Svg, {Circle, Defs, LinearGradient, Path, Polygon, Rect, Stop} from 'react-native-svg';
 import {Text} from '../text';
 import {Icon, Press} from '../ui';
 import {C} from '../theme';
@@ -8,11 +9,66 @@ import {MiniTape} from './Cassette';
 import {useHeroGone} from './dock';
 import {useMusic, useMusicProgress} from './MusicProvider';
 
-/** Visor LCD anos 2000: fundo verde-escuro, letras verde-neon com brilho. A fonte é a monoespaçada do sistema (nenhum arquivo de fonte novo). */
-const LCD = {bg: '#0A2113', edge: '#041109', on: '#7CFF9B', dim: '#1F5A33', glow: '#46FF7A'};
+/** Visor LCD verde-limão (anos 2000): fundo claro, letras escuras. A fonte é a monoespaçada do sistema (nenhum arquivo de fonte novo). */
+const LCD = {ink: '#0B3D1A', dim: '#2E9E49', edge: '#0B2A14'};
+const GOLD = {top: '#FFE27A', mid: '#FFC93C', low: '#F0A81C'};
 const MONO = Platform.select({android: 'monospace', ios: 'Menlo', default: 'Courier New, monospace'});
-const SEGMENTS = 22;
+const SEGMENTS = 20;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const INK = C.ink;
+
+/** Corpo dourado do rádio com brilho no topo. */
+function GoldBody() {
+  return (
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" pointerEvents="none">
+      <Defs>
+        <LinearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={GOLD.top} /><Stop offset="0.5" stopColor={GOLD.mid} /><Stop offset="1" stopColor={GOLD.low} />
+        </LinearGradient>
+      </Defs>
+      <Rect x={0} y={0} width={100} height={100} fill="url(#gold)" />
+      <Rect x={0} y={0} width={100} height={14} fill="#FFFFFF" opacity={0.22} />
+    </Svg>
+  );
+}
+
+/** Alto-falante: grade de pontinhos escuros. */
+function Grill({cols = 2, rows = 5}: {cols?: number; rows?: number}) {
+  const w = cols * 7, h = rows * 7;
+  return (
+    <View style={{width: w, height: h, flexShrink: 0}}>
+      <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+        {Array.from({length: rows}, (_, r) => Array.from({length: cols}, (_, c) => <Circle key={`${r}-${c}`} cx={3.5 + c * 7} cy={3.5 + r * 7} r={2.2} fill={INK} opacity={0.85} />))}
+      </Svg>
+    </View>
+  );
+}
+
+/** Adesivos do rádio (vetor, sem imagem): estrela, raio, carinha, nota e selo MUSIC. Só enfeite: não captam toque. */
+const Sticker = ({style, children}: {style: object; children: React.ReactNode}) => <View pointerEvents="none" style={[MP.sticker, style]}>{children}</View>;
+function Stickers({narrow}: {narrow: boolean}) {
+  return (
+    <>
+      <Sticker style={{left: -2, top: 1, transform: [{rotate: '-14deg'}]}}>
+        <Svg width={24} height={24} viewBox="0 0 24 24"><Polygon points="12,1.5 15,9 23,9.5 17,14.8 19,22.5 12,18.3 5,22.5 7,14.8 1,9.5 9,9" fill="#F46FA0" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" /></Svg>
+      </Sticker>
+      <Sticker style={{right: narrow ? 6 : 54, top: 0, transform: [{rotate: '12deg'}]}}>
+        <Svg width={20} height={22} viewBox="0 0 24 26"><Polygon points="15,1 4,15 11,15 8,25 21,10 13,10" fill="#FF4FA3" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" /></Svg>
+      </Sticker>
+      <Sticker style={{right: 4, bottom: 0, transform: [{rotate: '10deg'}]}}>
+        <Svg width={22} height={22} viewBox="0 0 24 24"><Path d="M9 18V5l11-2v13" stroke={INK} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" fill="none" /><Path d="M9 18V5l11-2v13" stroke="#F46FA0" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" /><Circle cx={6.5} cy={18} r={3.3} fill="#F46FA0" stroke={INK} strokeWidth={1.6} /><Circle cx={17.5} cy={16} r={3.3} fill="#F46FA0" stroke={INK} strokeWidth={1.6} /></Svg>
+      </Sticker>
+      {!narrow && (
+        <Sticker style={{left: 6, bottom: 0, transform: [{rotate: '-6deg'}]}}>
+          <View style={MP.badge}><Text style={MP.badgeText}>MUSIC</Text></View>
+        </Sticker>
+      )}
+      <Sticker style={{right: 70, bottom: 0}}>
+        <Svg width={18} height={18} viewBox="0 0 24 24"><Circle cx={12} cy={12} r={10.5} fill="#FFD23A" stroke={INK} strokeWidth={1.8} /><Circle cx={8.5} cy={10} r={1.5} fill={INK} /><Circle cx={15.5} cy={10} r={1.5} fill={INK} /><Path d="M7 14.2c1.4 2.6 8.6 2.6 10 0" stroke={INK} strokeWidth={1.8} strokeLinecap="round" fill="none" /></Svg>
+      </Sticker>
+    </>
+  );
+}
 
 /** Relógio + barra de segmentos do visor. Fica num componente próprio: só ele re-renderiza a cada atualização de posição. */
 function LcdClock({live, playing}: {live: boolean; playing: boolean}) {
@@ -22,8 +78,8 @@ function LcdClock({live, playing}: {live: boolean; playing: boolean}) {
   return (
     <View accessible accessibilityRole="progressbar" accessibilityLabel="Progresso da música" accessibilityValue={{min: 0, max: 100, now: Math.round(pct * 100)}}>
       <View style={MP.lcdTop}>
-        <Text style={MP.lcdTiny}>{live ? '◉ FM AO VIVO' : `${playing ? '▶ PLAY' : '❚❚ PAUSA'}`}</Text>
-        {!live && duration > 0 ? <Text style={MP.lcdTiny}>{mmss(position)}/{mmss(duration)}</Text> : null}
+        <Text numberOfLines={1} style={MP.lcdTiny}>{live ? 'Rádio ao vivo' : playing ? 'Tocando agora' : 'Pausado'}</Text>
+        {!live && duration > 0 ? <Text style={MP.lcdTiny}>{mmss(position)}</Text> : null}
       </View>
       {!live ? (
         <View style={MP.segs}>
@@ -74,59 +130,73 @@ function EqBar({i, on}: {i: number; on: boolean}) {
   return <Animated.View style={[MP.eqBar, st]} />;
 }
 
-/** Faixa tocando agora, sempre à mão: um mini rádio com a janela da fita, visor LCD verde, equalizador e teclas. */
+/** Faixa tocando agora, sempre à mão: um rádio dourado com a janela da fita, visor LCD verde, equalizador, adesivos e teclas. */
 export default function MiniPlayer({onOpen}: {onOpen: () => void; dark?: boolean}) {
   const m = useMusic();
+  const {width} = useWindowDimensions();
   if (!m.now && !m.tapeTracks.length && !m.library.length) return null;
+  const narrow = width < 360;
+  const wide = width >= 400;   // só aí cabem o equalizador e o alto-falante da direita
   const title = m.now?.title || `Bag ${m.activeTape.name}`;
-  const lcdText = (m.live ? (m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : m.now?.title || 'Rádio ao vivo') : title).toUpperCase();
+  const lcdText = m.live ? (m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : m.now?.title || 'Rádio ao vivo') : title;
   return (
-    <View style={MP.bar} accessibilityRole="toolbar" accessibilityLabel="Player de música">
-      <Press accessibilityRole="button" accessibilityLabel={`Abrir músicas. ${m.now ? 'Tocando ' + m.now.title : 'Nada tocando'}`} onPress={onOpen} style={MP.info} quiet>
-        <View style={MP.deck}>
-          {m.now && !m.live
-            ? <MiniTape id={m.now.id} size={50} />
-            : <View style={[MP.disc, m.playing && {backgroundColor: C.pink}]}><Icon name={m.live ? 'radio' : 'musical-notes'} size={18} color={C.ink} /></View>}
-          <View style={[MP.led, m.playing && MP.ledOn]} />
-        </View>
-        <View style={MP.lcd}>
-          <View style={MP.lcdShine} pointerEvents="none" />
-          <View style={MP.lcdRow}>
-            <View style={{flex: 1}}>
-              <LcdMarquee text={lcdText} run={m.playing} />
-              {m.now ? <LcdClock live={m.live} playing={m.playing} /> : <Text style={MP.lcdTiny}>SEM FITA</Text>}
-            </View>
-            <Eq on={m.playing} />
+    <View style={MP.wrap}>
+      <View style={MP.bar} accessibilityRole="toolbar" accessibilityLabel="Player de música">
+        <GoldBody />
+        {!narrow && <Grill />}
+        <Press accessibilityRole="button" accessibilityLabel={`Abrir músicas. ${m.now ? 'Tocando ' + m.now.title : 'Nada tocando'}`} onPress={onOpen} style={MP.info} quiet>
+          <View style={MP.deck}>
+            {m.now && !m.live
+              ? <MiniTape id={m.now.id} size={44} />
+              : <View style={[MP.disc, m.playing && {backgroundColor: C.pink}]}><Icon name={m.live ? 'radio' : 'musical-notes'} size={18} color={C.ink} /></View>}
           </View>
-        </View>
-      </Press>
-      <Press accessibilityRole="button" accessibilityLabel="Tocar ou pausar" onPress={m.playPause} style={MP.play} quiet><Icon name={m.playing ? 'pause' : 'play'} size={20} color={C.ink} /></Press>
-      <Press accessibilityRole="button" accessibilityLabel="Próxima faixa" onPress={() => m.skip(1)} style={MP.next} quiet><Icon name="play-skip-forward" size={18} color={C.white} /></Press>
+          <View style={MP.lcd}>
+            <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" pointerEvents="none">
+              <Defs><LinearGradient id="lcdg" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#B6FF8A" /><Stop offset="1" stopColor="#3FD64F" /></LinearGradient></Defs>
+              <Rect x={0} y={0} width={100} height={100} fill="url(#lcdg)" />
+            </Svg>
+            <View style={MP.lcdRow}>
+              <Icon name="musical-notes" size={16} color={LCD.ink} />
+              <View style={{flex: 1, minWidth: 0}}>
+                <LcdMarquee text={lcdText} run={m.playing} />
+                {m.now ? <LcdClock live={m.live} playing={m.playing} /> : <Text style={MP.lcdTiny}>Sem fita</Text>}
+              </View>
+              {wide && <Eq on={m.playing} />}
+            </View>
+          </View>
+        </Press>
+        {!narrow && <Press accessibilityRole="button" accessibilityLabel="Voltar uma faixa" onPress={() => m.skip(-1)} style={MP.key} quiet><Icon name="play-skip-back" size={17} color={C.white} /></Press>}
+        <Press accessibilityRole="button" accessibilityLabel="Tocar ou pausar" onPress={m.playPause} style={MP.play} quiet><Icon name={m.playing ? 'pause' : 'play'} size={20} color={C.ink} /></Press>
+        <Press accessibilityRole="button" accessibilityLabel="Próxima faixa" onPress={() => m.skip(1)} style={MP.key} quiet><Icon name="play-skip-forward" size={17} color={C.white} /></Press>
+        {wide && <Grill />}
+      </View>
+      <Stickers narrow={narrow} />
     </View>
   );
 }
 const MP = StyleSheet.create({
-  bar: {flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.navy2, borderTopWidth: 3, borderTopColor: '#34437A'},
-  info: {flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8},
-  deck: {width: 62, height: 54, borderRadius: 10, backgroundColor: '#0B1033', borderWidth: 2, borderColor: '#34437A', alignItems: 'center', justifyContent: 'center'},
-  led: {position: 'absolute', top: 3, right: 3, width: 6, height: 6, borderRadius: 3, backgroundColor: '#4A2A33'},
-  ledOn: {backgroundColor: '#FF5C7A'},
-  disc: {width: 36, height: 36, borderRadius: 18, backgroundColor: C.yellow, alignItems: 'center', justifyContent: 'center'},
-  lcd: {flex: 1, minHeight: 54, borderRadius: 8, backgroundColor: LCD.bg, borderWidth: 2, borderColor: LCD.edge, paddingHorizontal: 8, paddingVertical: 5, overflow: 'hidden', justifyContent: 'center'},
-  lcdShine: {position: 'absolute', left: 0, right: 0, top: 0, height: '38%', backgroundColor: 'rgba(255,255,255,0.05)'},
-  lcdRow: {flexDirection: 'row', alignItems: 'flex-end', gap: 8},
-  marquee: {height: 20, overflow: 'hidden'},
+  wrap: {paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8, backgroundColor: C.navy2},
+  bar: {flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 7, paddingHorizontal: 6, borderRadius: 20, borderWidth: 3, borderColor: INK, overflow: 'hidden'},
+  sticker: {position: 'absolute'},
+  badge: {backgroundColor: C.white, borderWidth: 2, borderColor: INK, borderRadius: 6, paddingHorizontal: 4, transform: [{rotate: '-4deg'}]},
+  badgeText: {fontSize: 9, lineHeight: 11, fontWeight: '900', color: INK, letterSpacing: 0.5},
+  info: {flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5},
+  deck: {width: 52, height: 50, borderRadius: 10, backgroundColor: '#0B1033', borderWidth: 2, borderColor: INK, alignItems: 'center', justifyContent: 'center'},
+  disc: {width: 34, height: 34, borderRadius: 17, backgroundColor: C.yellow, alignItems: 'center', justifyContent: 'center'},
+  lcd: {flex: 1, minWidth: 0, minHeight: 50, borderRadius: 10, borderWidth: 3, borderColor: LCD.edge, paddingHorizontal: 6, paddingVertical: 3, overflow: 'hidden', justifyContent: 'center'},
+  lcdRow: {flexDirection: 'row', alignItems: 'center', gap: 5},
+  marquee: {height: 19, overflow: 'hidden'},
   marqueeRow: {position: 'absolute', left: 0, top: 0, width: 4000, flexDirection: 'row'},
-  lcdTitle: {alignSelf: 'flex-start', fontFamily: MONO, fontSize: 14, lineHeight: 20, fontWeight: '700', letterSpacing: 0.8, color: LCD.on, textShadowColor: LCD.glow, textShadowRadius: 7, textShadowOffset: {width: 0, height: 0}},
-  lcdTop: {flexDirection: 'row', justifyContent: 'space-between', marginTop: 1},
-  lcdTiny: {fontFamily: MONO, fontSize: 10, lineHeight: 13, fontWeight: '700', letterSpacing: 0.6, color: LCD.on, opacity: 0.8},
+  lcdTitle: {alignSelf: 'flex-start', fontFamily: MONO, fontSize: 14, lineHeight: 19, fontWeight: '700', color: LCD.ink},
+  lcdTop: {flexDirection: 'row', justifyContent: 'space-between', gap: 4},
+  lcdTiny: {flexShrink: 1, fontFamily: MONO, fontSize: 10, lineHeight: 12, fontWeight: '700', color: LCD.ink, opacity: 0.85},
   segs: {flexDirection: 'row', gap: 1.5, marginTop: 2},
-  seg: {flex: 1, height: 4, borderRadius: 1, backgroundColor: LCD.dim},
-  segOn: {backgroundColor: LCD.on},
-  eq: {flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 28, paddingBottom: 1},
-  eqBar: {width: 3, borderRadius: 1, backgroundColor: LCD.on, opacity: 0.9},
-  play: {width: 44, height: 44, borderRadius: 22, backgroundColor: C.yellow, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink, borderBottomWidth: 4},
-  next: {width: 38, height: 38, borderRadius: 19, backgroundColor: '#2B3763', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#0B1033', borderBottomWidth: 3},
+  seg: {flex: 1, height: 3, borderRadius: 1, backgroundColor: LCD.dim, opacity: 0.45},
+  segOn: {backgroundColor: LCD.ink, opacity: 1},
+  eq: {flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 26},
+  eqBar: {width: 3, borderRadius: 1, backgroundColor: LCD.ink},
+  play: {width: 46, height: 46, borderRadius: 23, backgroundColor: C.yellow, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#2FD14B'},
+  key: {width: 36, height: 38, borderRadius: 11, backgroundColor: '#1B2547', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: INK, borderBottomWidth: 4},
 });
 
 /** Miniplayer da aba Músicas: desliza de baixo quando o player grande sai da tela (Fitas) ou sempre que há música (Bags); some na Rádio. */
