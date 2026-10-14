@@ -324,7 +324,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
                   <Rect x="0" y="0" width="100%" height="100%" fill="url(#skipRg)" />
                 </Svg>
                 <View style={W.skipHz} pointerEvents="none"><Hazard id="hzTop" h={12} /></View>
-                <View style={[W.skipHz, {top: undefined, bottom: 0}]} pointerEvents="none"><Hazard id="hzBottom" h={12} /></View>
+                <View style={W.skipHzBottom} pointerEvents="none"><Hazard id="hzBottom" h={12} /></View>
                 <View style={W.skipX}><Icon name="close" size={60} color={C.white} /></View>
                 <Text style={W.skipKicker}>VOCÊ MARCOU</Text>
                 <Text style={W.skipTitle}>NÃO VOU FAZER</Text>
@@ -395,6 +395,7 @@ const W = StyleSheet.create({
   segsLegend: {paddingHorizontal: 20, paddingTop: 6, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, color: C.muted},
   skipOver: {...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 14},
   skipHz: {position: 'absolute', top: 0, left: 0, right: 0},
+  skipHzBottom: {position: 'absolute', bottom: 0, left: 0, right: 0},
   skipX: {width: 92, height: 92, borderRadius: 46, backgroundColor: 'rgba(255,255,255,.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: C.white},
   skipKicker: {fontSize: 12, fontWeight: '900', letterSpacing: 1.6, color: '#FFD9DF', marginTop: 10},
   skipTitle: {fontSize: 34, lineHeight: 36, fontWeight: '900', color: C.white, letterSpacing: 0.6, textShadowColor: 'rgba(20,27,52,.55)', textShadowOffset: {width: 0, height: 2}, textShadowRadius: 6},
