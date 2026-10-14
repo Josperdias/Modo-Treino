@@ -63,7 +63,8 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const list = EXERCISES.filter((x) => x.treino === treino);
   const p = app.progress(treino);
   const [i, setI] = useState(() => Math.min(list.length - 1, Math.max(0, startIndex ?? app.pos(treino) ?? p.firstIncomplete)));
-  useEffect(() => { app.setPos(treino, i); }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
+  const bodyRef = useRef<ScrollView>(null);
+  useEffect(() => { app.setPos(treino, i); bodyRef.current?.scrollTo({y: 0, animated: false}); }, [i]); // eslint-disable-line react-hooks/exhaustive-deps   // cada exercício abre no topo (antes herdava a rolagem do anterior)
   const [phase, setPhase] = useState<'card' | 'rest' | 'done'>(() => (startIndex == null && p.firstIncomplete < 0 && p.total > 0 ? 'done' : 'card'));
   const [rest, setRest] = useState<Rest | null>(null);
   const [secs, setSecs] = useState(0);
@@ -288,8 +289,15 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
         })}
       </View>
       <Text style={W.segsLegend}>{nFeitos} {nFeitos === 1 ? 'feito' : 'feitos'}{p.skippedCount ? ` · ${p.skippedCount} ${p.skippedCount === 1 ? 'pulado' : 'pulados'}` : ''} · {nFaltam} {nFaltam === 1 ? 'falta' : 'faltam'}</Text>
-      <ScrollView contentContainerStyle={W.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView ref={bodyRef} contentContainerStyle={W.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View key={ex.id} entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(160)}>
+          {skippedNow ? (
+            <View style={W.skipBox} accessibilityRole="alert">
+              <Text style={W.skipTitle}>VOCÊ MARCOU: NÃO VOU FAZER</Text>
+              <Text style={W.skipText}>Mudou de ideia? Dá para fazer agora: ou toque numa série, ou aqui.</Text>
+              <Btn small kind="primary" icon="barbell" text="FAZER ESTE AGORA" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} style={{marginTop: 10, alignSelf: 'flex-start'}} />
+            </View>
+          ) : null}
           <Pop accessibilityRole="imagebutton" accessibilityLabel={`Ampliar a ilustração de ${ex.nome}`} onPress={() => onZoom(ex)} quiet radius={R.xl} offset={6} color="#B4CDF6" innerStyle={W.figure}>
             <Image source={info.image} resizeMode="contain" style={[W.img, info.status === 'missing' && {opacity: 0.5}]} accessibilityLabel={`Ilustração de ${ex.nome}`} />
             <View style={W.zoomBadge}><Icon name="expand-outline" size={16} color={C.white} /></View>
@@ -326,15 +334,9 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
             <Text style={W.stepNum}>{total}</Text>
             <Pop accessibilityRole="button" accessibilityLabel={`Aumentar séries de ${ex.nome}`} onPress={() => adjust(ex, 1)} quiet radius={14} offset={3} innerStyle={W.stepBtn}><Icon name="add" size={20} /></Pop>
           </View>
-          {skippedNow ? (
-            <View style={W.skipBox} accessibilityRole="alert">
-              <Text style={W.skipTitle}>VOCÊ MARCOU: NÃO VOU FAZER</Text>
-              <Text style={W.skipText}>Mudou de ideia? Dá para fazer agora: ou toque numa série, ou aqui.</Text>
-              <Btn small kind="primary" icon="barbell" text="FAZER ESTE AGORA" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} style={{marginTop: 10, alignSelf: 'flex-start'}} />
-            </View>
-          ) : (
+          {!skippedNow ? (
             <Btn small kind="ghost" icon="remove-circle-outline" text="NÃO VOU FAZER ESTE" label={`Não vou fazer ${ex.nome}`} onPress={() => setAskSkip(true)} style={{marginTop: 22, alignSelf: 'flex-start'}} />
-          )}
+          ) : null}
         </Animated.View>
       </ScrollView>
       <View style={[W.controls, {paddingBottom: insets.bottom + 12}]}>
@@ -362,7 +364,7 @@ const W = StyleSheet.create({
   segNow: {borderWidth: 2, borderColor: C.pink, backgroundColor: '#E6E1D7'},
   segSkip: {backgroundColor: '#F2B84B'},
   segsLegend: {paddingHorizontal: 20, paddingTop: 6, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, color: C.muted},
-  skipBox: {marginTop: 22, padding: 14, borderRadius: R.md, backgroundColor: '#FFE9B8', borderWidth: 2, borderColor: C.ink},
+  skipBox: {marginBottom: 14, padding: 14, borderRadius: R.md, backgroundColor: '#FFE9B8', borderWidth: 2, borderColor: C.ink},
   skipTitle: {fontSize: 13, fontWeight: '900', letterSpacing: 1, color: C.ink},
   skipText: {fontSize: 14, lineHeight: 20, color: C.ink, marginTop: 4},
   skippedNote: {fontSize: 14, lineHeight: 20, color: C.ink, textAlign: 'center', marginTop: 10, fontWeight: '700'},
