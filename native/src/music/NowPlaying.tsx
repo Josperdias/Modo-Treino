@@ -1,7 +1,7 @@
 /** "Tocando agora": o cartão grande do player (arte, nome, repetir/anterior/play/próxima/favoritar, barra com tempo).
  * Abre ao tocar no mini player. A fita gira enquanto toca; para rádio, o globo e o país. */
 import React from 'react';
-import {Image, StyleSheet, View} from 'react-native';
+import {Image, StyleSheet, useWindowDimensions, View} from 'react-native';
 import {Text} from '../text';
 import Animated, {FadeIn} from 'react-native-reanimated';
 import {flag} from '../data';
@@ -13,13 +13,15 @@ import {useMusic} from './MusicProvider';
 
 export default function NowPlaying({visible, onClose, onTapes}: {visible: boolean; onClose: () => void; onTapes: () => void}) {
   const m = useMusic();
+  const {height} = useWindowDimensions();
+  const artH = Math.max(120, Math.min(200, Math.round(height * 0.22)));   // a arte nunca passa de ~1/5 da tela: o painel não cobre tudo
   const t = m.now;
   const live = m.live;
   const fav = t ? m.isFav(t.id) : false;
   const bag = m.queueName ?? m.activeTape.name;
   const sub = !t ? '' : live ? `${flag(t.cc)} ${t.country || 'Rádio'} · ao vivo` : `Fita · ${bag}`;
   return (
-    <Sheet visible={visible} onClose={onClose} title="Tocando agora">
+    <Sheet visible={visible} onClose={onClose} title="Tocando agora" scroll>
       {!t ? (
         <View style={{paddingVertical: 24, alignItems: 'center', gap: 12}}>
           <Icon name="musical-notes" size={36} color={C.pink} />
@@ -28,9 +30,9 @@ export default function NowPlaying({visible, onClose, onTapes}: {visible: boolea
         </View>
       ) : (
         <Animated.View entering={FadeIn.duration(220)}>
-          <Card color={live ? '#17104A' : C.yellow} offset={5} style={{paddingTop: 18, paddingBottom: 14, alignItems: 'center'}} pattern={<Pattern kind="dots" color={live ? '#FFFFFF' : undefined} opacity={live ? 0.1 : 0.13} size={16} />}>
+          <Card color={live ? '#17104A' : C.yellow} offset={5} style={{paddingTop: 14, paddingBottom: 12, alignItems: 'center'}} pattern={<Pattern kind="dots" color={live ? '#FFFFFF' : undefined} opacity={live ? 0.1 : 0.13} size={16} />}>
             {live
-              ? <Image source={require('../../assets/notif/radio.png')} resizeMode="contain" style={{width: '100%', aspectRatio: 1, maxHeight: 250}} accessibilityLabel="Rádio do mundo" />
+              ? <Image source={require('../../assets/notif/radio.png')} resizeMode="contain" style={{width: '100%', height: artH}} accessibilityLabel="Rádio do mundo" />
               : <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={t.title} /></View>}
           </Card>
 

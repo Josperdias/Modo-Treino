@@ -153,6 +153,7 @@
    */
   function snapshotSession(o) {
     const items = [];
+    const skippedList = [];
     let sets = 0;
     let total = 0;
     let volume = 0;
@@ -163,6 +164,7 @@
       total += n;
       const done = (o.getDone(e) || []).slice(0, n).filter(Boolean).length;
       sets += done;
+      if (typeof o.getSkipped === 'function' && o.getSkipped(e) && done < n) skippedList.push({ id: e.id, nome: e.nome });
       if (done > 0) {
         const reps = Math.max(1, Math.min(MAX_REPS, Math.trunc(Number(c.reps)) || 1));
         const peso = Math.max(0, Math.min(MAX_WEIGHT, toNumber(c.peso)));
@@ -170,7 +172,7 @@
         items.push({ id: e.id, nome: e.nome, series: done, reps, peso });
       }
     }
-    return {
+    const out = {
       date: o.date,
       time: o.time || '',
       treino: o.treino,
@@ -179,6 +181,8 @@
       volume: round1(volume),
       items,
     };
+    if (skippedList.length) out.skipped = skippedList;   // só aparece quando a pessoa disse "não vou fazer"
+    return out;
   }
 
   /**
@@ -256,7 +260,11 @@
     return withCount(target === cur ? cur - 1 : target, total);
   }
 
-  /** Situação de cada exercício de um treino: [{id,total,done,complete}] + totais e percentual. */
+  /**
+   * Situação de cada exercício de um treino: [{id,total,done,complete,skipped}] + totais e percentual.
+   * `skipped` = a pessoa disse "não vou fazer este exercício" (opcional: `getSkipped`). Pulado conta como RESOLVIDO (o treino pode terminar),
+   * mas não soma séries nem percentual. `firstIncomplete` = primeiro exercício que não está feito nem pulado.
+   */
   function workoutProgress(o) {
     const list = [];
     let sets = 0;
@@ -265,25 +273,37 @@
       if (e.treino !== o.treino) continue;
       const t = clampSeries((o.getConf(e) || {}).series);
       const d = doneCount(o.getDone(e), t);
-      list.push({id: e.id, total: t, done: d, complete: d >= t});
+      const skipped = typeof o.getSkipped === 'function' ? !!o.getSkipped(e) : false;
+      list.push({id: e.id, total: t, done: d, complete: d >= t, skipped});
       sets += d;
       total += t;
     }
-    return {list, sets, total, percent: Math.min(100, Math.round((100 * sets) / Math.max(1, total))), firstIncomplete: list.findIndex((x) => !x.complete)};
+    return {
+      list, sets, total,
+      percent: Math.min(100, Math.round((100 * sets) / Math.max(1, total))),
+      firstIncomplete: list.findIndex((x) => !x.complete && !x.skipped),
+      skippedCount: list.filter((x) => x.skipped && !x.complete).length,
+    };
+  }
+
+  /** Marca/desmarca um exercício como "não vou fazer" (devolve um NOVO vetor de ids, sem repetir). */
+  function setSkipped(ids, id, on) {
+    const base = (Array.isArray(ids) ? ids : []).filter((x) => x !== id);
+    return on ? [...base, id] : base;
   }
 
   /**
    * O que mostrar depois do descanso (ou ao concluir uma série):
    *  - 'same'     : o exercício atual ainda tem séries (índice igual)
-   *  - 'exercise' : próximo exercício incompleto (primeiro depois do atual; se não houver, o primeiro antes dele)
-   *  - 'done'     : tudo completo
+   *  - 'exercise' : próximo exercício incompleto e NÃO pulado (primeiro depois do atual; se não houver, o primeiro antes dele)
+   *  - 'done'     : tudo completo ou pulado
    */
   function nextStep(list, i) {
     if (!list.length) return {type: 'done', index: -1};
-    if (list[i] && !list[i].complete) return {type: 'same', index: i};
+    if (list[i] && !list[i].complete && !list[i].skipped) return {type: 'same', index: i};
     for (let k = 1; k < list.length; k++) {
       const j = (i + k) % list.length;
-      if (!list[j].complete) return {type: 'exercise', index: j};
+      if (!list[j].complete && !list[j].skipped) return {type: 'exercise', index: j};
     }
     return {type: 'done', index: -1};
   }
@@ -527,6 +547,10 @@
         sets: Math.max(0, Math.min(500, Math.trunc(Number(s.sets)) || 0)),
         percent: Math.max(0, Math.min(100, Math.trunc(Number(s.percent)) || 0)),
       };
+      const skippedClean = (Array.isArray(s.skipped) ? s.skipped.slice(0, 30) : [])
+        .filter((x) => isObj(x) && ID_RE.test(String(x.id)))
+        .map((x) => ({ id: String(x.id), nome: String(x.nome == null ? '' : x.nome).slice(0, 80) }));
+      if (skippedClean.length) out.skipped = skippedClean;
       if (items.length) {
         out.items = items;
         out.volume = round1(items.reduce((a, it) => a + it.series * it.reps * it.peso, 0));
@@ -568,6 +592,7 @@
     tapSeries,
     workoutProgress,
     nextStep,
+    setSkipped,
     REST_MAX,
     normalizeRest,
     restPlan,

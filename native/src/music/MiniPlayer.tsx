@@ -321,11 +321,11 @@ const MP = StyleSheet.create({
   compactUp: {width: 24, height: 24, borderRadius: 8, backgroundColor: '#1B2547', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: INK},
 });
 
-/** Miniplayer da aba Músicas: aparece quando o player grande sai da tela (Fitas) ou sempre que há música (Bags); some na Rádio. */
+/** Miniplayer da aba Músicas: aparece quando o player grande sai da tela (Fitas) ou sempre que há música (Bags e Rádio). */
 export function DockedMini({visible, mode, onOpen}: {visible: boolean; mode: 'tapes' | 'bags' | 'radio'; onOpen: () => void}) {
   const m = useMusic();
   const heroGone = useHeroGone();
-  const show = visible && mode !== 'radio' && !!m.now && (mode === 'bags' || heroGone);
+  const show = visible && !!m.now && (mode === 'bags' || mode === 'radio' || heroGone);
   if (!show) return null;
   return <MiniPlayer onOpen={onOpen} />;
 }

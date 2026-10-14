@@ -1,7 +1,8 @@
 // Tipos da fonte única shared/logic.js (copiada para cá por scripts/sync-shared.mjs).
 export type Treino = 'A' | 'B';
 export type SessionItem = {id: string; nome: string; series: number; reps: number; peso: number};
-export type Session = {date: string; time: string; treino: Treino; sets: number; percent: number; volume?: number; items?: SessionItem[]};
+export type SkippedItem = {id: string; nome: string};
+export type Session = {date: string; time: string; treino: Treino; sets: number; percent: number; volume?: number; items?: SessionItem[]; skipped?: SkippedItem[]};
 export type Conf = {series: number | string; reps: number | string; peso: number | string};
 export type ParsedVersion = {major: number; minor: number; patch: number; pre: string[]};
 export type ReleaseLike = {tag_name?: string; draft?: boolean; prerelease?: boolean; html_url?: string; body?: string | null; assets?: {name?: string; browser_download_url?: string; size?: number; digest?: string}[]};
@@ -20,7 +21,7 @@ export function pickLatestRelease(releases: unknown): ReleaseLike | null;
 export function evaluateUpdate(installed: string, releases: unknown): UpdateState;
 export function safeGithubUrl(url: unknown, repo?: string): string | null;
 export function apkAsset(release: ReleaseLike | null, repo?: string): {name: string; url: string; size: number; sha256: string | null} | null;
-export function snapshotSession(o: {exercises: {id: string; nome: string; treino: Treino}[]; treino: Treino; date: string; time?: string; getConf: (e: any) => Conf; getDone: (e: any) => boolean[]}): Session;
+export function snapshotSession(o: {exercises: {id: string; nome: string; treino: Treino}[]; treino: Treino; date: string; time?: string; getConf: (e: any) => Conf; getDone: (e: any) => boolean[]; getSkipped?: (e: any) => boolean}): Session;
 export function annotateRecords(sessions: Session[]): string[][];
 export function personalBests(sessions: Session[]): Record<string, {peso: number; date: string; nome: string}>;
 export function totalVolume(sessions: Session[]): number;
@@ -28,13 +29,14 @@ export function streak(sessions: {date: string}[], todayKey: string): number;
 export function sessionsToCsv(sessions: Session[]): string;
 export function validateBackup(obj: unknown): BackupData;
 
-export type ProgressItem = {id: string; total: number; done: number; complete: boolean};
-export type WorkoutProgress = {list: ProgressItem[]; sets: number; total: number; percent: number; firstIncomplete: number};
+export type ProgressItem = {id: string; total: number; done: number; complete: boolean; skipped: boolean};
+export type WorkoutProgress = {list: ProgressItem[]; sets: number; total: number; percent: number; firstIncomplete: number; skippedCount: number};
 export type NextStep = {type: 'same' | 'exercise' | 'done'; index: number};
 export function doneCount(done: unknown, total: number): number;
 export function withCount(k: number, total: number): boolean[];
 export function tapSeries(done: unknown, k: number, total: number): boolean[];
-export function workoutProgress(o: {exercises: {id: string; treino: Treino}[]; treino: Treino; getConf: (e: any) => Conf; getDone: (e: any) => boolean[]}): WorkoutProgress;
+export function workoutProgress(o: {exercises: {id: string; treino: Treino}[]; treino: Treino; getConf: (e: any) => Conf; getDone: (e: any) => boolean[]; getSkipped?: (e: any) => boolean}): WorkoutProgress;
+export function setSkipped(ids: string[] | undefined, id: string, on: boolean): string[];
 export function nextStep(list: ProgressItem[], i: number): NextStep;
 
 export const REST_MAX: number;

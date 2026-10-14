@@ -31,7 +31,7 @@ import {limparTreino, pedirNotificacoes} from './src/notify';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {C, R, useNarrow} from './src/theme';
 
-const APP_VERSION='1.4.4';
+const APP_VERSION='1.4.5';
 
 type Tab = 'home' | 'music' | 'search' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
@@ -168,11 +168,11 @@ function Shell() {
       {workout && (
         <WorkoutScreen key={`${workout.t}-${workout.index ?? 'x'}`} treino={workout.t} startIndex={workout.index} onClose={() => setWorkout(null)}
           onSaved={() => { setWorkout(null); setOpen(null); toast.show('Treino salvo no histórico ✓'); setTab('progress'); }}
-          onOpenMusic={() => { setWorkout(null); setTab('music'); }} onZoom={openZoom} onEdit={setEditing} />
+          onOpenMusic={() => setNowOpen(true)} onZoom={openZoom} onEdit={setEditing} />
       )}
       <EditSheet exercise={editing} onClose={() => setEditing(null)} onZoom={openZoom} />
       <SettingsSheet visible={settings} onClose={() => setSettings(false)} version={APP_VERSION} status={updates.status} onCheck={() => { void updates.check(true); }} onGallery={() => setGallery(true)} backup={backup} />
-      <NowPlaying visible={nowOpen} onClose={() => setNowOpen(false)} onTapes={() => setTab('music')} />
+      <NowPlaying visible={nowOpen} onClose={() => setNowOpen(false)} onTapes={() => { setWorkout(null); setTab('music'); }} />
       <GallerySheet visible={gallery} onClose={() => setGallery(false)} onZoom={openZoom} />
       {zoom && <ZoomView source={zoom.source} label={zoom.label} onClose={() => setZoom(null)} />}
     </SafeAreaView>

@@ -564,7 +564,14 @@ test('rádio: estações do diretório, estilos em português e lista de países
   await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
   await tab(page, 'Músicas'); await musicTab(page, 'Rádio do mundo');
   await page.getByText('9 estações').waitFor();
+  assert.equal(await page.getByLabel('Estilo Pop', {exact: true}).count(), 0, 'os estilos ficam recolhidos até abrir o painel');
+  await page.getByLabel('Escolher estilo').click();
   for (const g of ['Pop', 'Eletrônica', 'Clássica', 'Notícias', 'Esportes']) await page.getByLabel(`Estilo ${g}`, {exact: true}).waitFor();
+  await page.getByText('BRASIL E LATINA').waitFor();
+  await page.getByLabel('Estilo Rock', {exact: true}).click(); await settle(page, 300);
+  assert.equal(await page.getByLabel('Estilo Pop', {exact: true}).count(), 0, 'escolher um estilo recolhe o painel');
+  await page.getByLabel(/^Escolher estilo, agora Rock/).click(); await page.getByLabel('Recolher os estilos').click(); await settle(page, 300);
+  await page.getByLabel('Limpar busca').click();
   await page.getByLabel('Ver rádios por país').click();
   await page.getByLabel(/^(Brazil|Brasil), 6 rádios$/).waitFor();
   await page.getByLabel(/^(Portugal), 2 rádios$/).waitFor();
@@ -667,6 +674,92 @@ test('Fitas: a busca de cima só aparece (com animação) ao passar pelas fitas 
   await context.close();
 });
 
+test('"não vou fazer este exercício": confirma ao pular, dá para se arrepender ao voltar e confirma de novo ao finalizar', {skip}, async () => {
+  const {context, page} = await open();
+  await openTreino(page, 'A'); await startWorkout(page);
+  const fills = () => page.evaluate(() => [...document.querySelectorAll('[aria-label="Progresso do treino"] > div')].map((seg) => (seg.firstElementChild ? seg.firstElementChild.style.width : 'pulado')));
+  // 1) pular pede confirmação; "Voltar" não pula
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').click();
+  await page.getByText('Não fazer este exercício?').waitFor();
+  await page.getByLabel('VOLTAR', {exact: true}).click(); await settle(page, 300);
+  assert.match(await body(page), /EXERCÍCIO 1\/6/, 'cancelar a pergunta não pula');
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').click();
+  await page.getByLabel('NÃO VOU FAZER', {exact: true}).click(); await settle(page, 500);
+  assert.match(await body(page), /EXERCÍCIO 2\/6/, 'pulou e foi ao próximo');
+  assert.match(await body(page), /1 pulado/);
+  assert.equal((await fills())[0], 'pulado');
+  // 2) voltar ao pulado: aviso e arrependimento
+  await page.getByLabel('Exercício anterior').click(); await settle(page, 400);
+  await page.getByText('VOCÊ MARCOU: NÃO VOU FAZER').waitFor();
+  await page.getByLabel('Fazer Rosca direta na barra W agora').click(); await settle(page, 400);
+  assert.equal(await page.getByText('VOCÊ MARCOU: NÃO VOU FAZER').count(), 0, 'se arrependeu: o exercício volta ao treino');
+  assert.doesNotMatch(await body(page), /1 pulado/);
+  // 3) pula de novo, faz todos os outros e finaliza: pede confirmação do que ficou de fora
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').click();
+  await page.getByLabel('NÃO VOU FAZER', {exact: true}).click(); await settle(page, 500);
+  for (const [nome, n] of A.slice(1)) {
+    for (let k = 1; k <= n; k++) { await setBtn(page, k, nome).click(); await settle(page, 120); }
+    const skipRest = page.getByLabel('Pular descanso'); if (await skipRest.count()) await skipRest.click();
+    await settle(page, 300);
+  }
+  await page.getByText(/COMPLETO!/).waitFor();
+  assert.match(await body(page), /NÃO FEITO: Rosca direta na barra W/);
+  await page.getByLabel('FINALIZAR E SALVAR').click();
+  await page.getByText('Confirmar o que ficou de fora?').waitFor();
+  await page.getByLabel('VOLTAR E FAZER', {exact: true}).click(); await settle(page, 500);
+  assert.match(await body(page), /EXERCÍCIO 1\/6/, 'voltar e fazer leva ao exercício pulado');
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').count(); // continua pulado
+  await page.getByLabel('TERMINAR', {exact: true}).click(); await settle(page, 500);   // exercício pulado e último que falta: o botão vira TERMINAR
+  await page.getByText(/COMPLETO!/).waitFor();
+  await page.getByLabel('FINALIZAR E SALVAR').click();
+  await page.getByLabel('CONFIRMAR E SALVAR').click(); await settle(page, 600);
+  const saved = await store(page);
+  assert.equal(saved.sessions.length, 1);
+  assert.deepEqual(saved.sessions[0].skipped.map((x) => x.nome), ['Rosca direta na barra W'], 'o histórico guarda o que ficou de fora');
+  assert.equal(saved.sessions[0].items.length, 5, 'só os 5 exercícios feitos entram');
+  await context.close();
+});
+
+test('treino: abrir o player pelo mini rádio NÃO fecha o treino (volta ao mesmo exercício) e o "Tocando agora" cabe na tela', {skip}, async () => {
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Stronger', {exact: true}).click(); await settle(page, 600);
+  await tab(page, 'Início');
+  await openTreino(page, 'A'); await startWorkout(page);
+  await page.getByLabel('Próximo exercício').first().click(); await settle(page, 400);
+  assert.match(await body(page), /EXERCÍCIO 2\/6/);
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByRole('heading', {name: 'Tocando agora'}).waitFor();
+  await settle(page, 700); // espera a animação de subida do painel
+  const head = await page.getByRole('heading', {name: 'Tocando agora'}).boundingBox();
+  assert.ok(head && head.y >= 40, 'o painel não cobre a tela inteira: deixa o treino aparecendo no topo');
+  const play = page.getByLabel('Tocar ou pausar').last();
+  await play.scrollIntoViewIfNeeded();
+  const box = await play.boundingBox();
+  assert.ok(box && box.y >= 0 && box.y + box.height <= 844, 'o botão de tocar/pausar é alcançável dentro da tela (painel rolável)');
+  await page.getByLabel('Fechar').last().click(); await settle(page, 400);
+  assert.match(await body(page), /EXERCÍCIO 2\/6/, 'o treino continua no mesmo exercício');
+  await context.close();
+});
+
+test('rádio: o cartão da estação recolhe numa tirinha e abre de novo; o rádio dourado aparece na aba Rádio', {skip}, async () => {
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
+  const radios = [{stationuuid: 'u1', name: 'Rádio Lose Control', url_resolved: 'https://example.com/s1', countrycode: 'BR', country: 'Brazil', state: '', tags: 'pop', geo_lat: -10, geo_long: -50, clickcount: 5, bitrate: 128}];
+  await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Stronger', {exact: true}).click(); await settle(page, 500);
+  await musicTab(page, 'Rádio do mundo');
+  await page.getByText('1 estações').waitFor();
+  await page.getByLabel('Surpreenda-me com uma rádio aleatória').click(); await settle(page, 600);
+  await page.getByLabel('Recolher o cartão da rádio').waitFor();
+  await page.getByLabel('Recolher o cartão da rádio').click(); await settle(page, 400);
+  assert.equal(await page.getByLabel('Guardar rádio numa bag').count(), 0, 'recolhido: sem os botões grandes');
+  await page.getByLabel(/Toque para abrir o cartão/).click(); await settle(page, 400);
+  await page.getByLabel('Guardar rádio numa bag').waitFor();
+  await page.getByRole('toolbar', {name: 'Player de música'}).waitFor();   // música tocando: o rádio dourado também aparece na aba Rádio
+  await context.close();
+});
+
 test('player compacto: só aparece com música tocando; some na aba Músicas; recolhe e abre; fica no modo execução e no descanso', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
   const toolbar = page.getByRole('toolbar', {name: 'Player de música'});
@@ -690,6 +783,8 @@ test('player compacto: só aparece com música tocando; some na aba Músicas; re
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1, 'no descanso');
   await page.getByLabel('Pular descanso').click();
   await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByRole('heading', {name: 'Tocando agora'}).waitFor();   // o treino continua por baixo
+  await page.getByLabel('VER MINHAS FITAS').click();
   await page.getByText('Suas fitas,', {exact: false}).waitFor();
   await context.close();
 });

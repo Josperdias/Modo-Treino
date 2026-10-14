@@ -229,18 +229,51 @@ test('doneCount: conta marcadas (mesmo não consecutivas) e ignora o que passa d
 const wp = (confs, dones, treino = 'A') => L.workoutProgress({exercises: EX, treino, getConf: (e) => confs[e.id], getDone: (e) => dones[e.id] || []});
 test('workoutProgress: totais, percentual e primeiro exercício incompleto', () => {
   const p = wp({a1: {series: 3}, a2: {series: 2}}, {a1: [true, true, true], a2: [true]});
-  assert.deepEqual(p.list, [{id: 'a1', total: 3, done: 3, complete: true}, {id: 'a2', total: 2, done: 1, complete: false}]);
+  assert.deepEqual(p.list, [{id: 'a1', total: 3, done: 3, complete: true, skipped: false}, {id: 'a2', total: 2, done: 1, complete: false, skipped: false}]);
   assert.equal(p.sets, 4); assert.equal(p.total, 5); assert.equal(p.percent, 80); assert.equal(p.firstIncomplete, 1);
   assert.equal(wp({a1: {series: 1}, a2: {series: 1}}, {a1: [true], a2: [true]}).firstIncomplete, -1);
   assert.equal(wp({a1: {series: 4}, a2: {series: 4}}, {}).percent, 0);
 });
 test('nextStep: mesma série, próximo exercício, volta ao pulado e fim', () => {
-  const item = (done, total = 2) => ({id: 'x', total, done, complete: done >= total});
+  const item = (done, total = 2, skipped = false) => ({id: 'x', total, done, complete: done >= total, skipped});
   assert.deepEqual(L.nextStep([item(1), item(0)], 0), {type: 'same', index: 0});
   assert.deepEqual(L.nextStep([item(2), item(0), item(0)], 0), {type: 'exercise', index: 1});
   assert.deepEqual(L.nextStep([item(0), item(2), item(2)], 2), {type: 'exercise', index: 0}); // volta ao exercício pulado
   assert.deepEqual(L.nextStep([item(2), item(2)], 1), {type: 'done', index: -1});
   assert.deepEqual(L.nextStep([], 0), {type: 'done', index: -1});
+});
+
+/* ---------- "não vou fazer este exercício" ---------- */
+test('exercício pulado conta como resolvido: o treino pode terminar, mas não soma séries nem percentual', () => {
+  const pw = (skipIds) => L.workoutProgress({exercises: EX, treino: 'A', getConf: (e) => ({a1: {series: 3}, a2: {series: 2}})[e.id], getDone: (e) => ({a1: [true, true, true]})[e.id] || [], getSkipped: (e) => skipIds.includes(e.id)});
+  const p = pw(['a2']);
+  assert.equal(p.list[1].skipped, true); assert.equal(p.firstIncomplete, -1); assert.equal(p.skippedCount, 1);
+  assert.equal(p.sets, 3); assert.equal(p.percent, 60, 'o percentual NÃO sobe por pular');
+  assert.equal(pw([]).firstIncomplete, 1); assert.equal(pw([]).skippedCount, 0);
+  // um exercício já completo nunca conta como "pulado"
+  assert.equal(pw(['a1']).skippedCount, 0);
+});
+test('nextStep: pula os exercícios pulados e termina quando só sobram pulados', () => {
+  const item = (done, total = 2, skipped = false) => ({id: 'x', total, done, complete: done >= total, skipped});
+  assert.deepEqual(L.nextStep([item(2), item(0, 2, true), item(0)], 0), {type: 'exercise', index: 2});
+  assert.deepEqual(L.nextStep([item(2), item(0, 2, true)], 0), {type: 'done', index: -1});
+  assert.deepEqual(L.nextStep([item(0, 2, true), item(2)], 0), {type: 'done', index: -1});
+});
+test('setSkipped: marca e desmarca sem repetir e sem alterar o vetor original', () => {
+  const base = ['a'];
+  assert.deepEqual(L.setSkipped(base, 'b', true), ['a', 'b']);
+  assert.deepEqual(L.setSkipped(['a', 'b'], 'b', true), ['a', 'b']);
+  assert.deepEqual(L.setSkipped(['a', 'b'], 'a', false), ['b']);
+  assert.deepEqual(L.setSkipped(undefined, 'x', true), ['x']);
+  assert.deepEqual(base, ['a']);
+});
+test('snapshotSession e backup guardam os exercícios que a pessoa disse que não ia fazer', () => {
+  const sn = L.snapshotSession({exercises: EX, treino: 'A', date: '2026-10-14', time: '07:30', getConf: (e) => ({series: 2, reps: 5, peso: 10}), getDone: (e) => (e.id === 'a1' ? [true, true] : []), getSkipped: (e) => e.id === 'a2'});
+  assert.deepEqual(sn.skipped, [{id: 'a2', nome: EX.find((x) => x.id === 'a2').nome}]);
+  const sem = L.snapshotSession({exercises: EX, treino: 'A', date: '2026-10-14', getConf: () => ({series: 2, reps: 5, peso: 10}), getDone: () => []});
+  assert.ok(!('skipped' in sem), 'sem pulados o campo nem aparece (sessões antigas ficam iguais)');
+  const b = L.validateBackup({sessions: [{...sn, skipped: [...sn.skipped, {id: '../x'}, 7]}], sets: {}, override: {}});
+  assert.deepEqual(b.sessions[0].skipped, sn.skipped, 'backup descarta ids inválidos');
 });
 
 /* ---------- descanso ---------- */

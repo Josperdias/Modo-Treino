@@ -7,6 +7,8 @@ import {Icon, Press} from '../ui';
 import {C, T} from '../theme';
 import {useMusic, useMusicProgress} from './MusicProvider';
 
+/** A bolinha tem 24 de largura: a barra recua 12 de cada lado para a bolinha nunca ser cortada nas pontas (0% e 100%). */
+const KNOB = 24;
 const clamp01 = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
 
 /** Barra com bolinha: toque para ir direto ao ponto, ou SEGURE a bolinha e arraste (a posição acompanha o dedo; o som só muda ao soltar,
@@ -24,9 +26,9 @@ function Scrub({pct, onLive, onCommit, label, valueText, fill, disabled, onDrag}
     onMoveShouldSetPanResponder: () => !off.current,
     onMoveShouldSetPanResponderCapture: () => !off.current,   // a rolagem da tela não rouba o arrasto
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: (e) => { start.current = clamp01(e.nativeEvent.locationX / Math.max(1, wRef.current)); move(start.current); },
-    onPanResponderMove: (_, g) => move(clamp01(start.current + g.dx / Math.max(1, wRef.current))),
-    onPanResponderRelease: (_, g) => { const p = clamp01(start.current + g.dx / Math.max(1, wRef.current)); setDrag(null); cb.current.onDrag?.(null); cb.current.onCommit(p); },
+    onPanResponderGrant: (e) => { start.current = clamp01((e.nativeEvent.locationX - KNOB / 2) / Math.max(1, wRef.current - KNOB)); move(start.current); },
+    onPanResponderMove: (_, g) => move(clamp01(start.current + g.dx / Math.max(1, wRef.current - KNOB))),
+    onPanResponderRelease: (_, g) => { const p = clamp01(start.current + g.dx / Math.max(1, wRef.current - KNOB)); setDrag(null); cb.current.onDrag?.(null); cb.current.onCommit(p); },
     onPanResponderTerminate: () => { setDrag(null); cb.current.onDrag?.(null); },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
@@ -49,8 +51,8 @@ function Scrub({pct, onLive, onCommit, label, valueText, fill, disabled, onDrag}
       accessible accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{text: valueText}}
       accessibilityActions={[{name: 'increment', label: 'Avançar'}, {name: 'decrement', label: 'Voltar'}]}
       onAccessibilityAction={(e) => nudge(e.nativeEvent.actionName === 'increment' ? 0.05 : -0.05)}>
-      <View pointerEvents="none" style={B.seekTrack}><View style={[B.seekFill, {width: `${shown * 100}%`, backgroundColor: fill}]} /></View>
-      <View pointerEvents="none" style={[B.knobBox, {left: `${shown * 100}%`}]}>
+      <View pointerEvents="none" style={[B.seekTrack, {marginHorizontal: KNOB / 2}]}><View style={[B.seekFill, {width: `${shown * 100}%`, backgroundColor: fill}]} /></View>
+      <View pointerEvents="none" style={[B.knobBox, {left: KNOB / 2 + shown * Math.max(0, w - KNOB)}]}>
         <Animated.View style={[B.knobHalo, {backgroundColor: fill}, haloAnim]} />
         <Animated.View style={[B.knob, knobAnim]} />
       </View>

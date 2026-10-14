@@ -1,8 +1,8 @@
 import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
-import {Modal, Pressable, PressableProps, StyleProp, StyleSheet, TextStyle, View, ViewStyle} from 'react-native';
+import {Modal, Pressable, PressableProps, ScrollView, StyleProp, StyleSheet, TextStyle, useWindowDimensions, View, ViewStyle} from 'react-native';
 import {Text} from './text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, FadeInDown, FadeOutDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming} from 'react-native-reanimated';
-import Svg, {Circle, Defs, G, Line, Pattern as SvgPattern, Rect} from 'react-native-svg';
+import Svg, {Circle, Defs, G, Line, LinearGradient, Path, Pattern as SvgPattern, Rect, Stop} from 'react-native-svg';
 import {Ionicons} from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {playSound} from '../SoundFX';
@@ -166,26 +166,121 @@ const SW = StyleSheet.create({
   knob: {width: 22, height: 22, borderRadius: 11, backgroundColor: C.white},
 });
 
-/** Folha que sobe de baixo (substitui as páginas extras): ajustes, edição, escolher músicas. */
-export function Sheet({visible, onClose, title, children, tall}: {visible: boolean; onClose: () => void; title: string; children: React.ReactNode; tall?: boolean}) {
+/** Borda de bolinhas rosa no alto da folha: o degradê some para cima e as bolinhas vão aparecendo (crescem até encostar na folha). */
+const EDGE_H = 120;
+/** A borda continua por trás dos cantos arredondados da folha (sem isso aparecia um vão cinza em cada canto). */
+const EDGE_EXTRA = 36;
+function SheetEdge({width}: {width: number}) {
+  const total = EDGE_H + EDGE_EXTRA;
+  const rows = React.useMemo(() => {
+    const gap = 14; const n = Math.floor(total / gap); const cols = Math.ceil(width / gap) + 1;
+    const out: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const up = Math.max(0, i * gap - EDGE_EXTRA);   // quanto acima da folha a fileira está
+      const r = 6.2 * Math.pow(Math.max(0, 1 - up / EDGE_H), 1.25);
+      if (r < 0.6) continue;
+      const y = total - 6 - i * gap; const off = i % 2 ? gap / 2 : 0;
+      let d = '';
+      for (let c = 0; c < cols; c++) { const x = c * gap + off - gap / 2; d += `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`; }
+      out.push(d);
+    }
+    return out;
+  }, [width, total]);
+  const solid = (EDGE_H / total).toFixed(3);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <View pointerEvents="none" style={{position: 'absolute', left: 0, right: 0, top: -EDGE_H, height: total}}>
+      <Svg width={width} height={total}>
+        <Defs>
+          <LinearGradient id="sheetEdge" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#F472B6" stopOpacity="0" />
+            <Stop offset={(EDGE_H * 0.55 / total).toFixed(3)} stopColor="#F472B6" stopOpacity="0.22" />
+            <Stop offset={solid} stopColor="#F472B6" stopOpacity="0.55" />
+            <Stop offset="1" stopColor="#F472B6" stopOpacity="0.55" />
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width={width} height={total} fill="url(#sheetEdge)" />
+        {rows.map((d, i) => <Path key={i} d={d} fill="#FF9AD0" fillOpacity={0.8} />)}
+      </Svg>
+    </View>
+  );
+}
+
+/** Folha que sobe de baixo (substitui as páginas extras): ajustes, edição, escolher músicas. */
+/** `scroll`: o conteúdo rola dentro do painel quando é mais alto que a tela (em vez de ser cortado embaixo). */
+export function Sheet({visible, onClose, title, children, tall, scroll}: {visible: boolean; onClose: () => void; title: string; children: React.ReactNode; tall?: boolean; scroll?: boolean}) {
+  const {height, width} = useWindowDimensions();
+  const reduce = useReducedMotion();
+  // Altura máxima em pixels (a porcentagem não limitava o conteúdo: ele passava do fim da tela e os botões ficavam cortados).
+  const maxH = Math.round(height * 0.9);
+  // O fundo escuro aparece com fade e só a folha sobe (antes o fundo subia junto, com uma quina dura no meio da tela).
+  const [mounted, setMounted] = useState(visible);
+  const p = useSharedValue(visible ? 1 : 0);
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      p.value = withTiming(1, {duration: reduce ? 0 : 340, easing: Easing.out(Easing.cubic)});
+      return;
+    }
+    p.value = withTiming(0, {duration: reduce ? 0 : 240, easing: Easing.in(Easing.cubic)});
+    const t = setTimeout(() => setMounted(false), reduce ? 0 : 260);
+    return () => clearTimeout(t);
+  }, [visible, reduce, p]);
+  const backStyle = useAnimatedStyle(() => ({opacity: p.value}));
+  const sheetStyle = useAnimatedStyle(() => ({transform: [{translateY: (1 - p.value) * (maxH + EDGE_H)}]}));
+  return (
+    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={SH.back}>
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {backgroundColor: 'rgba(16,23,51,.55)'}, backStyle]} />
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Fechar" accessibilityRole="button" />
-        <View style={[SH.sheet, tall && {height: '88%'}]} accessibilityViewIsModal>
-          <View style={SH.grab} />
-          <View style={SH.head}>
-            <Text style={[T.h2, {flex: 1}]} accessibilityRole="header">{title}</Text>
-            <Press accessibilityRole="button" accessibilityLabel="Fechar" onPress={onClose} style={SH.close} quiet><Icon name="close" size={20} /></Press>
+        <Animated.View style={sheetStyle}>
+          <SheetEdge width={width} />
+          <View style={[SH.sheet, {maxHeight: maxH}, tall && {height: Math.round(height * 0.88)}]} accessibilityViewIsModal>
+            <View style={SH.grab} />
+            <View style={SH.head}>
+              <Text style={[T.h2, {flex: 1}]} accessibilityRole="header">{title}</Text>
+              <Press accessibilityRole="button" accessibilityLabel="Fechar" onPress={onClose} style={SH.close} quiet><Icon name="close" size={20} /></Press>
+            </View>
+            {scroll ? <ScrollView style={{flexGrow: 0, flexShrink: 1}} contentContainerStyle={{paddingBottom: 8}} showsVerticalScrollIndicator={false} bounces={false}>{children}</ScrollView> : children}
           </View>
-          {children}
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+/** Pergunta de confirmação no meio da tela (funciona também no navegador, onde o Alert do React Native não faz nada). */
+export function Confirm({visible, title, text, confirmLabel, cancelLabel = 'VOLTAR', danger, onConfirm, onCancel}: {visible: boolean; title: string; text?: string; confirmLabel: string; cancelLabel?: string; danger?: boolean; onConfirm: () => void; onCancel: () => void}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
+      <View style={CF.back}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Fechar a pergunta" accessibilityRole="button" />
+        <View style={CF.card} accessibilityViewIsModal accessibilityRole="alert">
+          <Text style={CF.title}>{title}</Text>
+          {text ? <Text style={CF.text}>{text}</Text> : null}
+          <View style={CF.row}>
+            <Press accessibilityRole="button" accessibilityLabel={cancelLabel} onPress={onCancel} style={[CF.btn, CF.cancel]} quiet><Text style={CF.cancelText}>{cancelLabel}</Text></Press>
+            <Press accessibilityRole="button" accessibilityLabel={confirmLabel} onPress={onConfirm} style={[CF.btn, danger ? CF.danger : CF.ok]} quiet><Text style={CF.okText}>{confirmLabel}</Text></Press>
+          </View>
         </View>
       </View>
     </Modal>
   );
 }
+const CF = StyleSheet.create({
+  back: {flex: 1, backgroundColor: 'rgba(16,23,51,.6)', alignItems: 'center', justifyContent: 'center', padding: 24},
+  card: {alignSelf: 'stretch', backgroundColor: C.paper, borderRadius: R.xl, padding: 22, borderWidth: 2, borderColor: C.ink, borderBottomWidth: 5},
+  title: {fontSize: 26, fontWeight: '900', color: C.ink, lineHeight: 28},
+  text: {fontSize: 15, lineHeight: 22, color: C.muted, marginTop: 10},
+  row: {flexDirection: 'row', gap: 10, marginTop: 20},
+  btn: {flex: 1, minHeight: 52, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderWidth: 2, borderColor: C.ink, borderBottomWidth: 4},
+  cancel: {backgroundColor: C.white},
+  cancelText: {fontSize: 14, fontWeight: '900', letterSpacing: 0.6, color: C.ink},
+  ok: {backgroundColor: C.yellow},
+  danger: {backgroundColor: '#F4A3A3'},
+  okText: {fontSize: 14, fontWeight: '900', letterSpacing: 0.6, color: C.ink, textAlign: 'center'},
+});
+
 const SH = StyleSheet.create({
-  back: {flex: 1, backgroundColor: 'rgba(16,23,51,.55)', justifyContent: 'flex-end'},
+  back: {flex: 1, justifyContent: 'flex-end'},
   sheet: {backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingBottom: 24, maxHeight: '92%'},
   grab: {alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#CFCABD', marginTop: 10},
   head: {flexDirection: 'row', alignItems: 'center', paddingVertical: 14},

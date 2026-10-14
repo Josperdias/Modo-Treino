@@ -2,6 +2,21 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.5] — 2026-10-14
+
+### Treino: "não vou fazer" com dupla verificação
+- **Botão NÃO VOU FAZER ESTE** em cada exercício. Pede confirmação ao marcar e, de novo, ao finalizar o treino ("Confirmar o que ficou de fora?").
+- **Dá para se arrepender**: o aviso "VOCÊ MARCOU: NÃO VOU FAZER" tem o botão **FAZER ESTE AGORA**; tocar numa série também desfaz. Na barrinha de progresso o exercício pulado fica âmbar.
+- O treino salvo no histórico guarda o que ficou de fora; o treino só fica "completo" quando tudo foi feito ou decidido.
+- **Progresso verde não se perde mais ao voltar**: abrir o player pelo mini rádio durante o treino não fecha mais o treino, e o app lembra em qual exercício você parou (por dia e treino).
+
+### Rádio e player
+- **Aba Rádio menos apertada**: ações em uma linha (SURPREENDA, PAÍSES, ESTILOS), estilos agrupados e recolhíveis ("Escolher estilo"), cartão da estação que recolhe numa tirinha com play.
+- **O mini rádio agora aparece na aba Rádio** e também durante o treino.
+- **"Tocando agora" não cobre mais a tela toda**: o painel rola, a capa se adapta à altura e o treino continua aparecendo no topo.
+- **Transição suave dos painéis**: o fundo escuro surge com fade (sem a quina dura) e a folha sobe com uma borda de degradê rosa com bolinhas que vão sumindo.
+- Bolinha da barra de tempo não é mais cortada nas pontas.
+
 ## [1.4.4] — 2026-10-14
 
 ### Ajustes a partir do seu teste da 1.4.3

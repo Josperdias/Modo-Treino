@@ -2,7 +2,7 @@ import React, {createContext, useCallback, useContext, useEffect, useMemo, useRe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DEFAULT_SOUNDS, normalizeSoundSettings, setSoundSettings, SoundSettings} from '../SoundFX';
 import type {Session} from '../logic';
-import {clampSeries, normalizeRest, snapshotSession, workoutProgress} from '../logic';
+import {clampSeries, normalizeRest, setSkipped, snapshotSession, workoutProgress} from '../logic';
 import {EXERCISES, Exercise, Persona, Treino} from './data';
 import type {ExVideo} from './video';
 
@@ -12,6 +12,10 @@ export type Store = {
   restExercise: number;
   restSet: number;
   sets: Record<string, Record<string, boolean[]>>;
+  /** Exercícios que a pessoa disse "não vou fazer" hoje, por dia e treino (mesma chave de `sets`). */
+  skipped: Record<string, string[]>;
+  /** Em qual exercício a pessoa parou hoje (por dia e treino): ao voltar do player de música, ela continua de onde estava. */
+  pos: Record<string, number>;
   override: Record<string, Override>;
   sessions: Session[];
   notifyUpdates: boolean;
@@ -26,7 +30,7 @@ export type Store = {
 
 export const STORAGE = 'modo-treino-native-v1';
 const INITIAL: Store = {
-  persona: 'vinho', restExercise: 60, restSet: 0, sets: {}, override: {}, sessions: [],
+  persona: 'vinho', restExercise: 60, restSet: 0, sets: {}, skipped: {}, pos: {}, override: {}, sessions: [],
   notifyUpdates: true, keepAwake: false, notifyWorkout: true, voice: false, videos: {}, sounds: {...DEFAULT_SOUNDS},
 };
 
@@ -42,6 +46,10 @@ type Ctx = {
   conf: (e: Exercise) => Override;
   total: (e: Exercise) => number;
   done: (e: Exercise) => boolean[];
+  skipped: (e: Exercise) => boolean;
+  setSkipped: (e: Exercise, on: boolean) => void;
+  pos: (t: Treino) => number | undefined;
+  setPos: (t: Treino, i: number) => void;
   progress: (t: Treino) => ReturnType<typeof workoutProgress>;
   setDone: (e: Exercise, next: boolean[]) => void;
   saveOverride: (e: Exercise, o: Override) => void;
@@ -62,7 +70,7 @@ export function AppProvider({children}: {children: React.ReactNode}) {
       if (!v) return;
       try {
         const j = JSON.parse(v);
-        setState({...INITIAL, ...j, ...normalizeRest(j), persona: j.persona === 'loira' ? 'loira' : 'vinho', sounds: normalizeSoundSettings(j.sounds), voice: j.voice === true, videos: j.videos && typeof j.videos === 'object' ? j.videos : {}});
+        setState({...INITIAL, ...j, ...normalizeRest(j), persona: j.persona === 'loira' ? 'loira' : 'vinho', sounds: normalizeSoundSettings(j.sounds), voice: j.voice === true, skipped: j.skipped && typeof j.skipped === 'object' ? j.skipped : {}, pos: j.pos && typeof j.pos === 'object' ? j.pos : {}, videos: j.videos && typeof j.videos === 'object' ? j.videos : {}});
       } catch { /* dados antigos corrompidos: começa do zero sem travar */ }
     }).catch(() => {}).finally(() => setLoaded(true));
   }, []);
@@ -73,11 +81,15 @@ export function AppProvider({children}: {children: React.ReactNode}) {
   const conf = useCallback((e: Exercise): Override => ref.current.override[e.id] || {peso: e.peso, series: e.series, reps: e.reps}, []);
   const total = useCallback((e: Exercise) => clampSeries(ref.current.override[e.id]?.series || e.series), []);
   const done = useCallback((e: Exercise) => ref.current.sets[`${todayKey()}:${e.treino}`]?.[e.id] || [], []);
+  const skipped = useCallback((e: Exercise) => (ref.current.skipped[`${todayKey()}:${e.treino}`] || []).includes(e.id), []);
 
   const value = useMemo<Ctx>(() => {
-    const progress = (t: Treino) => workoutProgress({exercises: EXERCISES, treino: t, getConf: conf, getDone: done});
+    const progress = (t: Treino) => workoutProgress({exercises: EXERCISES, treino: t, getConf: conf, getDone: done, getSkipped: skipped});
     return {
-      state, loaded, update, conf, total, done, progress,
+      state, loaded, update, conf, total, done, skipped, progress,
+      pos: (t) => ref.current.pos[`${todayKey()}:${t}`],
+      setPos: (t, i) => setState((s) => (s.pos[`${todayKey()}:${t}`] === i ? s : {...s, pos: {...s.pos, [`${todayKey()}:${t}`]: i}})),
+      setSkipped: (e, on) => setState((s) => { const key = `${todayKey()}:${e.treino}`; return {...s, skipped: {...s.skipped, [key]: setSkipped(s.skipped[key], e.id, on)}}; }),
       setDone: (e, next) => {
         const key = `${todayKey()}:${e.treino}`;
         setState((s) => ({...s, sets: {...s.sets, [key]: {...(s.sets[key] || {}), [e.id]: next}}}));
@@ -88,14 +100,14 @@ export function AppProvider({children}: {children: React.ReactNode}) {
         if (p.sets < 1) return {ok: false, reason: 'empty'};
         if (ref.current.sessions.some((x) => x.date === todayKey() && x.treino === t)) return {ok: false, reason: 'already'};
         const d = new Date();
-        const session = snapshotSession({exercises: EXERCISES, treino: t, date: todayKey(), time: d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}), getConf: conf, getDone: done});
+        const session = snapshotSession({exercises: EXERCISES, treino: t, date: todayKey(), time: d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}), getConf: conf, getDone: done, getSkipped: skipped});
         setState((s) => ({...s, sessions: [...s.sessions, session]}));
         return {ok: true, session};
       },
-      resetToday: (t) => setState((s) => { const sets = {...s.sets}; delete sets[`${todayKey()}:${t}`]; return {...s, sets}; }),
+      resetToday: (t) => setState((s) => { const sets = {...s.sets}; const sk = {...s.skipped}; const ps = {...s.pos}; delete sets[`${todayKey()}:${t}`]; delete sk[`${todayKey()}:${t}`]; delete ps[`${todayKey()}:${t}`]; return {...s, sets, skipped: sk, pos: ps}; }),
     };
     // state muda → recalcula; conf/done leem o ref já atualizado
-  }, [state, loaded, update, conf, total, done]);
+  }, [state, loaded, update, conf, total, done, skipped]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -7,7 +7,7 @@ import {doneCount, nextStep, restPlan, snapshotSession, tapSeries} from '../../l
 import {playCount, playSound} from '../../SoundFX';
 import {EXERCISES, Exercise, imageInfo, Treino} from '../data';
 import {todayKey, useApp} from '../store';
-import {AText, Btn, Confetti, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, Sheet, useToast} from '../ui';
+import {AText, Btn, Confetti, Confirm, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, Sheet, useToast} from '../ui';
 import ExerciseVideo from '../ExerciseVideo';
 import {calar, falar} from '../voice';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -62,7 +62,8 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const {state} = app;
   const list = EXERCISES.filter((x) => x.treino === treino);
   const p = app.progress(treino);
-  const [i, setI] = useState(() => Math.min(list.length - 1, Math.max(0, startIndex ?? p.firstIncomplete)));
+  const [i, setI] = useState(() => Math.min(list.length - 1, Math.max(0, startIndex ?? app.pos(treino) ?? p.firstIncomplete)));
+  useEffect(() => { app.setPos(treino, i); }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
   const [phase, setPhase] = useState<'card' | 'rest' | 'done'>(() => (startIndex == null && p.firstIncomplete < 0 && p.total > 0 ? 'done' : 'card'));
   const [rest, setRest] = useState<Rest | null>(null);
   const [secs, setSecs] = useState(0);
@@ -71,6 +72,8 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const [vid, setVid] = useState(false);
   const prevSecs = useRef(0);
   const [setsW, setSetsW] = useState(0);
+  const [askSkip, setAskSkip] = useState(false);       // "não vou fazer este exercício?"
+  const [askFinish, setAskFinish] = useState(false);   // "confirma que NÃO vai fazer os pulados?" ao finalizar
 
   const stopRest = useCallback(() => { setRest(null); setSecs(0); setRestPaused(false); prevSecs.current = 0; }, []);
   const startRest = (seconds: number, advance: boolean) => {
@@ -112,12 +115,13 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   const ex = list[i];
   const total = app.total(ex);
   const cur = doneCount(app.done(ex), total);
+  const skippedNow = app.skipped(ex) && cur < total;
 
   // Notificação do exercício (cartão verde-menta, separada da de música): ilustração, "Séries feitas" ou descanso, e botões.
   // Exercício: ✓ conclui a série, ⏭ vai ao próximo exercício. Descanso: ⏸/▶ pausa e retoma a contagem, ⏭ pula o descanso.
   const resting = phase === 'rest' && !!rest;
   const lastStepNow = nextStep(p.list, i).type === 'done';
-  const nextLabel = cur < total ? `Concluir série ${cur + 1}` : lastStepNow ? 'Terminar o treino' : 'Próximo exercício';
+  const nextLabel = cur < total && !skippedNow ? `Concluir série ${cur + 1}` : lastStepNow ? 'Terminar o treino' : 'Próximo exercício';
   const restEnd = resting ? rest!.end : 0;
   const restLeft = resting && restPaused ? secs : 0;
   useEffect(() => {
@@ -151,19 +155,37 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
     const before = doneCount(app.done(e), t);
     const next = tapSeries(app.done(e), k, t);
     const after = doneCount(next, t);
+    // Marcou uma série num exercício que tinha dito "não vou fazer": a pessoa se arrependeu, ele volta para o treino.
+    if (after > before && app.skipped(e)) { app.setSkipped(e, false); toast.show('Exercício de volta ao treino.'); }
     app.setDone(e, next);
     if (after <= before) return;
     playSound('series');
-    if (p.sets + (after - before) >= p.total) { stopRest(); setPhase('done'); if (state.voice) falar('Treino completo. Parabéns!'); return; }
+    // Terminou tudo? (cada exercício feito ou pulado; o que acabou de ser marcado conta como feito se completou)
+    const idx = list.indexOf(e);
+    const othersOpen = p.list.some((x, n) => n !== idx && !x.complete && !x.skipped);
+    if (after >= t && !othersOpen) { stopRest(); setPhase('done'); if (state.voice) falar('Treino completo. Parabéns!'); return; }
     const seconds = restPlan({exerciseDone: after >= t, restExercise: state.restExercise, restSet: state.restSet});
     if (state.voice) falar(`${after >= t ? 'Exercício concluído' : `Série ${after} concluída`}.${seconds > 0 ? ` Descanso de ${seconds} segundos.` : ''}`);
     if (seconds > 0) startRest(seconds, after >= t);
   };
+  /** "Não vou fazer este exercício": já confirmado. Marca como pulado e vai ao próximo que falta (ou ao fim). */
+  const doSkip = () => {
+    setAskSkip(false);
+    app.setSkipped(ex, true);
+    stopRest(); setHelp(false);
+    const st = nextStep(p.list.map((x, n) => (n === i ? {...x, skipped: true} : x)), i);
+    if (st.type === 'done') setPhase('done'); else { setI(st.index); setPhase('card'); }
+  };
+  /** Voltar a um exercício pulado e mudar de ideia. */
+  const undoSkip = () => { app.setSkipped(ex, false); toast.show('Certo, esse exercício volta para o treino.'); };
   const adjust = (e: Exercise, d: number) => { const k = app.conf(e); app.saveOverride(e, {...k, series: Math.max(1, Math.min(12, app.total(e) + d))}); };
   const restart = () => Alert.alert(`Recomeçar o Treino ${treino}?`, 'As séries marcadas hoje serão apagadas. O histórico é mantido.', [
     {text: 'Cancelar', style: 'cancel'}, {text: 'Recomeçar', style: 'destructive', onPress: () => { app.resetToday(treino); stopRest(); setPhase('card'); setI(0); }},
   ]);
+  const firstSkipped = p.list.findIndex((x) => x.skipped && !x.complete);
+  const skippedNames = list.filter((_, n) => p.list[n].skipped && !p.list[n].complete).map((x) => x.nome);
   const save = () => {
+    setAskFinish(false);
     const r = app.finishWorkout(treino);
     if (r.ok) { playSound('finish'); onSaved(); }
     else toast.show(r.reason === 'already' ? 'Você já finalizou esse treino hoje.' : 'Marque pelo menos uma série.');
@@ -172,7 +194,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
   // Botões da notificação chegam aqui (a ref guarda sempre a versão mais nova do estado).
   const actions = useRef<(a: string) => void>(() => {});
   actions.current = (a) => {
-    if (a === 'serie') { if (cur < total) tap(ex, cur + 1); else goNext(i); }
+    if (a === 'serie') { if (cur < total && !skippedNow) tap(ex, cur + 1); else goNext(i); }
     else if (a === 'next') { if (i < list.length - 1) { setHelp(false); stopRest(); setI(i + 1); setPhase('card'); } }
     else if (a === 'pause') { if (rest && !restPaused) toggleRestPause(); }
     else if (a === 'resume') { if (rest && restPaused) toggleRestPause(); }
@@ -203,9 +225,11 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
           <Animated.View entering={ZoomIn.springify().damping(9)}><Float amplitude={6} duration={2000}><View style={W.burst}><Icon name="checkmark" size={54} color={C.ink} /></View></Float></Animated.View>
           <AText entering={FadeIn.delay(150)} style={W.doneTitle}>TREINO {treino}{'\n'}COMPLETO!</AText>
           <AText entering={FadeIn.delay(260)} style={W.lead}>{snap.sets} séries registradas{snap.volume ? ` · ${fmtKg(snap.volume)} kg de volume` : ''}. Salvar no histórico?</AText>
-          <Btn kind="dark" text="FINALIZAR E SALVAR" icon="checkmark" onPress={save} style={{alignSelf: 'stretch', marginTop: 24}} />
-          <Btn kind="ghost" text="VOLTAR AOS EXERCÍCIOS" onPress={() => { setPhase('card'); setI(list.length - 1); }} style={{alignSelf: 'stretch', marginTop: 10}} />
+          {skippedNames.length > 0 && <AText entering={FadeIn.delay(320)} style={W.skippedNote}>Você marcou como NÃO FEITO: {skippedNames.join(', ')}.</AText>}
+          <Btn kind="dark" text="FINALIZAR E SALVAR" icon="checkmark" onPress={() => (skippedNames.length ? setAskFinish(true) : save())} style={{alignSelf: 'stretch', marginTop: 24}} />
+          <Btn kind="ghost" text={skippedNames.length ? 'VOLTAR E FAZER OS PULADOS' : 'VOLTAR AOS EXERCÍCIOS'} onPress={() => { setPhase('card'); setI(skippedNames.length ? firstSkipped : list.length - 1); }} style={{alignSelf: 'stretch', marginTop: 10}} />
         </View>
+        <Confirm visible={askFinish} title="Confirmar o que ficou de fora?" text={`Você disse que NÃO vai fazer: ${skippedNames.join(', ')}. Se confirmar, o treino é salvo sem eles e isso fica no histórico.`} confirmLabel="CONFIRMAR E SALVAR" cancelLabel="VOLTAR E FAZER" onConfirm={save} onCancel={() => { setAskFinish(false); setPhase('card'); setI(firstSkipped < 0 ? 0 : firstSkipped); }} />
       </View>
     );
   }
@@ -246,13 +270,24 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
 
   /* ---------- cartão do exercício ---------- */
   const lastStep = nextStep(p.list, i).type === 'done';
-  const label = cur < total ? `CONCLUIR SÉRIE ${cur + 1}` : lastStep ? 'TERMINAR' : 'PRÓXIMO EXERCÍCIO';
+  const label = cur < total && !skippedNow ? `CONCLUIR SÉRIE ${cur + 1}` : lastStep ? 'TERMINAR' : 'PRÓXIMO EXERCÍCIO';
+  const nFeitos = p.list.filter((x) => x.complete).length;
+  const nFaltam = list.length - nFeitos - p.skippedCount;
   return (
     <View style={W.shell}>
       {top(`EXERCÍCIO ${i + 1}/${list.length}`)}
       <View accessibilityRole="progressbar" accessibilityLabel="Progresso do treino" aria-valuenow={p.percent} aria-valuemin={0} aria-valuemax={100} style={W.segs}>
-        {list.map((_, k) => { const x = p.list[k]; return <View key={k} style={[W.seg, k === i && W.segNow]}><SegFill pct={Math.round((100 * x.done) / x.total)} /></View>; })}
+        {list.map((_, k) => {
+          const x = p.list[k];
+          const pulado = x.skipped && !x.complete;
+          return (
+            <View key={k} accessible accessibilityLabel={`Exercício ${k + 1}: ${x.complete ? 'feito' : pulado ? 'não vou fazer' : x.done > 0 ? `${x.done} de ${x.total} séries` : 'falta fazer'}`} style={[W.seg, k === i && W.segNow, pulado && W.segSkip]}>
+              {pulado ? null : <SegFill pct={Math.round((100 * x.done) / x.total)} />}
+            </View>
+          );
+        })}
       </View>
+      <Text style={W.segsLegend}>{nFeitos} {nFeitos === 1 ? 'feito' : 'feitos'}{p.skippedCount ? ` · ${p.skippedCount} ${p.skippedCount === 1 ? 'pulado' : 'pulados'}` : ''} · {nFaltam} {nFaltam === 1 ? 'falta' : 'faltam'}</Text>
       <ScrollView contentContainerStyle={W.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View key={ex.id} entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(160)}>
           <Pop accessibilityRole="imagebutton" accessibilityLabel={`Ampliar a ilustração de ${ex.nome}`} onPress={() => onZoom(ex)} quiet radius={R.xl} offset={6} color="#B4CDF6" innerStyle={W.figure}>
@@ -291,15 +326,25 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
             <Text style={W.stepNum}>{total}</Text>
             <Pop accessibilityRole="button" accessibilityLabel={`Aumentar séries de ${ex.nome}`} onPress={() => adjust(ex, 1)} quiet radius={14} offset={3} innerStyle={W.stepBtn}><Icon name="add" size={20} /></Pop>
           </View>
+          {skippedNow ? (
+            <View style={W.skipBox} accessibilityRole="alert">
+              <Text style={W.skipTitle}>VOCÊ MARCOU: NÃO VOU FAZER</Text>
+              <Text style={W.skipText}>Mudou de ideia? Dá para fazer agora: ou toque numa série, ou aqui.</Text>
+              <Btn small kind="primary" icon="barbell" text="FAZER ESTE AGORA" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} style={{marginTop: 10, alignSelf: 'flex-start'}} />
+            </View>
+          ) : (
+            <Btn small kind="ghost" icon="remove-circle-outline" text="NÃO VOU FAZER ESTE" label={`Não vou fazer ${ex.nome}`} onPress={() => setAskSkip(true)} style={{marginTop: 22, alignSelf: 'flex-start'}} />
+          )}
         </Animated.View>
       </ScrollView>
       <View style={[W.controls, {paddingBottom: insets.bottom + 12}]}>
         <Pop accessibilityRole="button" accessibilityLabel="Exercício anterior" disabled={i === 0} onPress={() => { setI(i - 1); setHelp(false); }} quiet radius={22} offset={4} color={C.card} innerStyle={W.nav}><Icon name="play-skip-back" size={24} color={i === 0 ? C.muted : C.ink} /></Pop>
-        <Pop accessibilityRole="button" accessibilityLabel={label} onPress={() => { if (cur < total) tap(ex, cur + 1); else goNext(i); }} radius={22} offset={5} style={{flex: 1}} innerStyle={W.main}>
-          <FitText style={W.mainText}>{label}</FitText><Icon name={cur < total ? 'checkmark' : 'arrow-forward'} size={22} color={C.ink} />
+        <Pop accessibilityRole="button" accessibilityLabel={label} onPress={() => { if (cur < total && !skippedNow) tap(ex, cur + 1); else goNext(i); }} radius={22} offset={5} style={{flex: 1}} innerStyle={W.main}>
+          <FitText style={W.mainText}>{label}</FitText><Icon name={cur < total && !skippedNow ? 'checkmark' : 'arrow-forward'} size={22} color={C.ink} />
         </Pop>
         <Pop accessibilityRole="button" accessibilityLabel="Próximo exercício" disabled={i === list.length - 1} onPress={() => { setI(i + 1); setHelp(false); }} quiet radius={22} offset={4} color={C.card} innerStyle={W.nav}><Icon name="play-skip-forward" size={24} /></Pop>
       </View>
+      <Confirm visible={askSkip} title="Não fazer este exercício?" text={`${ex.nome} fica marcado como NÃO FEITO e não entra no volume do treino. Você ainda pode voltar nele e se arrepender, e eu pergunto de novo ao finalizar.`} confirmLabel="NÃO VOU FAZER" cancelLabel="VOLTAR" danger onConfirm={doSkip} onCancel={() => setAskSkip(false)} />
       <Sheet visible={vid && !!video} onClose={() => setVid(false)} title="Meu vídeo">
         {video && <View style={{paddingBottom: 12}}><ExerciseVideo video={video} height={420} /><Text style={[T.small, {marginTop: 8}]} numberOfLines={1}>{ex.nome} · {video.name}</Text></View>}
       </Sheet>
@@ -315,6 +360,12 @@ const W = StyleSheet.create({
   segs: {flexDirection: 'row', gap: 5, paddingHorizontal: 18, paddingTop: 8},
   seg: {flex: 1, height: 8, borderRadius: 4, backgroundColor: '#DDD7CA', overflow: 'hidden'},
   segNow: {borderWidth: 2, borderColor: C.pink, backgroundColor: '#E6E1D7'},
+  segSkip: {backgroundColor: '#F2B84B'},
+  segsLegend: {paddingHorizontal: 20, paddingTop: 6, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, color: C.muted},
+  skipBox: {marginTop: 22, padding: 14, borderRadius: R.md, backgroundColor: '#FFE9B8', borderWidth: 2, borderColor: C.ink},
+  skipTitle: {fontSize: 13, fontWeight: '900', letterSpacing: 1, color: C.ink},
+  skipText: {fontSize: 14, lineHeight: 20, color: C.ink, marginTop: 4},
+  skippedNote: {fontSize: 14, lineHeight: 20, color: C.ink, textAlign: 'center', marginTop: 10, fontWeight: '700'},
   body: {padding: 18, paddingBottom: 24},
   figure: {height: 270, padding: 6},
   img: {width: '100%', height: '100%'},
