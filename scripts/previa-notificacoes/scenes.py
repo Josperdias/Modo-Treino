@@ -24,14 +24,15 @@ def workout(big, resting=False, paused=False, title='Rosca direta na barra W', k
     if big: st.update({'kicker': {'text': kicker}})
     return page('card_workout_big' if big else 'card_workout_small', st)
 
-def wrap(inner, header, navy=True, h=None):
+def wrap(inner, header, navy=True, h=None, w=328):
     bg = '#141B34' if navy else '#fff'; fg = '#fff' if navy else '#444'
     ht = f'height:{h}px;' if h else ''
     return f'''<div style="width:360px;background:{bg};padding:0 16px 14px;margin-bottom:14px;border-radius:0">
       <div style="height:32px;display:flex;align-items:center;font:600 12px 'DM Sans';color:{fg}">● &nbsp;{header}</div>
-      <div style="width:328px;{ht}">{inner}</div></div>'''
+      <div style="width:{w}px;{ht}">{inner}</div></div>'''
 scenes = [
  ('music_big', wrap(music(True, fav=True), 'Modo Treino • Tocando agora • agora')),
+ ('music_big_estreito', wrap(music(True, fav=True), 'Modo Treino • Tocando agora • agora', w=272)),
  ('music_small', wrap(music(False), 'Modo Treino • Tocando agora • agora', h=48)),
  ('music_paused', wrap(music(True, fita=5, playing=False, title='Eye of the Tiger', sub='Todas as fitas · Survivor'), 'Modo Treino • Tocando agora • agora')),
  ('radio_big', wrap(music(True, live=True, playing=True, title='Billie Eilish – Bad Guy', sub='Rádio Nova Brasil · 🇧🇷 Brasil', kicker='Rádio ao vivo'), 'Modo Treino • Tocando agora • agora')),

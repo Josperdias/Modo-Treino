@@ -128,11 +128,6 @@ export default function MusicScreen() {
           : <PermissionCard />
       ) : (
         <>
-          <View style={P.search}>
-            <Icon name="search" size={18} color={C.muted} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Buscar fita ou artista" placeholderTextColor={C.muted} accessibilityLabel="Buscar fita" style={P.searchInput} autoCorrect={false} returnKeyType="search" />
-            {q.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Limpar a busca da fita" onPress={() => setQ('')} hitSlop={8}><Icon name="close-circle" size={20} color={C.muted} /></Pressable>}
-          </View>
           <View style={P.countRow}>
             <Text style={T.small} accessibilityLiveRegion="polite">{q.trim() ? `${list.length} de ${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'}` : `${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'}`}</Text>
             {nowIndex >= 0 && <Pressable accessibilityRole="button" accessibilityLabel="Ir para a fita que está tocando" onPress={goToNow} hitSlop={8} style={P.goNow}><Icon name="locate" size={15} /><Text style={P.goNowText}>{m.playing ? 'TOCANDO' : 'ATUAL'} · {nowIndex + 1}</Text></Pressable>}
@@ -147,8 +142,21 @@ export default function MusicScreen() {
     </View>
   );
 
+  // A busca fica FIXA acima da lista (não rola junto): dá para procurar uma música em qualquer ponto da lista, e o teclado não se perde quando o filtro encurta a lista.
+  const searchBar = m.library.length > 0 && (
+    <View style={P.searchDock}>
+      <View style={P.search}>
+        <Icon name="search" size={18} color={C.muted} />
+        <TextInput value={q} onChangeText={setQ} placeholder="Buscar fita ou artista" placeholderTextColor={C.muted} accessibilityLabel="Buscar fita" style={P.searchInput} autoCorrect={false} returnKeyType="search" />
+        {q.trim().length > 0 && <Text style={P.searchCount} accessibilityElementsHidden importantForAccessibility="no">{list.length}/{m.library.length}</Text>}
+        {q.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Limpar a busca da fita" onPress={() => setQ('')} hitSlop={8}><Icon name="close-circle" size={20} color={C.muted} /></Pressable>}
+      </View>
+    </View>
+  );
+
   return (
     <View style={{flex: 1}}>
+      {searchBar}
       <FlatList
         ref={listView}
         data={m.library.length ? list : []}
@@ -229,7 +237,9 @@ const P = StyleSheet.create({
   volPct: {width: 40, textAlign: 'right', fontSize: 12, fontWeight: '700', color: C.muted},
   fadeRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'center', padding: 8},
   sectionHead: {flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 10},
-  search: {flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.white, borderRadius: R.pill, paddingHorizontal: 16, height: 48, marginBottom: 12, borderWidth: 2, borderColor: C.ink},
+  search: {flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.white, borderRadius: R.pill, paddingHorizontal: 16, height: 46, borderWidth: 2, borderColor: C.ink},
+  searchDock: {paddingHorizontal: 20, paddingTop: 2, paddingBottom: 8},
+  searchCount: {fontSize: 12, fontWeight: '800', color: C.muted},
   searchInput: {flex: 1, fontSize: 15, color: C.ink},
   countRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -4, marginBottom: 10, paddingHorizontal: 4, minHeight: 28},
   goNow: {flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.yellow, borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: C.ink},
