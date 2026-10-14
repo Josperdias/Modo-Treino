@@ -690,9 +690,9 @@ test('"não vou fazer este exercício": confirma ao pular, dá para se arrepende
   assert.equal((await fills())[0], 'pulado');
   // 2) voltar ao pulado: aviso e arrependimento
   await page.getByLabel('Exercício anterior').click(); await settle(page, 400);
-  await page.getByText('VOCÊ MARCOU: NÃO VOU FAZER').waitFor();
+  await page.getByText('VOCÊ MARCOU', {exact: true}).waitFor();
   await page.getByLabel('Fazer Rosca direta na barra W agora').click(); await settle(page, 400);
-  assert.equal(await page.getByText('VOCÊ MARCOU: NÃO VOU FAZER').count(), 0, 'se arrependeu: o exercício volta ao treino');
+  assert.equal(await page.getByText('VOCÊ MARCOU', {exact: true}).count(), 0, 'se arrependeu: o exercício volta ao treino');
   assert.doesNotMatch(await body(page), /1 pulado/);
   // 3) pula de novo, faz todos os outros e finaliza: pede confirmação do que ficou de fora
   await page.getByLabel('Não vou fazer Rosca direta na barra W').click();
@@ -742,7 +742,7 @@ test('treino: abrir o player pelo mini rádio NÃO fecha o treino (volta ao mesm
   await context.close();
 });
 
-test('rádio: o cartão da estação recolhe numa tirinha e abre de novo; o rádio dourado aparece na aba Rádio', {skip}, async () => {
+test('rádio: o mundo fica atrás dos controles, o cartão da estação é compacto e o rádio dourado aparece na aba', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
   const radios = [{stationuuid: 'u1', name: 'Rádio Lose Control', url_resolved: 'https://example.com/s1', countrycode: 'BR', country: 'Brazil', state: '', tags: 'pop', geo_lat: -10, geo_long: -50, clickcount: 5, bitrate: 128}];
   await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
@@ -751,11 +751,15 @@ test('rádio: o cartão da estação recolhe numa tirinha e abre de novo; o rád
   await musicTab(page, 'Rádio do mundo');
   await page.getByText('1 estações').waitFor();
   await page.getByLabel('Surpreenda-me com uma rádio aleatória').click(); await settle(page, 600);
-  await page.getByLabel('Recolher o cartão da rádio').waitFor();
-  await page.getByLabel('Recolher o cartão da rádio').click(); await settle(page, 400);
-  assert.equal(await page.getByLabel('Guardar rádio numa bag').count(), 0, 'recolhido: sem os botões grandes');
-  await page.getByLabel(/Toque para abrir o cartão/).click(); await settle(page, 400);
+  const card = await page.getByRole('button', {name: 'Rádio Rádio Lose Control'}).boundingBox();
+  assert.ok(card && card.height <= 130, `o cartão da estação é compacto (altura ${card && card.height})`);
+  assert.equal(await page.getByLabel('Recolher o cartão da rádio').count(), 0, 'sem aba/recolher: o cartão é só uma faixa translúcida');
   await page.getByLabel('Guardar rádio numa bag').waitFor();
+  await page.getByLabel('Ouvir rádio').waitFor();
+  const globe = await page.locator('iframe, webview').first().boundingBox();   // o globo começa logo abaixo do seletor FITAS/BAGS/RÁDIO, por trás da busca
+  const surpresa = await page.getByLabel('Surpreenda-me com uma rádio aleatória').boundingBox();
+  assert.ok(globe && surpresa && globe.y < surpresa.y, 'o globo passa por trás dos botões');
+  assert.ok(await page.getByText('SURPREENDA', {exact: true}).isVisible(), 'o texto SURPREENDA aparece completo');
   await page.getByRole('toolbar', {name: 'Player de música'}).waitFor();   // música tocando: o rádio dourado também aparece na aba Rádio
   await context.close();
 });

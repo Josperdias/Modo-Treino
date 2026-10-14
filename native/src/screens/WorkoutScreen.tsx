@@ -10,6 +10,7 @@ import {todayKey, useApp} from '../store';
 import {AText, Btn, Confetti, Confirm, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, Sheet, useToast} from '../ui';
 import ExerciseVideo from '../ExerciseVideo';
 import {calar, falar} from '../voice';
+import Svg, {Defs, Pattern as SvgPattern, Rect} from 'react-native-svg';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {C, INK, R, T, useNarrow} from '../theme';
 import MiniPlayer from '../music/MiniPlayer';
@@ -29,6 +30,21 @@ type Rest = {end: number; total: number; advance: boolean};
 
 const fmtKg = (n: number) => Number(n || 0).toLocaleString('pt-BR', {maximumFractionDigits: 1});
 const clock = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+
+/** Faixa de aviso amarela e preta (como fita de obra). Padrão em unidades fixas: não depende de medir a tela. */
+function Hazard({h = 14, id}: {h?: number; id: string}) {
+  return (
+    <Svg width="100%" height={h} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Defs>
+        <SvgPattern id={id} patternUnits="userSpaceOnUse" width={28} height={28} patternTransform="rotate(45)">
+          <Rect x={0} y={0} width={14} height={28} fill="#141B34" />
+          <Rect x={14} y={0} width={14} height={28} fill="#FFC93C" />
+        </SvgPattern>
+      </Defs>
+      <Rect x={0} y={0} width="100%" height={h} fill={`url(#${id})`} />
+    </Svg>
+  );
+}
 
 function SegFill({pct}: {pct: number}) {
   const w = useSharedValue(pct);
@@ -293,9 +309,19 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
         <Animated.View key={ex.id} entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(160)}>
           {skippedNow ? (
             <View style={W.skipBox} accessibilityRole="alert">
-              <Text style={W.skipTitle}>VOCÊ MARCOU: NÃO VOU FAZER</Text>
-              <Text style={W.skipText}>Mudou de ideia? Dá para fazer agora: ou toque numa série, ou aqui.</Text>
-              <Btn small kind="primary" icon="barbell" text="FAZER ESTE AGORA" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} style={{marginTop: 10, alignSelf: 'flex-start'}} />
+              <Hazard id="hzTop" />
+              <View style={W.skipRow}>
+                <View style={W.skipX}><Icon name="close" size={52} color={C.white} /></View>
+                <View style={{flex: 1}}>
+                  <Text style={W.skipKicker}>VOCÊ MARCOU</Text>
+                  <Text style={W.skipTitle}>NÃO VOU FAZER</Text>
+                  <Text style={W.skipText}>Este exercício fica de fora do treino de hoje.</Text>
+                </View>
+              </View>
+              <View style={W.skipBtnBox}>
+                <Btn kind="primary" icon="arrow-undo" text="VOLTAR E FAZER ESTE" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} />
+              </View>
+              <Hazard id="hzBottom" />
             </View>
           ) : null}
           <Pop accessibilityRole="imagebutton" accessibilityLabel={`Ampliar a ilustração de ${ex.nome}`} onPress={() => onZoom(ex)} quiet radius={R.xl} offset={6} color="#B4CDF6" innerStyle={W.figure}>
@@ -310,6 +336,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
               <Text style={T.kicker}>{ex.codigo} · {ex.grupo}</Text>
               <Text style={W.title}>{ex.nome.toUpperCase()}</Text>
             </View>
+            {!skippedNow && <Pop accessibilityRole="button" accessibilityLabel={`Não vou fazer ${ex.nome}`} onPress={() => setAskSkip(true)} quiet radius={23} offset={3} color="#E63950" innerStyle={W.help}><Icon name="close" size={24} color={C.white} /></Pop>}
             <Pop accessibilityRole="button" accessibilityLabel="Como fazer o movimento" accessibilityState={{expanded: help}} onPress={() => setHelp(!help)} quiet radius={23} offset={3} color={help ? C.yellow : C.card} innerStyle={W.help}><Text style={W.helpMark}>?</Text></Pop>
           </View>
           {help && <AText entering={FadeIn} style={W.helpBox}>{ex.orientacao}</AText>}
@@ -334,9 +361,6 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
             <Text style={W.stepNum}>{total}</Text>
             <Pop accessibilityRole="button" accessibilityLabel={`Aumentar séries de ${ex.nome}`} onPress={() => adjust(ex, 1)} quiet radius={14} offset={3} innerStyle={W.stepBtn}><Icon name="add" size={20} /></Pop>
           </View>
-          {!skippedNow ? (
-            <Btn small kind="ghost" icon="remove-circle-outline" text="NÃO VOU FAZER ESTE" label={`Não vou fazer ${ex.nome}`} onPress={() => setAskSkip(true)} style={{marginTop: 22, alignSelf: 'flex-start'}} />
-          ) : null}
         </Animated.View>
       </ScrollView>
       <View style={[W.controls, {paddingBottom: insets.bottom + 12}]}>
@@ -362,11 +386,15 @@ const W = StyleSheet.create({
   segs: {flexDirection: 'row', gap: 5, paddingHorizontal: 18, paddingTop: 8},
   seg: {flex: 1, height: 8, borderRadius: 4, backgroundColor: '#DDD7CA', overflow: 'hidden'},
   segNow: {borderWidth: 2, borderColor: C.pink, backgroundColor: '#E6E1D7'},
-  segSkip: {backgroundColor: '#F2B84B'},
+  segSkip: {backgroundColor: '#E63950'},
   segsLegend: {paddingHorizontal: 20, paddingTop: 6, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, color: C.muted},
-  skipBox: {marginBottom: 14, padding: 14, borderRadius: R.md, backgroundColor: '#FFE9B8', borderWidth: 2, borderColor: C.ink},
-  skipTitle: {fontSize: 13, fontWeight: '900', letterSpacing: 1, color: C.ink},
-  skipText: {fontSize: 14, lineHeight: 20, color: C.ink, marginTop: 4},
+  skipBox: {marginBottom: 14, borderRadius: R.md, backgroundColor: '#FFF3CC', borderWidth: 3, borderColor: C.ink, borderBottomWidth: 5, overflow: 'hidden'},
+  skipRow: {flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingTop: 14},
+  skipX: {width: 76, height: 76, borderRadius: 38, backgroundColor: '#E63950', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: C.ink, borderBottomWidth: 6},
+  skipKicker: {fontSize: 12, fontWeight: '900', letterSpacing: 1.4, color: '#7A2230'},
+  skipTitle: {fontSize: 30, lineHeight: 32, fontWeight: '900', color: C.ink, letterSpacing: 0.4},
+  skipText: {fontSize: 14, lineHeight: 19, color: C.ink, marginTop: 2},
+  skipBtnBox: {padding: 14, paddingBottom: 14},
   skippedNote: {fontSize: 14, lineHeight: 20, color: C.ink, textAlign: 'center', marginTop: 10, fontWeight: '700'},
   body: {padding: 18, paddingBottom: 24},
   figure: {height: 270, padding: 6},

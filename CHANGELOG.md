@@ -5,13 +5,13 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 ## [1.4.5] — 2026-10-14
 
 ### Treino: "não vou fazer" com dupla verificação
-- **Botão NÃO VOU FAZER ESTE** em cada exercício. Pede confirmação ao marcar e, de novo, ao finalizar o treino ("Confirmar o que ficou de fora?").
-- **Dá para se arrepender**: o aviso "VOCÊ MARCOU: NÃO VOU FAZER" tem o botão **FAZER ESTE AGORA**; tocar numa série também desfaz. Na barrinha de progresso o exercício pulado fica âmbar.
+- **Botão X vermelho** ao lado do "?" em cada exercício para desistir dele. Pede confirmação ao marcar e, de novo, ao finalizar o treino ("Confirmar o que ficou de fora?").
+- **Dá para se arrepender**: o aviso no topo (X grande vermelho, faixas amarelas e pretas) tem o botão **VOLTAR E FAZER ESTE**; tocar numa série também desfaz. Na barrinha de progresso o exercício pulado fica vermelho. Cada exercício abre sempre no topo da tela.
 - O treino salvo no histórico guarda o que ficou de fora; o treino só fica "completo" quando tudo foi feito ou decidido.
 - **Progresso verde não se perde mais ao voltar**: abrir o player pelo mini rádio durante o treino não fecha mais o treino, e o app lembra em qual exercício você parou (por dia e treino).
 
 ### Rádio e player
-- **Aba Rádio menos apertada**: ações em uma linha (SURPREENDA, PAÍSES, ESTILOS), estilos agrupados e recolhíveis ("Escolher estilo"), cartão da estação que recolhe numa tirinha com play.
+- **Aba Rádio com o mundo atrás de tudo**: o globo ocupa a área inteira, com busca e botões (SURPREENDA, PAÍSES, ESTILOS) translúcidos por cima; estilos agrupados e recolhíveis; o cartão da estação virou uma faixa compacta de vidro (OUVIR, NA BAG, lista), sem aba.
 - **O mini rádio agora aparece na aba Rádio** e também durante o treino.
 - **"Tocando agora" não cobre mais a tela toda**: o painel rola, a capa se adapta à altura e o treino continua aparecendo no topo.
 - **Transição suave dos painéis**: o fundo escuro surge com fade (sem a quina dura) e a folha sobe com uma borda de degradê rosa com bolinhas que vão sumindo.
