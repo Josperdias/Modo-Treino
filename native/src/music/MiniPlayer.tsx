@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {Platform, StyleSheet, View, useWindowDimensions} from 'react-native';
-import Svg, {Circle, Defs, LinearGradient, Path, Polygon, Rect, Stop} from 'react-native-svg';
+import Svg, {Circle, Defs, G, LinearGradient, Path, Pattern, Polygon, Rect, Stop} from 'react-native-svg';
 import {Text} from '../text';
 import {Icon, Press} from '../ui';
 import {C} from '../theme';
@@ -17,18 +17,85 @@ const SEGMENTS = 20;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const INK = C.ink;
 
-/** Corpo dourado do rádio com brilho no topo. */
+/** Camada de desenho do tamanho exato do pai (padrões em pixels reais, sem esticar). */
+function useBox() {
+  const [box, setBox] = useState({w: 0, h: 0});
+  const onLayout = (e: {nativeEvent: {layout: {width: number; height: number}}}) => {
+    const {width, height} = e.nativeEvent.layout;
+    setBox((o) => (Math.abs(o.w - width) < 0.5 && Math.abs(o.h - height) < 0.5 ? o : {w: width, h: height}));
+  };
+  return {...box, onLayout};
+}
+
+/** Corpo dourado do rádio: degradê, meio-tom (bolinhas), faixa xadrez de corrida embaixo e listas rosa na lateral. */
 function GoldBody() {
+  const {w, h, onLayout} = useBox();
   return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" pointerEvents="none">
-      <Defs>
-        <LinearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={GOLD.top} /><Stop offset="0.5" stopColor={GOLD.mid} /><Stop offset="1" stopColor={GOLD.low} />
-        </LinearGradient>
-      </Defs>
-      <Rect x={0} y={0} width={100} height={100} fill="url(#gold)" />
-      <Rect x={0} y={0} width={100} height={14} fill="#FFFFFF" opacity={0.22} />
-    </Svg>
+    <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
+      {w > 0 && (
+        <Svg width={w} height={h}>
+          <Defs>
+            <LinearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={GOLD.top} /><Stop offset="0.5" stopColor={GOLD.mid} /><Stop offset="1" stopColor={GOLD.low} />
+            </LinearGradient>
+            <Pattern id="halftone" x={0} y={0} width={12} height={12} patternUnits="userSpaceOnUse">
+              <Circle cx={3} cy={3} r={1.7} fill="#C77A00" opacity={0.3} />
+              <Circle cx={9} cy={9} r={1.7} fill="#C77A00" opacity={0.3} />
+            </Pattern>
+            <Pattern id="checker" x={0} y={0} width={10} height={10} patternUnits="userSpaceOnUse">
+              <Rect x={0} y={0} width={5} height={5} fill={INK} /><Rect x={5} y={5} width={5} height={5} fill={INK} />
+              <Rect x={5} y={0} width={5} height={5} fill="#FFFFFF" /><Rect x={0} y={5} width={5} height={5} fill="#FFFFFF" />
+            </Pattern>
+            <Pattern id="stripes" x={0} y={0} width={8} height={8} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <Rect x={0} y={0} width={3} height={8} fill="#FF4FA3" opacity={0.55} />
+            </Pattern>
+          </Defs>
+          <Rect x={0} y={0} width={w} height={h} fill="url(#gold)" />
+          <Rect x={0} y={0} width={w} height={h} fill="url(#halftone)" />
+          <Rect x={0} y={0} width={w} height={h * 0.16} fill="#FFFFFF" opacity={0.2} />
+          <Rect x={0} y={h - 6} width={w} height={6} fill="url(#checker)" />
+          <Rect x={0} y={h - 7} width={w} height={1.5} fill={INK} />
+          <Rect x={w - 30} y={0} width={30} height={h - 7} fill="url(#stripes)" />
+        </Svg>
+      )}
+    </View>
+  );
+}
+
+/** Fundo atrás do rádio: bolinhas pequenas, como o cabeçalho do app. */
+function DotsBack() {
+  const {w, h, onLayout} = useBox();
+  return (
+    <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
+      {w > 0 && (
+        <Svg width={w} height={h}>
+          <Defs>
+            <Pattern id="navydots" x={0} y={0} width={14} height={14} patternUnits="userSpaceOnUse"><Circle cx={7} cy={7} r={1.2} fill="#FFFFFF" opacity={0.14} /></Pattern>
+          </Defs>
+          <Rect x={0} y={0} width={w} height={h} fill="url(#navydots)" />
+        </Svg>
+      )}
+    </View>
+  );
+}
+
+/** Linhas de varredura e reflexo do vidro do visor. */
+function LcdGlass() {
+  const {w, h, onLayout} = useBox();
+  return (
+    <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
+      {w > 0 && (
+        <Svg width={w} height={h}>
+          <Defs>
+            <Pattern id="scan" x={0} y={0} width={4} height={3} patternUnits="userSpaceOnUse"><Rect x={0} y={2} width={4} height={1} fill={LCD.edge} opacity={0.12} /></Pattern>
+            <Pattern id="pixels" x={0} y={0} width={3} height={3} patternUnits="userSpaceOnUse"><Rect x={2} y={0} width={1} height={3} fill={LCD.edge} opacity={0.05} /></Pattern>
+          </Defs>
+          <Rect x={0} y={0} width={w} height={h} fill="url(#pixels)" />
+          <Rect x={0} y={0} width={w} height={h} fill="url(#scan)" />
+          <G opacity={0.28}><Polygon points={`${w * 0.1},0 ${w * 0.32},0 ${w * 0.12},${h} 0,${h}`} fill="#FFFFFF" /></G>
+        </Svg>
+      )}
+    </View>
   );
 }
 
@@ -141,6 +208,7 @@ export default function MiniPlayer({onOpen}: {onOpen: () => void; dark?: boolean
   const lcdText = m.live ? (m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : m.now?.title || 'Rádio ao vivo') : title;
   return (
     <View style={MP.wrap}>
+      <DotsBack />
       <View style={MP.bar} accessibilityRole="toolbar" accessibilityLabel="Player de música">
         <GoldBody />
         {!narrow && <Grill />}
@@ -155,6 +223,7 @@ export default function MiniPlayer({onOpen}: {onOpen: () => void; dark?: boolean
               <Defs><LinearGradient id="lcdg" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#B6FF8A" /><Stop offset="1" stopColor="#3FD64F" /></LinearGradient></Defs>
               <Rect x={0} y={0} width={100} height={100} fill="url(#lcdg)" />
             </Svg>
+            <LcdGlass />
             <View style={MP.lcdRow}>
               <Icon name="musical-notes" size={16} color={LCD.ink} />
               <View style={{flex: 1, minWidth: 0}}>
