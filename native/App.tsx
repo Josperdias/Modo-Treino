@@ -13,7 +13,7 @@ import {Glyph} from './src/glyphs';
 import {AppProvider, useApp} from './src/store';
 import {EXERCISES, Exercise, imageInfo, personaShort, Treino} from './src/data';
 import {MusicProvider} from './src/music/MusicProvider';
-import MiniPlayer from './src/music/MiniPlayer';
+import MiniPlayer, {DockedMini} from './src/music/MiniPlayer';
 import NowPlaying from './src/music/NowPlaying';
 import MusicHub, {MusicMode} from './src/screens/MusicHub';
 import HomeScreen from './src/screens/HomeScreen';
@@ -156,6 +156,7 @@ function Shell() {
       </View>
 
       {tab !== 'music' && <MiniPlayer onOpen={() => setNowOpen(true)} />}
+      <DockedMini visible={tab === 'music'} mode={musicMode} onOpen={() => setNowOpen(true)} />
       <TabBar tab={tab} onTab={setTab} />
       </View>
 

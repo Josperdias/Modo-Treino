@@ -114,6 +114,11 @@ if (nativeDir) {
   await page.getByRole('button', {name: /^Abrir músicas/}).click(); await pause(1200); await shot(page, 'app-10b-tocando-agora'); await page.getByLabel('Fechar').last().click();
   await page.getByRole('tab', {name: 'Músicas', exact: true}).click(); await pause(600);
   await page.getByLabel('Tocar Lose Yourself', {exact: true}).scrollIntoViewIfNeeded(); await pause(500); await shot(page, 'app-11-minhas-fitas');
+  await page.getByLabel('Buscar fita').fill('lose'); await pause(500); await shot(page, 'app-11b-busca-fitas'); await page.getByLabel('Limpar a busca da fita').click(); await pause(300);
+  await page.evaluate(() => { const el = [...document.querySelectorAll('div')].filter((d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible').sort((a, b) => b.scrollHeight - a.scrollHeight)[0]; if (el) { el.scrollTop = 700; el.dispatchEvent(new Event('scroll', {bubbles: true})); } });
+  await pause(900); await shot(page, 'app-11c-miniplayer-fixo');
+  await page.evaluate(() => { const el = [...document.querySelectorAll('div')].filter((d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible').sort((a, b) => b.scrollHeight - a.scrollHeight)[0]; if (el) { el.scrollTop = 0; el.dispatchEvent(new Event('scroll', {bubbles: true})); } });
+  await pause(500);
   await page.getByRole('tab', {name: 'Bags: playlists'}).click(); await pause(1400); await shot(page, 'app-12-bags');
   await page.getByLabel('Editar a bag Treino A').click(); await pause(700); await shot(page, 'app-13-editar-bag');
   await page.getByLabel('Fechar').last().click();

@@ -598,6 +598,50 @@ test('"Tocando agora": tocando uma fita, o cartão mostra o nome, os controles e
   await context.close();
 });
 
+test('fitas: pesquisa com contagem e botão de limpar; "ir para a tocando" e progresso no miniplayer', {skip}, async () => {
+  const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas');
+  for (const t of TRACKS) await page.getByLabel(`Tocar ${t.title}`, {exact: true}).waitFor();
+  assert.match(await body(page), /4 fitas/);
+  assert.equal(await page.getByLabel('Limpar a busca da fita').count(), 0, 'sem texto, sem botão de limpar');
+  await page.getByLabel('Buscar fita').fill('lose'); await settle(page, 200);
+  assert.match(await body(page), /1 de 4 fitas/);
+  await page.getByLabel('Limpar a busca da fita').click(); await settle(page, 200);
+  assert.match(await body(page), /4 fitas/);
+  assert.equal(await page.getByLabel('Buscar fita').inputValue(), '', 'limpar esvazia o campo');
+  assert.equal(await page.getByLabel('Ir para a fita que está tocando').count(), 0, 'nada tocando, sem atalho');
+  await page.getByLabel('Tocar Stronger', {exact: true}).click(); await settle(page, 500);
+  const go = page.getByLabel('Ir para a fita que está tocando');
+  await go.waitFor();
+  assert.match(await go.innerText(), /4/, 'mostra a posição da fita atual na lista');
+  await go.click();
+  await tab(page, 'Início');
+  await page.getByLabel('Progresso da música').waitFor();
+  await context.close();
+});
+
+test('Fitas: ao rolar a lista, o miniplayer (com a fita tocando) desliza para baixo e volta ao subir', {skip}, async () => {
+  const many = Array.from({length: 18}, (_, i) => ({id: 'dev:' + i, title: 'Faixa ' + (i + 1), uri: 'file:///musica/' + i + '.mp3', duration: 200 + i, source: 'device'}));
+  const {context, page} = await open({device: {permission: 'granted', tracks: many}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Faixa 1', {exact: true}).waitFor();
+  await page.getByLabel('Tocar Faixa 1', {exact: true}).click(); await settle(page, 500);
+  const bar = page.getByLabel('Player de música');
+  const scrollTo = (y) => page.evaluate((top) => {
+    const el = [...document.querySelectorAll('div')].filter((d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible').sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+    el.scrollTop = top; el.dispatchEvent(new Event('scroll', {bubbles: true}));
+  }, y);
+  await scrollTo(0); await settle(page, 700);
+  assert.equal(await bar.count(), 0, 'com o player grande à vista não precisa do miniplayer');
+  await scrollTo(900); await settle(page, 700);
+  await bar.waitFor();
+  assert.match(await bar.innerText(), /Faixa 1/, 'o miniplayer mostra a música que está tocando');
+  await page.getByLabel('Próxima faixa').last().click(); await settle(page, 400);
+  await scrollTo(0); await settle(page, 700);
+  assert.equal(await bar.count(), 0, 'voltando ao topo o miniplayer some de novo');
+  await context.close();
+});
+
 test('player compacto: aparece nas telas, some na aba Músicas e fica no modo execução e no descanso', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}});
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1);
