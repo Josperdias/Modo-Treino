@@ -6,7 +6,8 @@ import {formatClock, searchTracks} from '../../logic';
 import {flag} from '../data';
 import {Btn, Card, Chips, Equalizer, Icon, Kicker, Pattern, Pop, Press, Pulse, Sheet, useToast} from '../ui';
 import {C, R, T, useNarrow} from '../theme';
-import Cassette, {MiniTape} from '../music/Cassette';
+import {MiniTape} from '../music/Cassette';
+import LiveCassette from '../music/LiveCassette';
 import {PermissionCard, SourceButtons} from '../music/LibrarySources';
 import {Track, useMusic} from '../music/MusicProvider';
 import {SeekBar, VolumeBar} from '../music/PlayerBits';
@@ -49,7 +50,6 @@ export default function MusicScreen() {
   const [pickBag, setPickBag] = useState(false);
   const [q, setQ] = useState('');
   const list = useMemo(() => searchTracks(m.library, q), [m.library, q]);
-  const progress = m.duration > 0 ? m.position / m.duration : 0;
   const context = m.queueName ?? `Bag ${m.activeTape.name}`;
   const where = (t: Track) => m.lib.tapes.filter((b) => b.ids.includes(t.id)).map((b) => b.name);
 
@@ -69,7 +69,7 @@ export default function MusicScreen() {
         <Kicker>Sua sonoplastia particular / 001</Kicker>
         <Text style={[T.h1, {marginTop: 4, marginBottom: 16, fontSize: 40, lineHeight: 38}]}>Suas fitas,{'\n'}seu ritmo.</Text>
         <Card color={C.yellow} offset={6} style={{alignItems: 'center', paddingTop: 22, paddingBottom: 18}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
-          <View style={{width: '100%'}}><Cassette playing={m.playing} label={m.now?.title || 'Escolha uma fita'} progress={progress} /></View>
+          <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={m.now?.title || 'Escolha uma fita'} /></View>
           <Text style={P.heroSub}>{m.library.length ? `${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'} no seu celular` : 'Nenhuma fita ainda: traga as músicas do celular'}</Text>
         </Card>
       </Animated.View>

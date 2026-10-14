@@ -58,7 +58,8 @@ async function open({releases = [], status = 200, viewport = {width: 390, height
   await page.getByText('MODO', {exact: false}).first().waitFor();
   return {context, page, errors};
 }
-const store = (page, key = APP) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
+// A biblioteca de música é gravada 0,5 s depois da última mudança (debounce do MusicProvider): espera isso antes de ler.
+const store = async (page, key = APP) => { if (key === MUSIC) await page.waitForTimeout(700); return page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key); };
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const tab = (page, name) => page.getByRole('tab', {name, exact: true}).click();
 // as telas entram com animação; espera ela assentar antes de ler o texto

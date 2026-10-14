@@ -4,7 +4,7 @@ import {Text} from '../text';
 import {formatClock} from '../../logic';
 import {Icon, Press} from '../ui';
 import {C, T} from '../theme';
-import {useMusic} from './MusicProvider';
+import {useMusic, useMusicProgress} from './MusicProvider';
 
 const clamp01 = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
 
@@ -44,16 +44,17 @@ function Scrub({pct, onLive, onCommit, label, valueText, fill, disabled, onDrag}
 
 export function SeekBar() {
   const m = useMusic();
+  const {position, duration} = useMusicProgress();
   const [drag, setDrag] = useState<number | null>(null);
-  const pct = m.duration > 0 ? Math.min(1, m.position / m.duration) : 0;
-  const shownSec = drag != null ? drag * m.duration : m.position;
+  const pct = duration > 0 ? Math.min(1, position / duration) : 0;
+  const shownSec = drag != null ? drag * duration : position;
   return (
     <View>
-      <Scrub pct={pct} fill={C.pink} disabled={m.duration <= 0} label="Posição da música" valueText={`${formatClock(m.position)} de ${formatClock(m.duration)}`}
-        onDrag={setDrag} onCommit={(p) => { if (m.duration > 0) m.seek(p * m.duration); }} />
+      <Scrub pct={pct} fill={C.pink} disabled={duration <= 0} label="Posição da música" valueText={`${formatClock(position)} de ${formatClock(duration)}`}
+        onDrag={setDrag} onCommit={(p) => { if (duration > 0) m.seek(p * duration); }} />
       <View style={B.times}>
         <Text style={[T.small, drag != null && B.timeOn]} accessibilityLiveRegion="polite">{formatClock(shownSec)}</Text>
-        <Text style={T.small}>{formatClock(m.duration)}</Text>
+        <Text style={T.small}>{formatClock(duration)}</Text>
       </View>
     </View>
   );
