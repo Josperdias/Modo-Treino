@@ -201,6 +201,21 @@ class ModoPlaybackModule : Module() {
     AsyncFunction("setRate") { rate: Double, promise: Promise ->
       withPlayer(promise) { it.setPlaybackSpeed(rate.toFloat().coerceIn(0.5f, 2f)) }
     }
+    // Estilo da notificação de música: "card" (cartão ilustrado, padrão) ou "system" (player do Android com barra arrastável).
+    AsyncFunction("setNotificationStyle") { style: String ->
+      val value = if (style == "system" || style == "full") style else "card"
+      context.getSharedPreferences(TapePlaybackService.PREFS, android.content.Context.MODE_PRIVATE).edit().putString(TapePlaybackService.KEY_STYLE, value).apply()
+      // Com o serviço já de pé, ele refaz a notificação na hora; sem serviço, vale na próxima música (não liga o player só por isso).
+      main.post {
+        val c = controller
+        if (c != null && c.isConnected) c.sendCustomCommand(androidx.media3.session.SessionCommand(TapePlaybackService.ACTION_STYLE, android.os.Bundle.EMPTY), android.os.Bundle().apply { putString("style", value) })
+      }
+      value
+    }
+    AsyncFunction("getNotificationStyle") {
+      context.getSharedPreferences(TapePlaybackService.PREFS, android.content.Context.MODE_PRIVATE).getString(TapePlaybackService.KEY_STYLE, "card") ?: "card"
+    }
+
     // Timer para dormir no próprio serviço: continua valendo com o app em segundo plano (o do JavaScript pode ser suspenso pelo Android). 0 = cancelar.
     AsyncFunction("setSleepTimer") { minutes: Int, promise: Promise ->
       withPlayer(promise) {

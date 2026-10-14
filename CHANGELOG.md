@@ -2,6 +2,15 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.3] — 2026-10-14
+
+### Correções (a partir do seu teste no celular)
+- **O rádio dourado só aparece quando há música tocando.** Antes ele ficava na tela inicial mesmo sem nada ("Bag Treino B · Sem fita").
+- **Animação lisa**: o desenho não mede mais a tela depois de aparecer (era isso que fazia as peças "pularem" e não encaixarem); alturas fixas, adesivos todos dentro da área.
+- **Setinha para recolher** (⌄ no topo do rádio): ele vira uma tirinha dourada com o nome da música, play/pausa e uma setinha (⌃) para abrir de novo. A altura anima e as duas versões trocam com fade.
+- **Notificação de música: volta o CARTÃO ILUSTRADO** (azul-céu pontilhado, fita colorida, botões em adesivo, ♥) também no motor novo, como padrão. Os botões falam direto com o player (funcionam com o app fechado) e a barra de tempo anda sozinha. **Ajustes → Notificação da música** troca entre **CARTÃO** e **PLAYER** (o do Android, com a barra de tempo arrastável).
+- O Android desenha o cartão dentro de uma moldura (com o cabeçalho "Modo Treino · agora") e não deixa arrastar o tempo; é uma regra do sistema para cartões personalizados.
+
 ## [1.4.2] — 2026-10-13
 
 ### Motor de música novo (Media3): a música não depende mais do app aberto

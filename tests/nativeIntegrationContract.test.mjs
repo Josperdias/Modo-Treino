@@ -56,3 +56,19 @@ test('Media3: timer de sono no serviço (fade e pausa) e título ICY da rádio c
   assert.match(bridge, /setSleepTimer/);
   assert.match(provider, /ModoPlayback\.setSleepTimer/); assert.match(provider, /state\.streamTitle/);
 });
+
+test('Media3: estilo da notificação (cartão ilustrado ou player do sistema) com escolha em Ajustes', () => {
+  const dir = 'native/modules/modo-playback/android/src/main/java/art/josperd/modotreino/playback/';
+  const svc = fs.readFileSync(dir + 'TapePlaybackService.kt', 'utf8');
+  const prov = fs.readFileSync(dir + 'NotificationStyleProvider.kt', 'utf8');
+  assert.match(svc, /setMediaNotificationProvider\(styleProvider\)/); assert.match(svc, /ACTION_STYLE/); assert.match(svc, /cardTicker/);
+  // o cartão usa os layouts do módulo modo-notif pelo nome, sem depender do código dele
+  for (const n of ['card_music_big', 'card_music_small', 'card_radio_big', 'card_radio_small']) {
+    assert.match(prov, new RegExp(n)); assert.ok(fs.existsSync(`native/modules/modo-notif/android/src/main/res/layout/${n}.xml`), n);
+  }
+  assert.match(prov, /DecoratedCustomViewStyle/); assert.match(prov, /createMediaActionPendingIntent/); assert.match(prov, /createCustomAction/);
+  assert.match(kt, /AsyncFunction\("setNotificationStyle"\)/); assert.match(kt, /AsyncFunction\("getNotificationStyle"\)/);
+  assert.match(bridge, /setNotificationStyle/); assert.match(fs.readFileSync('native/src/screens/Sheets.tsx', 'utf8'), /Notificação da música/);
+  // padrão = cartão ilustrado
+  assert.match(svc, /getString\(KEY_STYLE, "card"\)/);
+});

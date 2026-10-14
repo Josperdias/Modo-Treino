@@ -31,7 +31,7 @@ import {limparTreino, pedirNotificacoes} from './src/notify';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {C, R, useNarrow} from './src/theme';
 
-const APP_VERSION='1.4.2';
+const APP_VERSION='1.4.3';
 
 type Tab = 'home' | 'music' | 'search' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
