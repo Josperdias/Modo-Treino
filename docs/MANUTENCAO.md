@@ -77,5 +77,6 @@ Veja [CLAUDE.md](../CLAUDE.md).
 ## Notificação sem a moldura do Android (laboratório "moldura")
 - A partir do Android 12 o sistema põe a moldura padrão (cabeçalho "App · agora" e a seta) em notificações com layout próprio **de apps que declaram `targetSdk` 31 ou mais**. A documentação do Android chama isso de mudança "para apps com alvo Android 12". Apps com `targetSdk` antigo (alguns antivírus) podem ocupar a notificação inteira.
 - O app normal continua com `targetSdk` atual (36) e, por isso, usa o cartão **com** moldura. Para testar se o cartão sai sem moldura no aparelho, existe o workflow manual `android-moldura-lab.yml`: gera um APK à parte (`art.josperd.modotreino.moldura`) com `targetSdk 30`. Nele, em Ajustes → Notificação da música → **SEM MOLDURA**.
-- Baixar o `targetSdk` do app principal tem custo: permissões de armazenamento e notificações voltam ao modelo antigo, o Android avisa "app feito para uma versão mais antiga" ao instalar e não há garantia para versões futuras. Só decidir depois do teste no aparelho.
+- Baixar o `targetSdk` do app principal tem custo: permissões de armazenamento e notificações voltam ao modelo antigo e não há garantia para versões futuras (o Android 14 já bloqueia a instalação de apps com alvo abaixo de 23). Só decidir depois do teste no aparelho.
+- Caminhos oficiais alternativos, sem mexer no alvo: widget na tela inicial/bloqueio (sem moldura nenhuma), painel flutuante com a permissão "Exibir sobre outros apps" ou um segundo app minúsculo, com alvo antigo, que só desenha a notificação.
 

@@ -4,12 +4,6 @@ name: Android — Laboratório moldura (apenas testes)
 # em cartão sai SEM a moldura do Android 12+ (ver scripts/configure_moldura_pilot.py).
 on:
   workflow_dispatch:
-  # TEMPORÁRIO (remover ao dar merge): o workflow precisa existir na main para ser disparado à mão; enquanto está só nesta branch, ele roda quando o próprio workflow ou o script mudam.
-  push:
-    branches: ['ccr-3333f8eb-80vn4n']
-    paths:
-      - '.github/workflows/android-moldura-lab.yml'
-      - 'scripts/configure_moldura_pilot.py'
 permissions:
   contents: read
 concurrency:
