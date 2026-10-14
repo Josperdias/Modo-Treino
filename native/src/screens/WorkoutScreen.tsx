@@ -10,7 +10,7 @@ import {todayKey, useApp} from '../store';
 import {AText, Btn, Confetti, Confirm, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, Sheet, useToast} from '../ui';
 import ExerciseVideo from '../ExerciseVideo';
 import {calar, falar} from '../voice';
-import Svg, {Defs, Pattern as SvgPattern, Rect} from 'react-native-svg';
+import Svg, {Defs, Pattern as SvgPattern, RadialGradient, Rect, Stop} from 'react-native-svg';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {C, INK, R, T, useNarrow} from '../theme';
 import MiniPlayer from '../music/MiniPlayer';
@@ -307,27 +307,30 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
       <Text style={W.segsLegend}>{nFeitos} {nFeitos === 1 ? 'feito' : 'feitos'}{p.skippedCount ? ` · ${p.skippedCount} ${p.skippedCount === 1 ? 'pulado' : 'pulados'}` : ''} · {nFaltam} {nFaltam === 1 ? 'falta' : 'faltam'}</Text>
       <ScrollView ref={bodyRef} contentContainerStyle={W.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View key={ex.id} entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(160)}>
-          {skippedNow ? (
-            <Animated.View entering={FadeIn.duration(240)} exiting={FadeOut.duration(140)} style={W.skipBox} accessibilityRole="alert">
-              <Hazard id="hzTop" />
-              <View style={W.skipRow}>
-                <View style={W.skipX}><Icon name="close" size={52} color={C.white} /></View>
-                <View style={{flex: 1}}>
-                  <Text style={W.skipKicker}>VOCÊ MARCOU</Text>
-                  <Text style={W.skipTitle}>NÃO VOU FAZER</Text>
-                  <Text style={W.skipText}>Este exercício fica de fora do treino de hoje.</Text>
-                </View>
-              </View>
-              <View style={W.skipBtnBox}>
-                <Btn kind="primary" icon="arrow-undo" text="VOLTAR E FAZER ESTE" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} />
-              </View>
-              <Hazard id="hzBottom" />
-            </Animated.View>
-          ) : null}
           <Animated.View layout={LinearTransition.duration(240)}>
           <Pop accessibilityRole="imagebutton" accessibilityLabel={`Ampliar a ilustração de ${ex.nome}`} onPress={() => onZoom(ex)} quiet radius={R.xl} offset={6} color="#B4CDF6" innerStyle={W.figure}>
             <Image source={info.image} resizeMode="contain" style={[W.img, info.status === 'missing' && {opacity: 0.5}]} accessibilityLabel={`Ilustração de ${ex.nome}`} />
             <View style={W.zoomBadge}><Icon name="expand-outline" size={16} color={C.white} /></View>
+            {skippedNow ? (
+              <Animated.View entering={FadeIn.duration(260)} exiting={FadeOut.duration(160)} style={W.skipOver} accessibilityRole="alert">
+                <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+                  <Defs>
+                    <RadialGradient id="skipRg" cx="50%" cy="46%" rx="75%" ry="75%" fx="50%" fy="46%">
+                      <Stop offset="0" stopColor="#E63950" stopOpacity="0.96" />
+                      <Stop offset="0.55" stopColor="#D42E48" stopOpacity="0.82" />
+                      <Stop offset="1" stopColor="#8E1630" stopOpacity="0.5" />
+                    </RadialGradient>
+                  </Defs>
+                  <Rect x="0" y="0" width="100%" height="100%" fill="url(#skipRg)" />
+                </Svg>
+                <View style={W.skipHz} pointerEvents="none"><Hazard id="hzTop" h={12} /></View>
+                <View style={[W.skipHz, {top: undefined, bottom: 0}]} pointerEvents="none"><Hazard id="hzBottom" h={12} /></View>
+                <View style={W.skipX}><Icon name="close" size={60} color={C.white} /></View>
+                <Text style={W.skipKicker}>VOCÊ MARCOU</Text>
+                <Text style={W.skipTitle}>NÃO VOU FAZER</Text>
+                <Btn small kind="primary" icon="arrow-undo" text="VOLTAR E FAZER ESTE" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} style={{marginTop: 12, alignSelf: 'center'}} />
+              </Animated.View>
+            ) : null}
           </Pop>
           <View style={[W.chip, info.status === 'fallback' && {backgroundColor: '#FFE6A1'}, info.status === 'missing' && {backgroundColor: '#FFC5D3'}]}><Text style={W.chipText}>{info.label}</Text></View>
           {info.status !== 'ok' && <Text style={[T.small, {textAlign: 'center', marginTop: 6}]}>{info.note}</Text>}
@@ -390,16 +393,14 @@ const W = StyleSheet.create({
   segNow: {borderWidth: 2, borderColor: C.pink, backgroundColor: '#E6E1D7'},
   segSkip: {backgroundColor: '#E63950'},
   segsLegend: {paddingHorizontal: 20, paddingTop: 6, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, color: C.muted},
-  skipBox: {marginBottom: 14, borderRadius: R.md, backgroundColor: '#FFF3CC', borderWidth: 3, borderColor: C.ink, borderBottomWidth: 5, overflow: 'hidden'},
-  skipRow: {flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingTop: 14},
-  skipX: {width: 76, height: 76, borderRadius: 38, backgroundColor: '#E63950', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: C.ink, borderBottomWidth: 6},
-  skipKicker: {fontSize: 12, fontWeight: '900', letterSpacing: 1.4, color: '#7A2230'},
-  skipTitle: {fontSize: 30, lineHeight: 32, fontWeight: '900', color: C.ink, letterSpacing: 0.4},
-  skipText: {fontSize: 14, lineHeight: 19, color: C.ink, marginTop: 2},
-  skipBtnBox: {padding: 14, paddingBottom: 14},
+  skipOver: {...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 14},
+  skipHz: {position: 'absolute', top: 0, left: 0, right: 0},
+  skipX: {width: 92, height: 92, borderRadius: 46, backgroundColor: 'rgba(255,255,255,.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: C.white},
+  skipKicker: {fontSize: 12, fontWeight: '900', letterSpacing: 1.6, color: '#FFD9DF', marginTop: 10},
+  skipTitle: {fontSize: 34, lineHeight: 36, fontWeight: '900', color: C.white, letterSpacing: 0.6, textShadowColor: 'rgba(20,27,52,.55)', textShadowOffset: {width: 0, height: 2}, textShadowRadius: 6},
   skippedNote: {fontSize: 14, lineHeight: 20, color: C.ink, textAlign: 'center', marginTop: 10, fontWeight: '700'},
   body: {padding: 18, paddingBottom: 24},
-  figure: {height: 270, padding: 6},
+  figure: {height: 270, padding: 6, overflow: 'hidden'},
   img: {width: '100%', height: '100%'},
   zoomBadge: {position: 'absolute', right: 12, bottom: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(20,27,52,.78)', alignItems: 'center', justifyContent: 'center'},
   chip: {alignSelf: 'center', marginTop: 12, paddingHorizontal: 16, paddingVertical: 7, borderRadius: R.pill, backgroundColor: C.card, ...INK},

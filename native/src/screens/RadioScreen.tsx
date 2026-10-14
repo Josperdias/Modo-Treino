@@ -187,7 +187,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
                     ? <Text style={S.cardTrack} numberOfLines={1}>{m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : m.radioTrack?.state === 'sem' ? 'Esta rádio não informa a faixa' : 'Buscando o nome da faixa…'}</Text>
                     : <Text style={S.cardSub} numberOfLines={1}>{flag(card.cc)} {nomePais(card.cc, card.co)}{card.st ? ` · ${card.st}` : ''}{card.tg ? ` · ${card.tg.split(',')[0]}` : ''}{card.br ? ` · ${card.br} kbps` : ''}</Text>}
                 </View>
-                <Pop accessibilityRole="button" accessibilityLabel="Mais informações da rádio" onPress={() => setInfoOpen(true)} color={C.card} offset={2} radius={16} style={{width: 32, alignSelf: 'flex-start'}} innerStyle={S.infoBtn}><Icon name="information" size={20} /></Pop>
+                <Pop accessibilityRole="button" accessibilityLabel="Mais informações da rádio" onPress={() => setInfoOpen(true)} color={C.soft} offset={2} radius={16} style={{width: 32, alignSelf: 'flex-start'}} innerStyle={S.infoBtn}><Icon name="information" size={20} /></Pop>
               </View>
               <View style={S.cardBtns}>
                 <Pop accessibilityRole="button" accessibilityLabel={isPlayingCard ? 'Pausar rádio' : 'Ouvir rádio'} onPress={() => (playingId === card.i ? m.playPause() : play(card))} color={C.yellow} offset={3} radius={20} style={{flex: 1}} innerStyle={S.cardBtn}>
@@ -196,7 +196,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
                 <Pop accessibilityRole="button" accessibilityLabel="Guardar rádio numa bag" onPress={() => setSaving(true)} color={C.sky} offset={3} radius={20} style={{flex: 1}} innerStyle={S.cardBtn}>
                   <Icon name="bag-add" size={18} /><Text style={S.cardBtnText}>NA BAG</Text>
                 </Pop>
-                <Pop accessibilityRole="button" accessibilityLabel={`Mais rádios de ${nomePais(card.cc, card.co)}`} onPress={() => setCountry({iso2: card.cc, name: nomePais(card.cc, card.co)})} color={C.card} offset={3} radius={20} innerStyle={[S.cardBtn, {paddingHorizontal: 12}]}>
+                <Pop accessibilityRole="button" accessibilityLabel={`Mais rádios de ${nomePais(card.cc, card.co)}`} onPress={() => setCountry({iso2: card.cc, name: nomePais(card.cc, card.co)})} color={C.soft} offset={3} radius={20} innerStyle={[S.cardBtn, {paddingHorizontal: 12}]}>
                   <Icon name="list" size={18} />
                 </Pop>
                 {nearList.length > 1 && selected && near[0] === selected.i && (
@@ -310,13 +310,13 @@ const S = StyleSheet.create({
   legend: {alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(8,12,36,.62)', borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4},
   dot: {width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: '#F5E7C4'},
   legendText: {fontSize: 10, fontWeight: '700', color: '#DDE4FF', marginRight: 6},
-  card: {padding: 10, borderRadius: R.lg, backgroundColor: 'rgba(10,14,40,.86)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)'},
+  card: {padding: 10, borderRadius: R.lg, backgroundColor: 'rgba(255,254,250,.97)', borderWidth: 2, borderBottomWidth: 4, borderColor: C.ink},
   cardTop: {flexDirection: 'row', gap: 10, alignItems: 'center'},
   cardBtns: {flexDirection: 'row', gap: 8, marginTop: 10},
   cardBtn: {height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8},
   flagBox: {width: 44, height: 44, borderRadius: 14, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink},
-  cardName: {fontSize: 18, fontWeight: '900', color: C.white, letterSpacing: 0.2},
-  cardSub: {fontSize: 12, fontWeight: '700', color: '#AEB9E0'},
+  cardName: {fontSize: 18, fontWeight: '900', color: C.ink, letterSpacing: 0.2},
+  cardSub: {fontSize: 12, fontWeight: '700', color: C.muted},
   cardBtnText: {fontSize: 14, fontWeight: '900', letterSpacing: 0.8, color: C.ink},
   infoBtn: {width: 32, height: 32, alignItems: 'center', justifyContent: 'center'},
   infoHead: {flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12},
@@ -332,7 +332,7 @@ const S = StyleSheet.create({
   infoTagText: {fontSize: 12, fontWeight: '800', color: C.ink},
   listRow: {flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line},
   listName: {fontSize: 16, fontWeight: '700', color: C.ink},
-  cardTrack: {fontSize: 12, fontWeight: '800', color: '#5BE38D'},
+  cardTrack: {fontSize: 12, fontWeight: '800', color: '#1F8A4C'},
   countPill: {backgroundColor: C.soft, borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1.5, borderColor: C.ink},
   countPillText: {fontSize: 13, fontWeight: '900', color: C.ink},
   bagName: {fontSize: 16, fontWeight: '900', color: C.ink, marginTop: 4},
