@@ -2,7 +2,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Alert, BackHandler, Image, ScrollView, StyleSheet, View} from 'react-native';
 import {Text} from '../text';
-import Animated, {Easing, FadeIn, FadeInRight, FadeOutLeft, useAnimatedStyle, useSharedValue, withSequence, withTiming, ZoomIn} from 'react-native-reanimated';
+import Animated, {Easing, FadeIn, FadeInRight, FadeOut, FadeOutLeft, LinearTransition, useAnimatedStyle, useSharedValue, withSequence, withTiming, ZoomIn} from 'react-native-reanimated';
 import {doneCount, nextStep, restPlan, snapshotSession, tapSeries} from '../../logic';
 import {playCount, playSound} from '../../SoundFX';
 import {EXERCISES, Exercise, imageInfo, Treino} from '../data';
@@ -308,7 +308,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
       <ScrollView ref={bodyRef} contentContainerStyle={W.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View key={ex.id} entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(160)}>
           {skippedNow ? (
-            <View style={W.skipBox} accessibilityRole="alert">
+            <Animated.View entering={FadeIn.duration(240)} exiting={FadeOut.duration(140)} style={W.skipBox} accessibilityRole="alert">
               <Hazard id="hzTop" />
               <View style={W.skipRow}>
                 <View style={W.skipX}><Icon name="close" size={52} color={C.white} /></View>
@@ -322,8 +322,9 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
                 <Btn kind="primary" icon="arrow-undo" text="VOLTAR E FAZER ESTE" label={`Fazer ${ex.nome} agora`} onPress={undoSkip} />
               </View>
               <Hazard id="hzBottom" />
-            </View>
+            </Animated.View>
           ) : null}
+          <Animated.View layout={LinearTransition.duration(240)}>
           <Pop accessibilityRole="imagebutton" accessibilityLabel={`Ampliar a ilustração de ${ex.nome}`} onPress={() => onZoom(ex)} quiet radius={R.xl} offset={6} color="#B4CDF6" innerStyle={W.figure}>
             <Image source={info.image} resizeMode="contain" style={[W.img, info.status === 'missing' && {opacity: 0.5}]} accessibilityLabel={`Ilustração de ${ex.nome}`} />
             <View style={W.zoomBadge}><Icon name="expand-outline" size={16} color={C.white} /></View>
@@ -361,6 +362,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
             <Text style={W.stepNum}>{total}</Text>
             <Pop accessibilityRole="button" accessibilityLabel={`Aumentar séries de ${ex.nome}`} onPress={() => adjust(ex, 1)} quiet radius={14} offset={3} innerStyle={W.stepBtn}><Icon name="add" size={20} /></Pop>
           </View>
+          </Animated.View>
         </Animated.View>
       </ScrollView>
       <View style={[W.controls, {paddingBottom: insets.bottom + 12}]}>
