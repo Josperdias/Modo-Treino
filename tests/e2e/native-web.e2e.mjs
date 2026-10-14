@@ -691,6 +691,7 @@ test('"não vou fazer este exercício": confirma ao pular, dá para se arrepende
   // 2) voltar ao pulado: aviso e arrependimento
   await page.getByLabel('Exercício anterior').click(); await settle(page, 400);
   await page.getByText('VOCÊ MARCOU', {exact: true}).waitFor();
+  await page.getByText('FORA DO TREINO DE HOJE').waitFor();
   await page.getByLabel('Fazer Rosca direta na barra W agora').click(); await settle(page, 400);
   assert.equal(await page.getByText('VOCÊ MARCOU', {exact: true}).count(), 0, 'se arrependeu: o exercício volta ao treino');
   assert.doesNotMatch(await body(page), /1 pulado/);
@@ -753,9 +754,12 @@ test('rádio: o mundo fica atrás dos controles, o cartão da estação é compa
   await page.getByLabel('Surpreenda-me com uma rádio aleatória').click(); await settle(page, 600);
   const card = await page.getByRole('button', {name: 'Rádio Rádio Lose Control'}).boundingBox();
   assert.ok(card && card.height <= 130, `o cartão da estação é compacto (altura ${card && card.height})`);
-  assert.equal(await page.getByLabel('Recolher o cartão da rádio').count(), 0, 'sem aba/recolher: o cartão é só uma faixa translúcida');
   await page.getByLabel('Guardar rádio numa bag').waitFor();
   await page.getByLabel('Ouvir rádio').waitFor();
+  await page.getByLabel('Recolher o cartão da rádio').click(); await settle(page, 500);   // recolhe: o globo inteiro aparece
+  assert.equal(await page.getByLabel('Guardar rádio numa bag').count(), 0, 'cartão recolhido');
+  await page.getByLabel(/^Abrir o cartão da rádio/).click(); await settle(page, 500);
+  await page.getByLabel('Guardar rádio numa bag').waitFor();
   await page.getByLabel('Mais informações da rádio').click();
   await page.getByRole('heading', {name: 'Sobre a rádio'}).waitFor();
   assert.match(await body(page), /ESTILOS[\s\S]*pop[\s\S]*128 kbps/, 'o "i" mostra estilos e qualidade da rádio');

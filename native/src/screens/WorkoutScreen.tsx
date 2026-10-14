@@ -46,6 +46,14 @@ function Hazard({h = 14, id}: {h?: number; id: string}) {
   );
 }
 
+/** Escurece o detalhe do exercício (séries, carga) com transição suave quando a pessoa disse que não vai fazer. */
+function SkipDim({on, children}: {on: boolean; children: React.ReactNode}) {
+  const v = useSharedValue(on ? 1 : 0);
+  useEffect(() => { v.value = withTiming(on ? 1 : 0, {duration: 280, easing: Easing.out(Easing.cubic)}); }, [on, v]);
+  const st = useAnimatedStyle(() => ({opacity: 1 - 0.62 * v.value}));
+  return <Animated.View style={st}>{children}</Animated.View>;
+}
+
 function SegFill({pct}: {pct: number}) {
   const w = useSharedValue(pct);
   useEffect(() => { w.value = withTiming(pct, {duration: 420, easing: Easing.out(Easing.cubic)}); }, [pct, w]);
@@ -338,7 +346,8 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
           <View style={W.titleRow}>
             <View style={{flex: 1}}>
               <Text style={T.kicker}>{ex.codigo} · {ex.grupo}</Text>
-              <Text style={W.title}>{ex.nome.toUpperCase()}</Text>
+              <Text style={[W.title, skippedNow && W.titleOut]}>{ex.nome.toUpperCase()}</Text>
+              {skippedNow ? <Animated.View entering={FadeIn.duration(260)} style={W.outChip}><Icon name="close-circle" size={15} color={C.white} /><Text style={W.outChipText}>FORA DO TREINO DE HOJE</Text></Animated.View> : null}
             </View>
             {!skippedNow && <Pop accessibilityRole="button" accessibilityLabel={`Não vou fazer ${ex.nome}`} onPress={() => setAskSkip(true)} quiet radius={23} offset={3} color="#E63950" innerStyle={W.help}><Icon name="close" size={24} color={C.white} /></Pop>}
             <Pop accessibilityRole="button" accessibilityLabel="Como fazer o movimento" accessibilityState={{expanded: help}} onPress={() => setHelp(!help)} quiet radius={23} offset={3} color={help ? C.yellow : C.card} innerStyle={W.help}><Text style={W.helpMark}>?</Text></Pop>
@@ -346,6 +355,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
           {help && <AText entering={FadeIn} style={W.helpBox}>{ex.orientacao}</AText>}
           {video && <Btn small kind="ghost" icon="videocam" text="VER MEU VÍDEO DE EXECUÇÃO" onPress={() => setVid(true)} style={{marginTop: 10}} />}
 
+          <SkipDim on={skippedNow}>
           <View style={W.target}>
             <Text style={W.targetText}><Text style={W.targetBig}>{total}</Text> séries × <Text style={W.targetBig}>{c.reps}</Text> rep.</Text>
             <Text style={W.targetText}>{c.peso ? <><Text style={W.targetBig}>{c.peso}</Text> kg</> : 'carga a definir'}</Text>
@@ -365,6 +375,7 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
             <Text style={W.stepNum}>{total}</Text>
             <Pop accessibilityRole="button" accessibilityLabel={`Aumentar séries de ${ex.nome}`} onPress={() => adjust(ex, 1)} quiet radius={14} offset={3} innerStyle={W.stepBtn}><Icon name="add" size={20} /></Pop>
           </View>
+          </SkipDim>
           </Animated.View>
         </Animated.View>
       </ScrollView>
@@ -407,6 +418,9 @@ const W = StyleSheet.create({
   chip: {alignSelf: 'center', marginTop: 12, paddingHorizontal: 16, paddingVertical: 7, borderRadius: R.pill, backgroundColor: C.card, ...INK},
   chipText: {fontSize: 11, fontWeight: '900', letterSpacing: 1, color: C.ink},
   titleRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16},
+  titleOut: {color: '#B8243C', textDecorationLine: 'line-through', textDecorationColor: '#E63950'},
+  outChip: {flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#E63950', borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4, marginTop: 8, borderWidth: 2, borderColor: C.ink},
+  outChipText: {fontSize: 11, fontWeight: '900', letterSpacing: 1, color: C.white},
   title: {fontSize: 30, fontWeight: '900', letterSpacing: 0.2, color: C.ink, lineHeight: 30, marginTop: 4},
   help: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
   helpMark: {fontSize: 20, fontWeight: '900', color: C.ink},

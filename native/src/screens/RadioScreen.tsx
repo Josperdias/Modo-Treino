@@ -2,7 +2,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ActivityIndicator, FlatList, ScrollView, StyleSheet, View} from 'react-native';
 import {Text, TextInput} from '../text';
-import Animated, {FadeIn, FadeInDown, FadeOutDown} from 'react-native-reanimated';
+import Animated, {FadeIn, FadeInDown, FadeOutDown, ZoomIn, ZoomOut} from 'react-native-reanimated';
 import {LinearGradient} from 'expo-linear-gradient';
 import {flag} from '../data';
 import {Btn, Icon, Pop, Press, Pulse, Sheet, useToast} from '../ui';
@@ -25,6 +25,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
   const [saving, setSaving] = useState(false);
   const [near, setNear] = useState<string[]>([]);
   const [nearOpen, setNearOpen] = useState(false);
+  const [cardHidden, setCardHidden] = useState(false);  // cartão recolhido: o globo inteiro aparece
   const [infoOpen, setInfoOpen] = useState(false);     // "i": mais informações da rádio
   const [countries, setCountries] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);   // painel "Estilos" (recolhido por padrão)
@@ -56,7 +57,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
   useEffect(() => { if (ready) globe.current?.post({cmd: 'filter', ids: tag ? idsDoEstilo(stations, tag) : null}); }, [ready, tag, stations]);
 
   const focus = (s: Station, altitude = 0.9) => globe.current?.post({cmd: 'focus', id: s.i, lat: s.lat, lng: s.lng, altitude, ms: 1100});
-  const pick = (s: Station, move = true) => { setSelected(s); setNear([]); if (move) focus(s); };
+  const pick = (s: Station, move = true) => { setSelected(s); setNear([]); setCardHidden(false); if (move) focus(s); };
   const play = (s: Station) => { pick(s, false); countClick(s.i); void m.playRadio(toTrack(s)); };
 
   const onEvent = useCallback((e: GlobeEvent) => {
@@ -176,7 +177,14 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
           <View style={[S.dot, {backgroundColor: '#E63950'}]} /><Text style={S.legendText}>escolhida</Text>
           <View style={[S.dot, {backgroundColor: '#22B35E'}]} /><Text style={S.legendText}>tocando</Text>
         </View>
-        {showCard && card && (
+        {showCard && card && cardHidden && (
+          <Animated.View entering={ZoomIn.duration(220)} exiting={ZoomOut.duration(140)} style={{alignSelf: 'flex-end'}}>
+            <Pop accessibilityRole="button" accessibilityLabel={`Abrir o cartão da rádio ${card.n}`} onPress={() => setCardHidden(false)} color={C.card} offset={3} radius={26} style={{width: 52}} innerStyle={S.reopen}>
+              <Text style={{fontSize: 24}}>{flag(card.cc)}</Text>
+            </Pop>
+          </Animated.View>
+        )}
+        {showCard && card && !cardHidden && (
           <Animated.View key={card.i} entering={FadeInDown.duration(260)} exiting={FadeOutDown.duration(160)}>
             <Press accessibilityRole="button" accessibilityLabel={`Rádio ${card.n}`} onPress={() => focus(card)} style={S.card} quiet>
               <View style={S.cardTop}>
@@ -187,6 +195,7 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
                     ? <Text style={S.cardTrack} numberOfLines={1}>{m.radioTrack?.title ? `♪ ${m.radioTrack.title}` : m.radioTrack?.state === 'sem' ? 'Esta rádio não informa a faixa' : 'Buscando o nome da faixa…'}</Text>
                     : <Text style={S.cardSub} numberOfLines={1}>{flag(card.cc)} {nomePais(card.cc, card.co)}{card.st ? ` · ${card.st}` : ''}{card.tg ? ` · ${card.tg.split(',')[0]}` : ''}{card.br ? ` · ${card.br} kbps` : ''}</Text>}
                 </View>
+                <Pop accessibilityRole="button" accessibilityLabel="Recolher o cartão da rádio" onPress={() => setCardHidden(true)} color={C.soft} offset={2} radius={16} style={{width: 32, alignSelf: 'flex-start'}} innerStyle={S.infoBtn}><Icon name="chevron-down" size={20} /></Pop>
                 <Pop accessibilityRole="button" accessibilityLabel="Mais informações da rádio" onPress={() => setInfoOpen(true)} color={C.soft} offset={2} radius={16} style={{width: 32, alignSelf: 'flex-start'}} innerStyle={S.infoBtn}><Icon name="information" size={20} /></Pop>
               </View>
               <View style={S.cardBtns}>
@@ -318,6 +327,7 @@ const S = StyleSheet.create({
   cardName: {fontSize: 18, fontWeight: '900', color: C.ink, letterSpacing: 0.2},
   cardSub: {fontSize: 12, fontWeight: '700', color: C.muted},
   cardBtnText: {fontSize: 14, fontWeight: '900', letterSpacing: 0.8, color: C.ink},
+  reopen: {width: 52, height: 52, alignItems: 'center', justifyContent: 'center'},
   infoBtn: {width: 32, height: 32, alignItems: 'center', justifyContent: 'center'},
   infoHead: {flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12},
   flagBoxLight: {width: 56, height: 56, borderRadius: 16, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink},
