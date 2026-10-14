@@ -48,3 +48,11 @@ test('Media3: capa do app e botão ♥ no player do sistema (contrato Kotlin ↔
   for (const n of [0, 1, 2, 3, 4, 5, 6, 7]) assert.ok(fs.existsSync(`native/modules/modo-playback/android/src/main/res/drawable-nodpi/capa_fita_${n}.png`), `capa_fita_${n}.png`);
   assert.ok(fs.existsSync('native/modules/modo-playback/android/src/main/res/drawable-nodpi/capa_radio.png'));
 });
+
+test('Media3: timer de sono no serviço (fade e pausa) e título ICY da rádio chegam ao JS', () => {
+  const svc = fs.readFileSync('native/modules/modo-playback/android/src/main/java/art/josperd/modotreino/playback/TapePlaybackService.kt', 'utf8');
+  assert.match(svc, /ACTION_SLEEP/); assert.match(svc, /FADE_MS/);
+  assert.match(kt, /AsyncFunction\("setSleepTimer"\)/); assert.match(kt, /"streamTitle"/);
+  assert.match(bridge, /setSleepTimer/);
+  assert.match(provider, /ModoPlayback\.setSleepTimer/); assert.match(provider, /state\.streamTitle/);
+});

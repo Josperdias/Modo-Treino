@@ -32,6 +32,29 @@ class TapePlaybackService : MediaSessionService() {
   private val main = Handler(Looper.getMainLooper())
   private var retries = 0
   private var favorite = false
+  private var sleepVolume = 1f
+  private var sleepEndAt = 0L
+  private val sleepFade = object : Runnable {
+    override fun run() {
+      val p = exoPlayer ?: return
+      val left = sleepEndAt - android.os.SystemClock.elapsedRealtime()
+      if (left <= 0) { sleepEndAt = 0L; p.pause(); p.volume = sleepVolume; return }
+      if (left <= FADE_MS) p.volume = sleepVolume * (left.toFloat() / FADE_MS)
+      main.postDelayed(this, 400)
+    }
+  }
+
+  /** Dormir: no fim do tempo a música some devagar (8 s) e pausa; o volume volta ao que era para a próxima vez. 0 cancela. */
+  private fun setSleep(ms: Long) {
+    val p = exoPlayer ?: return
+    main.removeCallbacks(sleepFade)
+    if (sleepEndAt != 0L) p.volume = sleepVolume   // cancelou no meio do fade: devolve o volume
+    sleepEndAt = 0L
+    if (ms <= 0) return
+    sleepVolume = p.volume
+    sleepEndAt = android.os.SystemClock.elapsedRealtime() + ms
+    main.postDelayed(sleepFade, 400)
+  }
 
   /** Botão ♥ do player do sistema (notificação e tela de bloqueio). Ele só avisa o app; quem guarda na bag Favoritas é o JavaScript. */
   private fun favButton(on: Boolean): CommandButton =
@@ -45,6 +68,7 @@ class TapePlaybackService : MediaSessionService() {
       val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
         .add(SessionCommand(ACTION_FAV, Bundle.EMPTY))
         .add(SessionCommand(ACTION_FAV_STATE, Bundle.EMPTY))
+        .add(SessionCommand(ACTION_SLEEP, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
         .setAvailableSessionCommands(commands)
@@ -55,6 +79,7 @@ class TapePlaybackService : MediaSessionService() {
     override fun onCustomCommand(session: MediaSession, controller: MediaSession.ControllerInfo, customCommand: SessionCommand, args: Bundle): ListenableFuture<SessionResult> {
       when (customCommand.customAction) {
         ACTION_FAV -> PlaybackBus.emit("fav")
+        ACTION_SLEEP -> setSleep(args.getLong("ms", 0L))
         ACTION_FAV_STATE -> {
           favorite = args.getBoolean("on", false)
           session.setCustomLayout(ImmutableList.of(favButton(favorite)))
@@ -124,5 +149,7 @@ class TapePlaybackService : MediaSessionService() {
   companion object {
     const val ACTION_FAV = "mt_fav"
     const val ACTION_FAV_STATE = "mt_fav_state"
+    const val ACTION_SLEEP = "mt_sleep"
+    private const val FADE_MS = 8000L
   }
 }

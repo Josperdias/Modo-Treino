@@ -49,7 +49,9 @@ class ModoPlaybackModule : Module() {
     "repeat" to (player.repeatMode == Player.REPEAT_MODE_ALL),
     "shuffle" to player.shuffleModeEnabled,
     "rate" to player.playbackParameters.speed,
-    "volume" to player.volume
+    "volume" to player.volume,
+    // Título que a própria rádio transmite (ICY "StreamTitle"): o ExoPlayer o põe em mediaMetadata por cima do nome da estação.
+    "streamTitle" to player.mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() && it != player.currentMediaItem?.mediaMetadata?.title?.toString() }
   )
 
   /** `art`: índice 0–7 da cor da fita, ou "radio". Vira `capa://N`, que o CapaLoader do serviço transforma na imagem do app. */
@@ -199,6 +201,13 @@ class ModoPlaybackModule : Module() {
     AsyncFunction("setRate") { rate: Double, promise: Promise ->
       withPlayer(promise) { it.setPlaybackSpeed(rate.toFloat().coerceIn(0.5f, 2f)) }
     }
+    // Timer para dormir no próprio serviço: continua valendo com o app em segundo plano (o do JavaScript pode ser suspenso pelo Android). 0 = cancelar.
+    AsyncFunction("setSleepTimer") { minutes: Int, promise: Promise ->
+      withPlayer(promise) {
+        it.sendCustomCommand(androidx.media3.session.SessionCommand(TapePlaybackService.ACTION_SLEEP, android.os.Bundle.EMPTY), android.os.Bundle().apply { putLong("ms", minutes.coerceIn(0, 720) * 60_000L) })
+      }
+    }
+
     // ♥ do player do sistema: o JS diz se a música atual está nas favoritas e o serviço troca o ícone (cheio/vazio).
     AsyncFunction("setFavorite") { on: Boolean, promise: Promise ->
       withPlayer(promise) {

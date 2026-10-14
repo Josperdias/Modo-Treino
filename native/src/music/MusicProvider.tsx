@@ -160,6 +160,11 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
         nowRef.current = found; setNowTrack(found);
         setRadioTrackState(found.source === 'radio' ? {id: found.id, title: null, state: 'buscando'} : null);
       }
+      // Nome da música que a própria rádio transmite (ICY), lido pelo ExoPlayer: aparece no miniplayer e no player grande.
+      if (found?.source === 'radio' && state.streamTitle) {
+        const st = state.streamTitle;
+        setRadioTrackState((o) => (o && o.id === found.id && o.title === st ? o : {id: found.id, title: st, state: 'ok'}));
+      }
       if (state.count === 0) { nowRef.current = null; setNowTrack(null); }
       playingRef.current = state.playing; setPlaying(state.playing);
     };
@@ -253,7 +258,8 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     if (!sleepAt) return;
     const t = setInterval(() => {
       setClock(Date.now());
-      if (Date.now() >= sleepAt) {
+      // No motor nativo o serviço apaga o som (fade de 8 s) e pausa na hora; o JavaScript só confere 3 s depois, caso o serviço não tenha recebido.
+      if (Date.now() >= sleepAt + (nativeActive ? 3000 : 0)) {
         if (nativeActive) void ModoPlayback.pause().catch(() => {});
         else { cancelFade(); one.pause(); two.pause(); }
         setPlaying(false); playingRef.current = false; setSleepAt(null);
@@ -582,7 +588,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       else if (!live) { try { one.setPlaybackRate?.(r); two.setPlaybackRate?.(r); } catch { /* extra */ } }
     },
     sleepLeft: sleepAt ? Math.max(0, Math.ceil((sleepAt - (clock || Date.now())) / 1000)) : 0,
-    setSleep: (minutes) => setSleepAt(minutes > 0 ? Date.now() + minutes * 60000 : null),
+    setSleep: (minutes) => { setSleepAt(minutes > 0 ? Date.now() + minutes * 60000 : null); if (nativeActive) void ModoPlayback.setSleepTimer(Math.max(0, minutes)).catch(() => {}); },
     // "Tocar a seguir" respeita a fila realmente em execução.
     // Quando ouvimos "Todas as fitas", a fila temporária muda SEM modificar a bag salva.
     playNext: (id) => {
