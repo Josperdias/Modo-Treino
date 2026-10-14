@@ -38,8 +38,7 @@ export type MusicAPI = {
   now: Track | null;
   live: boolean;
   playing: boolean;
-  position: number;
-  duration: number;
+  /** Posição e duração NÃO ficam aqui (mudam várias vezes por segundo e re-renderizariam todas as telas): use `useMusicProgress()`. */
   /** Todas as fitas (músicas) disponíveis: lista do celular, pastas e arquivos copiados. */
   library: Track[];
   /** Bag selecionada e o que há nela. */
@@ -161,6 +160,11 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
         nowRef.current = found; setNowTrack(found);
         setRadioTrackState(found.source === 'radio' ? {id: found.id, title: null, state: 'buscando'} : null);
       }
+      // Nome da música que a própria rádio transmite (ICY), lido pelo ExoPlayer: aparece no miniplayer e no player grande.
+      if (found?.source === 'radio' && state.streamTitle) {
+        const st = state.streamTitle;
+        setRadioTrackState((o) => (o && o.id === found.id && o.title === st ? o : {id: found.id, title: st, state: 'ok'}));
+      }
       if (state.count === 0) { nowRef.current = null; setNowTrack(null); }
       playingRef.current = state.playing; setPlaying(state.playing);
     };
@@ -227,7 +231,20 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     readPermission().then(setPermission).catch(() => {});
   }, []);
   useEffect(() => { if (loaded) void scanRef.current(false); }, [loaded]);
-  useEffect(() => { if (loaded) AsyncStorage.setItem(KEY, JSON.stringify(lib)).catch(() => {}); }, [lib, loaded]);
+  // Grava a biblioteca 0,5 s depois da última mudança (arrastar o volume mudava `lib` dezenas de vezes e regravava tudo a cada vez);
+  // ao sair do app grava na hora, para não perder nada.
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => { AsyncStorage.setItem(KEY, JSON.stringify(lib)).catch(() => {}); }, 500);
+    return () => clearTimeout(t);
+  }, [lib, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active') AsyncStorage.setItem(KEY, JSON.stringify(libRef.current)).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [loaded]);
   // Pausa, troca manual e timer não podem deixar o canal anterior audível durante um crossfade.
   const cancelFade = useCallback(() => {
     if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
@@ -241,7 +258,8 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     if (!sleepAt) return;
     const t = setInterval(() => {
       setClock(Date.now());
-      if (Date.now() >= sleepAt) {
+      // No motor nativo o serviço apaga o som (fade de 8 s) e pausa na hora; o JavaScript só confere 3 s depois, caso o serviço não tenha recebido.
+      if (Date.now() >= sleepAt + (nativeActive ? 3000 : 0)) {
         if (nativeActive) void ModoPlayback.pause().catch(() => {});
         else { cancelFade(); one.pause(); two.pause(); }
         setPlaying(false); playingRef.current = false; setSleepAt(null);
@@ -489,8 +507,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
   useEffect(() => () => { ModoNotif.musicStop(); }, []);
 
   const api: MusicAPI = {
-    lib, now, live, playing, position: nativeActive ? (nativeState?.positionMs ?? 0) / 1000 : currentStatus.currentTime || 0,
-    duration: live ? 0 : nativeActive ? (nativeState?.durationMs ?? 0) / 1000 : currentStatus.duration || 0, library, activeTape,
+    lib, now, live, playing, library, activeTape,
     tapeTracks: resolved.tracks, missing: resolved.missing, device, scanning, permission, scan, addFolder, importFiles,
     addToTape: (tracks) => setLib((v) => {
       const known = new Set(v.tracks.map((x) => x.id));
@@ -571,7 +588,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       else if (!live) { try { one.setPlaybackRate?.(r); two.setPlaybackRate?.(r); } catch { /* extra */ } }
     },
     sleepLeft: sleepAt ? Math.max(0, Math.ceil((sleepAt - (clock || Date.now())) / 1000)) : 0,
-    setSleep: (minutes) => setSleepAt(minutes > 0 ? Date.now() + minutes * 60000 : null),
+    setSleep: (minutes) => { setSleepAt(minutes > 0 ? Date.now() + minutes * 60000 : null); if (nativeActive) void ModoPlayback.setSleepTimer(Math.max(0, minutes)).catch(() => {}); },
     // "Tocar a seguir" respeita a fila realmente em execução.
     // Quando ouvimos "Todas as fitas", a fila temporária muda SEM modificar a bag salva.
     playNext: (id) => {
@@ -579,7 +596,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       if (!track) return;
       if (nativeActive && nowRef.current) {
         // Atualiza SOMENTE a fila do motor, sem alterar uma bag persistida.
-        void ModoPlayback.insertNext({id: track.id, uri: track.uri, title: track.title, artist: track.artist, source: track.source})
+        void ModoPlayback.insertNext({id: track.id, uri: track.uri, title: track.title, artist: track.artist, source: track.source, art: track.source === 'radio' ? 'radio' : tapeIndex(track.id)})
           .then(() => { nativeQueue.current = insertNextInQueue(nativeQueue.current, nowRef.current?.id, track); })
           .catch(() => {});
         return;
@@ -652,7 +669,43 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     }
   };
   useEffect(() => ModoNotif.onAction((e) => { if (e.kind === 'music' && !nativeActive) actions.current(e.action); }), [nativeActive]);
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
+  // Motor Media3: o ♥ do player do sistema chega aqui, e o ícone (cheio/vazio) acompanha a bag Favoritas.
+  useEffect(() => (nativeActive ? ModoPlayback.onAction((a) => { if (a === 'fav') actions.current('fav'); }) : undefined), [nativeActive]);
+  const nowFav = !!(nowTrack && lib.tapes.find((t) => t.id === 'fav')?.ids.includes(nowTrack.id));
+  useEffect(() => { if (nativeActive && nowTrack?.source !== 'radio') void ModoPlayback.setFavorite(nowFav).catch(() => {}); }, [nativeActive, nowFav, nowTrack?.id]);
+  const progress = useMemo<MusicProgress>(() => ({
+    position: nativeActive ? (nativeState?.positionMs ?? 0) / 1000 : currentStatus.currentTime || 0,
+    duration: live ? 0 : nativeActive ? (nativeState?.durationMs ?? 0) / 1000 : currentStatus.duration || 0,
+  }), [nativeActive, nativeState?.positionMs, nativeState?.durationMs, currentStatus.currentTime, currentStatus.duration, live]);
+  const stable = useStableApi(api);
+  return <Ctx.Provider value={stable}><ProgressCtx.Provider value={progress}>{children}</ProgressCtx.Provider></Ctx.Provider>;
+}
+
+export type MusicProgress = {position: number; duration: number};
+const ProgressCtx = createContext<MusicProgress>({position: 0, duration: 0});
+/** Posição/duração da faixa em segundos. Só quem chama este hook re-renderiza a cada atualização (barra de progresso, cassete). */
+export function useMusicProgress(): MusicProgress { return useContext(ProgressCtx); }
+
+/** Entrega às telas um objeto que só muda quando algum DADO muda; as funções ficam com identidade fixa e sempre chamam a versão mais nova.
+ * Antes, o objeto era recriado a cada atualização de posição (~6 vezes por segundo) e re-renderizava todas as telas de música. */
+function useStableApi(api: MusicAPI): MusicAPI {
+  const latest = useRef(api);
+  latest.current = api;
+  const keys = useMemo(() => Object.keys(api) as (keyof MusicAPI)[], []); // eslint-disable-line react-hooks/exhaustive-deps
+  const fns = useMemo(() => {
+    const o: Record<string, unknown> = {};
+    for (const k of keys) {
+      if (typeof api[k] === 'function') o[k as string] = (...args: unknown[]) => (latest.current[k] as (...a: unknown[]) => unknown)(...args);
+    }
+    return o;
+  }, [keys]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dataKeys = useMemo(() => keys.filter((k) => typeof api[k] !== 'function'), [keys]); // eslint-disable-line react-hooks/exhaustive-deps
+  const values = dataKeys.map((k) => api[k]);
+  return useMemo(() => {
+    const o: Record<string, unknown> = {...fns};
+    dataKeys.forEach((k, i) => { o[k as string] = values[i]; });
+    return o as unknown as MusicAPI;
+  }, values); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function useMusic() {

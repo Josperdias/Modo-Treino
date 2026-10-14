@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Alert, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import {Text, TextInput} from '../text';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
@@ -6,10 +6,12 @@ import {formatClock, searchTracks} from '../../logic';
 import {flag} from '../data';
 import {Btn, Card, Chips, Equalizer, Icon, Kicker, Pattern, Pop, Press, Pulse, Sheet, useToast} from '../ui';
 import {C, R, T, useNarrow} from '../theme';
-import Cassette, {MiniTape} from '../music/Cassette';
+import {MiniTape} from '../music/Cassette';
+import LiveCassette from '../music/LiveCassette';
 import {PermissionCard, SourceButtons} from '../music/LibrarySources';
 import {Track, useMusic} from '../music/MusicProvider';
 import {SeekBar, VolumeBar} from '../music/PlayerBits';
+import {setHeroGone} from '../music/dock';
 
 const FADES = [0, 2, 3, 5, 8];
 
@@ -17,6 +19,7 @@ const TIMERS = [0, 15, 30, 45, 60];
 const RATES = [0.75, 1, 1.25, 1.5];
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+const HERO_GONE_Y = 520;   // depois desta rolagem o player grande já saiu da tela: o miniplayer assume
 const ROW_H = 84;   // altura fixa da linha: a lista calcula a posição sem medir cada item (rolagem lisa)
 
 type RowProps = {t: Track; current: boolean; playing: boolean; sub: string; onPlay: (t: Track) => void; onMenu: (t: Track) => void};
@@ -38,7 +41,10 @@ const FitaRow = React.memo(function FitaRow({t, current, playing, sub, onPlay, o
   );
 });
 
-const subOf = (t: Track) => (t.duration ? formatClock(t.duration) : t.source === 'file' ? 'Arquivo copiado para o app' : 'No celular');
+const subOf = (t: Track) => {
+  const base = t.duration ? formatClock(t.duration) : t.source === 'file' ? 'Arquivo copiado para o app' : 'No celular';
+  return t.artist ? `${t.artist} · ${base}` : base;
+};
 
 /** FITAS: cada música do celular é uma fita (um cassete colorido). Toque numa fita para ouvir; coloque fitas em bags (playlists) na aba BAGS. */
 export default function MusicScreen() {
@@ -49,7 +55,14 @@ export default function MusicScreen() {
   const [pickBag, setPickBag] = useState(false);
   const [q, setQ] = useState('');
   const list = useMemo(() => searchTracks(m.library, q), [m.library, q]);
-  const progress = m.duration > 0 ? m.position / m.duration : 0;
+  const listView = useRef<FlatList<Track>>(null);
+  useEffect(() => () => setHeroGone(false), []);
+  // O miniplayer também fica à mão enquanto você busca (mesmo com o player grande à vista), para voltar à fita que toca sem apagar a busca.
+  const scrolledPast = useRef(false);
+  const searching = useRef(false);
+  searching.current = q.trim().length > 0;
+  useEffect(() => { setHeroGone(scrolledPast.current || q.trim().length > 0); }, [q]);
+  const onScroll = useCallback((e: {nativeEvent: {contentOffset: {y: number}}}) => { scrolledPast.current = e.nativeEvent.contentOffset.y > HERO_GONE_Y; setHeroGone(scrolledPast.current || searching.current); }, []);
   const context = m.queueName ?? `Bag ${m.activeTape.name}`;
   const where = (t: Track) => m.lib.tapes.filter((b) => b.ids.includes(t.id)).map((b) => b.name);
 
@@ -59,6 +72,10 @@ export default function MusicScreen() {
   const onPlay = useCallback((t: Track) => { void mRef.current.playFita(t, listRef.current); }, []);
   const onMenu = useCallback((t: Track) => { setPickBag(false); setMenu(t); }, []);
   const nowId = m.now?.id;
+  const nowIndex = nowId ? list.findIndex((x) => x.id === nowId) : -1;
+  const goToNow = useCallback(() => {
+    if (nowIndex >= 0) listView.current?.scrollToIndex({index: nowIndex, viewPosition: 0.35, animated: true});
+  }, [nowIndex]);
   const renderItem = useCallback(({item}: {item: Track}) => (
     <FitaRow t={item} current={nowId === item.id} playing={m.playing} sub={subOf(item)} onPlay={onPlay} onMenu={onMenu} />
   ), [nowId, m.playing, onPlay, onMenu]);
@@ -69,7 +86,7 @@ export default function MusicScreen() {
         <Kicker>Sua sonoplastia particular / 001</Kicker>
         <Text style={[T.h1, {marginTop: 4, marginBottom: 16, fontSize: 40, lineHeight: 38}]}>Suas fitas,{'\n'}seu ritmo.</Text>
         <Card color={C.yellow} offset={6} style={{alignItems: 'center', paddingTop: 22, paddingBottom: 18}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
-          <View style={{width: '100%'}}><Cassette playing={m.playing} label={m.now?.title || 'Escolha uma fita'} progress={progress} /></View>
+          <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={m.now?.title || 'Escolha uma fita'} /></View>
           <Text style={P.heroSub}>{m.library.length ? `${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'} no seu celular` : 'Nenhuma fita ainda: traga as músicas do celular'}</Text>
         </Card>
       </Animated.View>
@@ -113,7 +130,12 @@ export default function MusicScreen() {
         <>
           <View style={P.search}>
             <Icon name="search" size={18} color={C.muted} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Buscar fita" placeholderTextColor={C.muted} accessibilityLabel="Buscar fita" style={P.searchInput} autoCorrect={false} />
+            <TextInput value={q} onChangeText={setQ} placeholder="Buscar fita ou artista" placeholderTextColor={C.muted} accessibilityLabel="Buscar fita" style={P.searchInput} autoCorrect={false} returnKeyType="search" />
+            {q.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Limpar a busca da fita" onPress={() => setQ('')} hitSlop={8}><Icon name="close-circle" size={20} color={C.muted} /></Pressable>}
+          </View>
+          <View style={P.countRow}>
+            <Text style={T.small} accessibilityLiveRegion="polite">{q.trim() ? `${list.length} de ${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'}` : `${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'}`}</Text>
+            {nowIndex >= 0 && <Pressable accessibilityRole="button" accessibilityLabel="Ir para a fita que está tocando" onPress={goToNow} hitSlop={8} style={P.goNow}><Icon name="locate" size={15} /><Text style={P.goNowText}>{m.playing ? 'TOCANDO' : 'ATUAL'} · {nowIndex + 1}</Text></Pressable>}
           </View>
           <View style={{flexDirection: 'row', gap: 10, marginBottom: 12}}>
             <Btn small icon="play" text="TOCAR TUDO" label="Tocar todas as fitas" onPress={() => m.playAll(false, list)} style={{flex: 1}} />
@@ -128,6 +150,7 @@ export default function MusicScreen() {
   return (
     <View style={{flex: 1}}>
       <FlatList
+        ref={listView}
         data={m.library.length ? list : []}
         keyExtractor={(t) => t.id}
         renderItem={renderItem}
@@ -141,6 +164,9 @@ export default function MusicScreen() {
         contentContainerStyle={P.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={onScroll}
+        scrollEventThrottle={48}
+        onScrollToIndexFailed={(info) => { setTimeout(() => listView.current?.scrollToOffset({offset: info.averageItemLength * info.index, animated: true}), 60); }}
         ListHeaderComponent={header}
         ListFooterComponent={<Text style={P.disclaimer}>As fitas são as músicas do seu celular e tocam offline; nada é copiado nem apagado. Para montar playlists, use as BAGS. Rádios precisam de internet. Links do YouTube não são reproduzidos. Em segundo plano, o som depende do Android e das suas permissões.</Text>}
       />
@@ -205,6 +231,9 @@ const P = StyleSheet.create({
   sectionHead: {flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 10},
   search: {flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.white, borderRadius: R.pill, paddingHorizontal: 16, height: 48, marginBottom: 12, borderWidth: 2, borderColor: C.ink},
   searchInput: {flex: 1, fontSize: 15, color: C.ink},
+  countRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -4, marginBottom: 10, paddingHorizontal: 4, minHeight: 28},
+  goNow: {flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.yellow, borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: C.ink},
+  goNowText: {fontSize: 11, fontWeight: '900', letterSpacing: 0.6, color: C.ink},
   iconBtn: {width: 40, height: 40, borderRadius: 20, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center'},
   rowWrap: {height: ROW_H, paddingBottom: 8},
   row: {flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, backgroundColor: C.card, borderRadius: R.md, borderWidth: 2, borderColor: C.ink, borderBottomWidth: 4},

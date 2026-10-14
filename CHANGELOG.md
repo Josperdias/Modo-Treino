@@ -10,14 +10,21 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - Fila, repetir, embaralhar, volume, velocidade, **Tocar a seguir** e arrastar a posição funcionam pelo serviço. Se um arquivo sumiu, ele **pula para a próxima**; a rádio que cai **tenta reconectar**. Ao reabrir o app, a fila e a posição voltam **pausadas**.
 - Rádio e músicas do celular nunca tocam juntas (um único motor).
 
+### Player e notificação (visual novo)
+- **Barra "tocando agora" em rádio dourado**: janela da fita, **visor LCD verde** com o nome da música rolando, relógio e barra de segmentos, equalizador, alto-falantes, adesivos (estrela, raio, carinha, nota, selo MUSIC) e teclas voltar/pausar/próxima. Respeita "reduzir movimento".
+- **Notificação de música (Media3) em tela cheia** como a do sistema: **arrasta a posição**, anterior/play/próxima, **♥ favoritar** e a **capa do app** (a fita colorida da música sobre o azul-céu; planeta para a rádio) em vez da capa genérica.
+- **Barra de abas** no estilo do app: fundo de bolinhas, fileira perfurada de fita no topo e aba ativa amarela com contorno creme e sombra rosa.
+- **Timer para dormir no próprio serviço** (vale com o app em segundo plano): a música some devagar nos últimos 8 s e pausa. **Nome da música da rádio** (ICY) lido pelo Media3 e mostrado no miniplayer e na notificação.
+- Busca de fitas com contagem, botão de limpar e "ir para a que está tocando"; miniplayer fixo na lista; bolinha do tempo com animação suave.
+
 ### O que muda (e o que perde por enquanto)
-- A notificação de música agora é a **padrão do Android (Media3)**: o **cartão ilustrado** (fita, barra amarela) **não aparece** nesta versão. A notificação do **treino** continua igual.
-- **Crossfade** não funciona com o motor novo (o ajuste continua na tela, mas não tem efeito). O **timer de dormir** e o **nome da faixa das rádios** continuam como antes.
+- A notificação de música agora é a **do sistema (Media3)**, em tela cheia, com a capa do app e o ♥; o **cartão ilustrado** antigo (fita, barra amarela, botões redondos) **não aparece** nesta versão. A notificação do **treino** continua igual.
+- **Crossfade** não funciona com o motor novo (o ajuste continua na tela, mas não tem efeito). O **timer de dormir** e o **nome da faixa das rádios** agora funcionam pelo serviço.
 - Para voltar ao motor antigo, o app é compilado com `EXPO_PUBLIC_MODO_NATIVE_AUDIO=0`; o 1.4.1 também continua disponível nas releases.
 - Nova permissão normal: `ACCESS_WIFI_STATE` (mantém o Wi-Fi ligado para a rádio com a tela apagada).
 
 ### Honestidade
-- Verificado: 83 testes, typecheck, bundle e compilação do Android no CI. **Não** verificado em aparelho real: avanço com a tela bloqueada, foco de áudio, fones/Bluetooth, HyperOS.
+- Verificado: 86 testes de lógica, 43 de interface, typecheck, bundle e compilação do Android no CI. **Não** verificado em aparelho real: avanço com a tela bloqueada, foco de áudio, fones/Bluetooth, HyperOS.
 
 ## [1.4.1] — 2026-10-12
 

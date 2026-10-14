@@ -49,8 +49,17 @@ class ModoPlaybackModule : Module() {
     "repeat" to (player.repeatMode == Player.REPEAT_MODE_ALL),
     "shuffle" to player.shuffleModeEnabled,
     "rate" to player.playbackParameters.speed,
-    "volume" to player.volume
+    "volume" to player.volume,
+    // Título que a própria rádio transmite (ICY "StreamTitle"): o ExoPlayer o põe em mediaMetadata por cima do nome da estação.
+    "streamTitle" to player.mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() && it != player.currentMediaItem?.mediaMetadata?.title?.toString() }
   )
+
+  /** `art`: índice 0–7 da cor da fita, ou "radio". Vira `capa://N`, que o CapaLoader do serviço transforma na imagem do app. */
+  private fun capaUri(art: Any?): android.net.Uri? = when (art) {
+    is Number -> android.net.Uri.parse("capa://${art.toInt().coerceIn(0, 7)}")
+    is String -> if (art == "radio") android.net.Uri.parse("capa://radio") else null
+    else -> null
+  }
 
   private fun withPlayer(promise: Promise, command: (MediaController) -> Unit) {
     main.post {
@@ -96,9 +105,12 @@ class ModoPlaybackModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("ModoPlayback")
-    Events("onState")
+    Events("onState", "onAction")
+
+    OnCreate { PlaybackBus.listener = { action -> sendEvent("onAction", mapOf("action" to action)) } }
 
     OnDestroy {
+      PlaybackBus.listener = null
       disposed = true
       main.post {
         controller?.removeListener(listener)
@@ -125,6 +137,7 @@ class ModoPlaybackModule : Module() {
             val metadata = MediaMetadata.Builder()
               .setTitle((item["title"] as? String).orEmpty().take(160))
               .setArtist((item["artist"] as? String).orEmpty().take(160))
+              .apply { capaUri(item["art"])?.let { setArtworkUri(it) } }
               .build()
             val builder = MediaItem.Builder().setMediaId(id).setUri(uri).setMediaMetadata(metadata)
             if (source == "radio" && uri.substringBefore('?').endsWith(".m3u8", true))
@@ -153,6 +166,7 @@ class ModoPlaybackModule : Module() {
         val metadata = MediaMetadata.Builder()
           .setTitle((item["title"] as? String).orEmpty().take(160))
           .setArtist((item["artist"] as? String).orEmpty().take(160))
+          .apply { capaUri(item["art"])?.let { setArtworkUri(it) } }
           .build()
         val upcoming = MediaItem.Builder().setMediaId(id).setUri(uri).setMediaMetadata(metadata).build()
         withPlayer(promise) { player ->
@@ -186,6 +200,19 @@ class ModoPlaybackModule : Module() {
     }
     AsyncFunction("setRate") { rate: Double, promise: Promise ->
       withPlayer(promise) { it.setPlaybackSpeed(rate.toFloat().coerceIn(0.5f, 2f)) }
+    }
+    // Timer para dormir no próprio serviço: continua valendo com o app em segundo plano (o do JavaScript pode ser suspenso pelo Android). 0 = cancelar.
+    AsyncFunction("setSleepTimer") { minutes: Int, promise: Promise ->
+      withPlayer(promise) {
+        it.sendCustomCommand(androidx.media3.session.SessionCommand(TapePlaybackService.ACTION_SLEEP, android.os.Bundle.EMPTY), android.os.Bundle().apply { putLong("ms", minutes.coerceIn(0, 720) * 60_000L) })
+      }
+    }
+
+    // ♥ do player do sistema: o JS diz se a música atual está nas favoritas e o serviço troca o ícone (cheio/vazio).
+    AsyncFunction("setFavorite") { on: Boolean, promise: Promise ->
+      withPlayer(promise) {
+        it.sendCustomCommand(androidx.media3.session.SessionCommand(TapePlaybackService.ACTION_FAV_STATE, android.os.Bundle.EMPTY), android.os.Bundle().apply { putBoolean("on", on) })
+      }
     }
     AsyncFunction("getState") { promise: Promise -> withPlayer(promise) {} }
     // Limpa a fila, mas não apaga arquivos do celular; o serviço decide quando encerrar.

@@ -7,7 +7,7 @@ import Animated, {FadeIn} from 'react-native-reanimated';
 import {flag} from '../data';
 import {Btn, Card, Icon, Pattern, Pop, Press, Pulse, Sheet} from '../ui';
 import {C, R, T} from '../theme';
-import Cassette from './Cassette';
+import LiveCassette from './LiveCassette';
 import {SeekBar, VolumeBar} from './PlayerBits';
 import {useMusic} from './MusicProvider';
 
@@ -31,7 +31,7 @@ export default function NowPlaying({visible, onClose, onTapes}: {visible: boolea
           <Card color={live ? '#17104A' : C.yellow} offset={5} style={{paddingTop: 18, paddingBottom: 14, alignItems: 'center'}} pattern={<Pattern kind="dots" color={live ? '#FFFFFF' : undefined} opacity={live ? 0.1 : 0.13} size={16} />}>
             {live
               ? <Image source={require('../../assets/notif/radio.png')} resizeMode="contain" style={{width: '100%', aspectRatio: 1, maxHeight: 250}} accessibilityLabel="Rádio do mundo" />
-              : <View style={{width: '100%'}}><Cassette playing={m.playing} label={t.title} progress={m.duration > 0 ? m.position / m.duration : 0} /></View>}
+              : <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={t.title} /></View>}
           </Card>
 
           <View style={S.head}>

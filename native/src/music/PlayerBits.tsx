@@ -1,10 +1,11 @@
-import React, {useMemo, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {PanResponder, StyleSheet, View} from 'react-native';
+import Animated, {Easing, interpolateColor, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming} from 'react-native-reanimated';
 import {Text} from '../text';
 import {formatClock} from '../../logic';
 import {Icon, Press} from '../ui';
 import {C, T} from '../theme';
-import {useMusic} from './MusicProvider';
+import {useMusic, useMusicProgress} from './MusicProvider';
 
 const clamp01 = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
 
@@ -30,6 +31,18 @@ function Scrub({pct, onLive, onCommit, label, valueText, fill, disabled, onDrag}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
   const shown = drag ?? pct;
+  // Segurar a bolinha: ela cresce, muda de cor e ganha um halo com transição suave (antes pulava de uma vez).
+  const reduce = useReducedMotion();
+  const grow = useSharedValue(0);
+  const holding = drag != null;
+  useEffect(() => {
+    grow.value = reduce ? (holding ? 1 : 0) : withTiming(holding ? 1 : 0, {duration: holding ? 170 : 240, easing: holding ? Easing.out(Easing.cubic) : Easing.inOut(Easing.quad)});
+  }, [holding, reduce, grow]);
+  const knobAnim = useAnimatedStyle(() => ({
+    transform: [{scale: 1 + 0.38 * grow.value}],
+    backgroundColor: interpolateColor(grow.value, [0, 1], [C.yellow, C.pink]),
+  }));
+  const haloAnim = useAnimatedStyle(() => ({opacity: 0.28 * grow.value, transform: [{scale: 0.55 + 0.45 * grow.value}]}));
   const nudge = (d: number) => { if (!off.current) cb.current.onCommit(clamp01(pct + d)); };
   return (
     <View {...pan.panHandlers} onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[B.seek, disabled && {opacity: 0.5}]}
@@ -37,23 +50,27 @@ function Scrub({pct, onLive, onCommit, label, valueText, fill, disabled, onDrag}
       accessibilityActions={[{name: 'increment', label: 'Avançar'}, {name: 'decrement', label: 'Voltar'}]}
       onAccessibilityAction={(e) => nudge(e.nativeEvent.actionName === 'increment' ? 0.05 : -0.05)}>
       <View pointerEvents="none" style={B.seekTrack}><View style={[B.seekFill, {width: `${shown * 100}%`, backgroundColor: fill}]} /></View>
-      <View pointerEvents="none" style={[B.seekKnob, {left: `${shown * 100}%`}, drag != null && B.seekKnobOn]} />
+      <View pointerEvents="none" style={[B.knobBox, {left: `${shown * 100}%`}]}>
+        <Animated.View style={[B.knobHalo, {backgroundColor: fill}, haloAnim]} />
+        <Animated.View style={[B.knob, knobAnim]} />
+      </View>
     </View>
   );
 }
 
 export function SeekBar() {
   const m = useMusic();
+  const {position, duration} = useMusicProgress();
   const [drag, setDrag] = useState<number | null>(null);
-  const pct = m.duration > 0 ? Math.min(1, m.position / m.duration) : 0;
-  const shownSec = drag != null ? drag * m.duration : m.position;
+  const pct = duration > 0 ? Math.min(1, position / duration) : 0;
+  const shownSec = drag != null ? drag * duration : position;
   return (
     <View>
-      <Scrub pct={pct} fill={C.pink} disabled={m.duration <= 0} label="Posição da música" valueText={`${formatClock(m.position)} de ${formatClock(m.duration)}`}
-        onDrag={setDrag} onCommit={(p) => { if (m.duration > 0) m.seek(p * m.duration); }} />
+      <Scrub pct={pct} fill={C.pink} disabled={duration <= 0} label="Posição da música" valueText={`${formatClock(position)} de ${formatClock(duration)}`}
+        onDrag={setDrag} onCommit={(p) => { if (duration > 0) m.seek(p * duration); }} />
       <View style={B.times}>
         <Text style={[T.small, drag != null && B.timeOn]} accessibilityLiveRegion="polite">{formatClock(shownSec)}</Text>
-        <Text style={T.small}>{formatClock(m.duration)}</Text>
+        <Text style={T.small}>{formatClock(duration)}</Text>
       </View>
     </View>
   );
@@ -79,10 +96,11 @@ const B = StyleSheet.create({
   seek: {height: 40, justifyContent: 'center'},
   seekTrack: {height: 8, borderRadius: 4, backgroundColor: C.soft, overflow: 'hidden', borderWidth: 1.5, borderColor: C.ink},
   seekFill: {height: 8, backgroundColor: C.pink},
-  seekKnob: {position: 'absolute', width: 24, height: 24, borderRadius: 12, backgroundColor: C.yellow, marginLeft: -12, top: 8, borderWidth: 2.5, borderColor: C.ink},
-  seekKnobOn: {transform: [{scale: 1.3}], backgroundColor: C.pink},
-  timeOn: {fontWeight: '900', color: C.ink, fontSize: 14},
-  times: {flexDirection: 'row', justifyContent: 'space-between', marginTop: -2},
+  knobBox: {position: 'absolute', width: 24, height: 24, marginLeft: -12, top: 8, alignItems: 'center', justifyContent: 'center'},
+  knob: {width: 24, height: 24, borderRadius: 12, backgroundColor: C.yellow, borderWidth: 2.5, borderColor: C.ink},
+  knobHalo: {position: 'absolute', width: 52, height: 52, borderRadius: 26},
+  timeOn: {fontWeight: '900', color: C.ink},   // só cor e peso: o tamanho não muda, então nada embaixo pula
+  times: {flexDirection: 'row', justifyContent: 'space-between', marginTop: -2, height: 20, alignItems: 'center'},
   volRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4},
   volPct: {width: 40, textAlign: 'right', fontSize: 12, fontWeight: '700', color: C.muted},
 });
