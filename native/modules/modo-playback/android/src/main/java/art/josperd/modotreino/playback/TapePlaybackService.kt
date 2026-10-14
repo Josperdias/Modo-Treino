@@ -1,5 +1,8 @@
+@file:OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package art.josperd.modotreino.playback
 
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.AudioAttributes
@@ -8,8 +11,15 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 
 /**
  * POC de reprodução nativa de UMA fila por serviço. Media3 controla a passagem de faixas
@@ -21,6 +31,38 @@ class TapePlaybackService : MediaSessionService() {
   private var exoPlayer: ExoPlayer? = null
   private val main = Handler(Looper.getMainLooper())
   private var retries = 0
+  private var favorite = false
+
+  /** Botão ♥ do player do sistema (notificação e tela de bloqueio). Ele só avisa o app; quem guarda na bag Favoritas é o JavaScript. */
+  private fun favButton(on: Boolean): CommandButton =
+    CommandButton.Builder(if (on) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
+      .setDisplayName(if (on) "Tirar das favoritas" else "Favoritar")
+      .setSessionCommand(SessionCommand(ACTION_FAV, Bundle.EMPTY))
+      .build()
+
+  private inner class Callback : MediaSession.Callback {
+    override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+      val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+        .add(SessionCommand(ACTION_FAV, Bundle.EMPTY))
+        .add(SessionCommand(ACTION_FAV_STATE, Bundle.EMPTY))
+        .build()
+      return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+        .setAvailableSessionCommands(commands)
+        .setCustomLayout(ImmutableList.of(favButton(favorite)))
+        .build()
+    }
+
+    override fun onCustomCommand(session: MediaSession, controller: MediaSession.ControllerInfo, customCommand: SessionCommand, args: Bundle): ListenableFuture<SessionResult> {
+      when (customCommand.customAction) {
+        ACTION_FAV -> PlaybackBus.emit("fav")
+        ACTION_FAV_STATE -> {
+          favorite = args.getBoolean("on", false)
+          session.setCustomLayout(ImmutableList.of(favButton(favorite)))
+        }
+      }
+      return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+    }
+  }
 
   /** Arquivo apagado/ilegível: pula para a próxima fita em vez de travar a fila com a tela bloqueada.
    * Rádio (http/https) que cai: tenta reconectar até 3 vezes (2 s, 4 s, 6 s); só então segue para a próxima, se houver. */
@@ -55,7 +97,15 @@ class TapePlaybackService : MediaSessionService() {
       override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_READY) retries = 0 }
     })
     exoPlayer = player
-    mediaSession = MediaSession.Builder(this, player).build()
+    mediaSession = MediaSession.Builder(this, player)
+      .setCallback(Callback())
+      .setBitmapLoader(CapaLoader(this))   // a capa é a fita do app, não um ícone genérico
+      .build()
+    // Ícone pequeno da notificação: o cassete do app (se o módulo de notificações estiver no APK).
+    val provider = DefaultMediaNotificationProvider(this)
+    val small = resources.getIdentifier("ic_stat_tape", "drawable", packageName)
+    if (small != 0) provider.setSmallIcon(small)
+    setMediaNotificationProvider(provider)
   }
 
   override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -69,5 +119,10 @@ class TapePlaybackService : MediaSessionService() {
     exoPlayer?.release()
     exoPlayer = null
     super.onDestroy()
+  }
+
+  companion object {
+    const val ACTION_FAV = "mt_fav"
+    const val ACTION_FAV_STATE = "mt_fav_state"
   }
 }

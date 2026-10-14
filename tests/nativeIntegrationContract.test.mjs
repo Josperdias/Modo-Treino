@@ -25,3 +25,26 @@ test('native session is declared as a foreground media service',()=>{
   assert.match(manifest,/FOREGROUND_SERVICE_MEDIA_PLAYBACK/);
   assert.match(manifest,/android:foregroundServiceType="mediaPlayback"/);
 });
+
+import {buildNativeQueue as _bnq} from '../native/src/music/nativePilotQueue.js';
+test('capa da notificação: índice da fita igual ao de tapeIndex.ts e rádio usa a capa do planeta', async () => {
+  const {readFileSync} = await import('node:fs');
+  const src = readFileSync(new URL('../native/src/music/tapeIndex.ts', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('export function tapeIndex')).replace('export function tapeIndex(id: string): number', 'function tapeIndex(id)').replace(/const TAPE_COUNT[^;]*;/, '');
+  const ref = new Function(`const TAPE_COUNT = 8; ${body}; return tapeIndex;`)();
+  const ids = ['a', 'content://media/external/audio/media/42', 'Lose Yourself', 'x'.repeat(40)];
+  const {items} = _bnq([...ids.map((id) => ({id, uri: 'content://x/' + id, title: id, source: 'device'})), {id: 'r1', uri: 'https://r/x', title: 'R', source: 'radio'}], 'a');
+  ids.forEach((id, i) => assert.equal(items[i].art, ref(id)));
+  assert.equal(items[ids.length].art, 'radio');
+});
+
+test('Media3: capa do app e botão ♥ no player do sistema (contrato Kotlin ↔ JS)', () => {
+  const svc = fs.readFileSync('native/modules/modo-playback/android/src/main/java/art/josperd/modotreino/playback/TapePlaybackService.kt', 'utf8');
+  assert.match(svc, /setBitmapLoader\(CapaLoader\(this\)\)/);
+  assert.match(svc, /ICON_HEART_FILLED/); assert.match(svc, /setCustomLayout/);
+  assert.match(kt, /Events\("onState", "onAction"\)/); assert.match(kt, /AsyncFunction\("setFavorite"\)/); assert.match(kt, /capa:\/\//);
+  assert.match(bridge, /setFavorite/); assert.match(bridge, /onAction/);
+  assert.match(provider, /ModoPlayback\.onAction/);
+  for (const n of [0, 1, 2, 3, 4, 5, 6, 7]) assert.ok(fs.existsSync(`native/modules/modo-playback/android/src/main/res/drawable-nodpi/capa_fita_${n}.png`), `capa_fita_${n}.png`);
+  assert.ok(fs.existsSync('native/modules/modo-playback/android/src/main/res/drawable-nodpi/capa_radio.png'));
+});

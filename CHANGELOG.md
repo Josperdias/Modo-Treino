@@ -2,6 +2,13 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [Não lançado]
+
+### Player e notificação
+- **Barra "tocando agora" em mini rádio**: janela da fita, **visor LCD verde** com o nome da música rolando, relógio, barra de segmentos, equalizador e teclas de hardware. Respeita "reduzir movimento".
+- **Notificação de música (Media3) em tela cheia** como a do sistema: **arrasta a posição**, anterior/play/próxima, **♥ favoritar** e a **capa do app** (a fita colorida da música sobre o azul-céu; planeta para a rádio) em vez da capa genérica.
+- Busca de fitas com contagem, botão de limpar e "ir para a que está tocando"; miniplayer fixo na lista; bolinha do tempo com animação suave.
+
 ## [1.4.2] — 2026-10-13
 
 ### Motor de música novo (Media3): a música não depende mais do app aberto

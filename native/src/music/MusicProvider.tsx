@@ -590,7 +590,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       if (!track) return;
       if (nativeActive && nowRef.current) {
         // Atualiza SOMENTE a fila do motor, sem alterar uma bag persistida.
-        void ModoPlayback.insertNext({id: track.id, uri: track.uri, title: track.title, artist: track.artist, source: track.source})
+        void ModoPlayback.insertNext({id: track.id, uri: track.uri, title: track.title, artist: track.artist, source: track.source, art: track.source === 'radio' ? 'radio' : tapeIndex(track.id)})
           .then(() => { nativeQueue.current = insertNextInQueue(nativeQueue.current, nowRef.current?.id, track); })
           .catch(() => {});
         return;
@@ -663,6 +663,10 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
     }
   };
   useEffect(() => ModoNotif.onAction((e) => { if (e.kind === 'music' && !nativeActive) actions.current(e.action); }), [nativeActive]);
+  // Motor Media3: o ♥ do player do sistema chega aqui, e o ícone (cheio/vazio) acompanha a bag Favoritas.
+  useEffect(() => (nativeActive ? ModoPlayback.onAction((a) => { if (a === 'fav') actions.current('fav'); }) : undefined), [nativeActive]);
+  const nowFav = !!(nowTrack && lib.tapes.find((t) => t.id === 'fav')?.ids.includes(nowTrack.id));
+  useEffect(() => { if (nativeActive && nowTrack?.source !== 'radio') void ModoPlayback.setFavorite(nowFav).catch(() => {}); }, [nativeActive, nowFav, nowTrack?.id]);
   const progress = useMemo<MusicProgress>(() => ({
     position: nativeActive ? (nativeState?.positionMs ?? 0) / 1000 : currentStatus.currentTime || 0,
     duration: live ? 0 : nativeActive ? (nativeState?.durationMs ?? 0) / 1000 : currentStatus.duration || 0,

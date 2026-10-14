@@ -184,9 +184,9 @@ test('avisos de versão: estado correto (mais nova, igual, mais antiga, nenhuma,
 
 test('celular pequeno (320 px): nenhuma tela estoura a largura', {skip}, async () => {
   const {context, page} = await open({viewport: {width: 320, height: 640}, seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
-  // ignora o que está dentro de listas que rolam na horizontal (fitas): ali passar da tela é o esperado
+  // ignora o que está dentro de listas que rolam na horizontal (fitas) ou recortado por um pai com overflow escondido (nome rolando no visor): ali passar da tela é o esperado
   const over = () => page.evaluate(() => {
-    const scrollsX = (el) => { for (let p = el.parentElement; p; p = p.parentElement) { const cs = getComputedStyle(p); if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && p.scrollWidth > p.clientWidth + 1) return true; } return false; };
+    const scrollsX = (el) => { for (let p = el.parentElement; p; p = p.parentElement) { const cs = getComputedStyle(p); if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll' || cs.overflowX === 'hidden') && p.scrollWidth > p.clientWidth + 1) return true; } return false; };
     return Math.max(...[...document.querySelectorAll('body *')].filter((e) => !scrollsX(e)).map((e) => e.getBoundingClientRect().right)) - window.innerWidth;
   });
   for (const name of ['Início', 'Músicas', 'Progresso']) { await tab(page, name); await settle(page, 600); assert.ok((await over()) <= 40, `${name}: conteúdo além da tela`); }
@@ -635,7 +635,7 @@ test('Fitas: ao rolar a lista, o miniplayer (com a fita tocando) desliza para ba
   assert.equal(await bar.count(), 0, 'com o player grande à vista não precisa do miniplayer');
   await scrollTo(900); await settle(page, 700);
   await bar.waitFor();
-  assert.match(await bar.innerText(), /Faixa 1/, 'o miniplayer mostra a música que está tocando');
+  assert.match(await bar.innerText(), /faixa 1/i, 'o miniplayer mostra a música que está tocando');
   await page.getByLabel('Próxima faixa').last().click(); await settle(page, 400);
   await scrollTo(0); await settle(page, 700);
   assert.equal(await bar.count(), 0, 'voltando ao topo o miniplayer some de novo');
