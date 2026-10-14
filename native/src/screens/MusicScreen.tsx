@@ -57,7 +57,12 @@ export default function MusicScreen() {
   const list = useMemo(() => searchTracks(m.library, q), [m.library, q]);
   const listView = useRef<FlatList<Track>>(null);
   useEffect(() => () => setHeroGone(false), []);
-  const onScroll = useCallback((e: {nativeEvent: {contentOffset: {y: number}}}) => { setHeroGone(e.nativeEvent.contentOffset.y > HERO_GONE_Y); }, []);
+  // O miniplayer também fica à mão enquanto você busca (mesmo com o player grande à vista), para voltar à fita que toca sem apagar a busca.
+  const scrolledPast = useRef(false);
+  const searching = useRef(false);
+  searching.current = q.trim().length > 0;
+  useEffect(() => { setHeroGone(scrolledPast.current || q.trim().length > 0); }, [q]);
+  const onScroll = useCallback((e: {nativeEvent: {contentOffset: {y: number}}}) => { scrolledPast.current = e.nativeEvent.contentOffset.y > HERO_GONE_Y; setHeroGone(scrolledPast.current || searching.current); }, []);
   const context = m.queueName ?? `Bag ${m.activeTape.name}`;
   const where = (t: Track) => m.lib.tapes.filter((b) => b.ids.includes(t.id)).map((b) => b.name);
 

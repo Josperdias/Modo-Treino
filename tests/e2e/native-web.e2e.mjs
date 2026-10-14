@@ -615,6 +615,10 @@ test('fitas: pesquisa com contagem e botão de limpar; "ir para a tocando" e pro
   await go.waitFor();
   assert.match(await go.innerText(), /4/, 'mostra a posição da fita atual na lista');
   await go.click();
+  // Buscando, o miniplayer (com a fita tocando) aparece mesmo com o player grande à vista e some ao limpar a busca.
+  await page.getByLabel('Buscar fita').fill('lose'); await settle(page, 500);
+  await page.getByRole('toolbar', {name: 'Player de música'}).waitFor();
+  await page.getByLabel('Limpar a busca da fita').click(); await settle(page, 500);
   await tab(page, 'Início');
   await page.getByLabel('Progresso da música').waitFor();
   await context.close();
