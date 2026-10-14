@@ -177,7 +177,7 @@ function SheetEdge({width}: {width: number}) {
     const out: string[] = [];
     for (let i = 0; i < n; i++) {
       const up = Math.max(0, i * gap - EDGE_EXTRA);   // quanto acima da folha a fileira está
-      const r = 6.2 * Math.pow(Math.max(0, 1 - up / EDGE_H), 1.25);
+      const r = 5.6 * Math.pow(Math.max(0, 1 - up / EDGE_H), 1.25);
       if (r < 0.6) continue;
       const y = total - 6 - i * gap; const off = i % 2 ? gap / 2 : 0;
       let d = '';
@@ -193,13 +193,13 @@ function SheetEdge({width}: {width: number}) {
         <Defs>
           <LinearGradient id="sheetEdge" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#F472B6" stopOpacity="0" />
-            <Stop offset={(EDGE_H * 0.55 / total).toFixed(3)} stopColor="#F472B6" stopOpacity="0.22" />
-            <Stop offset={solid} stopColor="#F472B6" stopOpacity="0.55" />
-            <Stop offset="1" stopColor="#F472B6" stopOpacity="0.55" />
+            <Stop offset={(EDGE_H * 0.55 / total).toFixed(3)} stopColor="#F472B6" stopOpacity="0.1" />
+            <Stop offset={solid} stopColor="#F472B6" stopOpacity="0.28" />
+            <Stop offset="1" stopColor="#F472B6" stopOpacity="0.28" />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={width} height={total} fill="url(#sheetEdge)" />
-        {rows.map((d, i) => <Path key={i} d={d} fill="#FF9AD0" fillOpacity={0.8} />)}
+        {rows.map((d, i) => <Path key={i} d={d} fill="#FF9AD0" fillOpacity={0.42} />)}
       </Svg>
     </View>
   );
