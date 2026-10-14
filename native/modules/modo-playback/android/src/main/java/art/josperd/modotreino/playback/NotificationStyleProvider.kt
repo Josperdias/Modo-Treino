@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.session.CommandButton
@@ -24,7 +25,8 @@ import com.google.common.collect.ImmutableList
 /**
  * Notificação de música do motor Media3, em dois estilos que o usuário escolhe em Ajustes:
  *  - "card": o CARTÃO ILUSTRADO do app (azul-céu pontilhado, fita colorida, botões em adesivo), os mesmos layouts do módulo de notificações;
- *  - "system": o player do próprio Android (barra de posição arrastável, ♥ e capa do app).
+ *  - "system": o player do próprio Android (barra de posição arrastável, ♥ e capa do app);
+ *  - "full" (laboratório): o mesmo cartão SEM pedir a moldura do Android (só tem efeito em builds com targetSdk menor que 31, ver docs/MANUTENCAO.md).
  * O cartão é desenhado aqui, mas os layouts e imagens vêm do módulo `modo-notif`, achados pelo NOME no pacote do app (sem dependência de código entre módulos).
  * Os botões do cartão falam direto com o player do serviço: funcionam mesmo com o app fechado.
  */
@@ -56,6 +58,9 @@ class NotificationStyleProvider(
     }
     return card(mediaSession, actionFactory)
   }
+
+  /** "full" (teste): o cartão sem a moldura do Android. Só o sistema decide: com `targetSdk` 31+ ele ignora e põe a moldura mesmo assim. */
+  private fun framed(): Boolean = style() != "full"
 
   override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean =
     system.handleCustomCommand(session, action, extras)
@@ -129,7 +134,9 @@ class NotificationStyleProvider(
     val fav = favorite()
     big.setImageViewResource(id("fav", "id"), id(if (fav) "ic_heart_fill" else "ic_heart", "drawable"))
     big.setContentDescription(id("fav", "id"), if (fav) "Tirar das favoritas" else "Favoritar")
-    big.setOnClickPendingIntent(id("fav", "id"), factory.createCustomActionPendingIntent(session, TapePlaybackService.ACTION_FAV, Bundle.EMPTY))
+    // O Media3 só entrega o PendingIntent de um comando personalizado dentro de uma Action: usa-se a do ♥ (o ícone da Action não aparece, o cartão tem o seu).
+    val favAction = factory.createCustomAction(session, IconCompat.createWithResource(context, id("ic_heart", "drawable").takeIf { it != 0 } ?: android.R.drawable.btn_star), "Favoritar", TapePlaybackService.ACTION_FAV, Bundle.EMPTY)
+    big.setOnClickPendingIntent(id("fav", "id"), favAction.actionIntent)
     if (open != null) big.setOnClickPendingIntent(id("open", "id"), open)
     if (!live) {
       big.setTextViewText(id("pos", "id"), clock(posSec))
@@ -142,7 +149,7 @@ class NotificationStyleProvider(
       .setSmallIcon(smallIcon)
       .setContentTitle(title)
       .setContentText(subtitle)
-      .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+      .apply { if (framed()) setStyle(NotificationCompat.DecoratedCustomViewStyle()) }
       .setCustomContentView(small)
       .setCustomBigContentView(big)
       .setDeleteIntent(factory.createMediaActionPendingIntent(session, Player.COMMAND_STOP.toLong()))

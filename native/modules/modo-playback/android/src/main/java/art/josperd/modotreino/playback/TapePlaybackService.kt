@@ -96,7 +96,7 @@ class TapePlaybackService : MediaSessionService() {
         ACTION_FAV -> PlaybackBus.emit("fav")
         ACTION_SLEEP -> setSleep(args.getLong("ms", 0L))
         ACTION_STYLE -> {
-          prefs.edit().putString(KEY_STYLE, if (args.getString("style") == "system") "system" else "card").apply()
+          prefs.edit().putString(KEY_STYLE, args.getString("style").let { if (it == "system" || it == "full") it else "card" }).apply()
           session.setCustomLayout(ImmutableList.of(favButton(favorite)))   // força a notificação a ser refeita no estilo novo
         }
         ACTION_FAV_STATE -> {

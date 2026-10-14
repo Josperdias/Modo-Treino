@@ -66,7 +66,7 @@ test('Media3: estilo da notificação (cartão ilustrado ou player do sistema) c
   for (const n of ['card_music_big', 'card_music_small', 'card_radio_big', 'card_radio_small']) {
     assert.match(prov, new RegExp(n)); assert.ok(fs.existsSync(`native/modules/modo-notif/android/src/main/res/layout/${n}.xml`), n);
   }
-  assert.match(prov, /DecoratedCustomViewStyle/); assert.match(prov, /createMediaActionPendingIntent/); assert.match(prov, /createCustomActionPendingIntent/);
+  assert.match(prov, /DecoratedCustomViewStyle/); assert.match(prov, /createMediaActionPendingIntent/); assert.match(prov, /createCustomAction/);
   assert.match(kt, /AsyncFunction\("setNotificationStyle"\)/); assert.match(kt, /AsyncFunction\("getNotificationStyle"\)/);
   assert.match(bridge, /setNotificationStyle/); assert.match(fs.readFileSync('native/src/screens/Sheets.tsx', 'utf8'), /Notificação da música/);
   // padrão = cartão ilustrado

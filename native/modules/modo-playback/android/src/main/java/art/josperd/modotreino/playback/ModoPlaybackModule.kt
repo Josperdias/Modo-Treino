@@ -203,7 +203,7 @@ class ModoPlaybackModule : Module() {
     }
     // Estilo da notificação de música: "card" (cartão ilustrado, padrão) ou "system" (player do Android com barra arrastável).
     AsyncFunction("setNotificationStyle") { style: String ->
-      val value = if (style == "system") "system" else "card"
+      val value = if (style == "system" || style == "full") style else "card"
       context.getSharedPreferences(TapePlaybackService.PREFS, android.content.Context.MODE_PRIVATE).edit().putString(TapePlaybackService.KEY_STYLE, value).apply()
       // Com o serviço já de pé, ele refaz a notificação na hora; sem serviço, vale na próxima música (não liga o player só por isso).
       main.post {

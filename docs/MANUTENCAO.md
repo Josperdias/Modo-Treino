@@ -73,3 +73,9 @@ Veja [CLAUDE.md](../CLAUDE.md).
 - O Kotlin só compila de verdade no CI (`android-apk.yml`). Alterou o módulo? Abra PR e espere o job "Compilar APK".
 - Artes (fitas, globo, pontinhos): `node scripts/gerar-arte-notificacao.mjs`.
 - Sem notificação no aparelho? **Ajustes → Notificações** mostra permissão, canais e aparelho; **TESTAR AS DUAS** dispara os cartões. Em Xiaomi/HyperOS confira também "Tela de bloqueio" e "Notificações flutuantes" nas configurações do app.
+
+## Notificação sem a moldura do Android (laboratório "moldura")
+- A partir do Android 12 o sistema põe a moldura padrão (cabeçalho "App · agora" e a seta) em notificações com layout próprio **de apps que declaram `targetSdk` 31 ou mais**. A documentação do Android chama isso de mudança "para apps com alvo Android 12". Apps com `targetSdk` antigo (alguns antivírus) podem ocupar a notificação inteira.
+- O app normal continua com `targetSdk` atual (36) e, por isso, usa o cartão **com** moldura. Para testar se o cartão sai sem moldura no aparelho, existe o workflow manual `android-moldura-lab.yml`: gera um APK à parte (`art.josperd.modotreino.moldura`) com `targetSdk 30`. Nele, em Ajustes → Notificação da música → **SEM MOLDURA**.
+- Baixar o `targetSdk` do app principal tem custo: permissões de armazenamento e notificações voltam ao modelo antigo, o Android avisa "app feito para uma versão mais antiga" ao instalar e não há garantia para versões futuras. Só decidir depois do teste no aparelho.
+

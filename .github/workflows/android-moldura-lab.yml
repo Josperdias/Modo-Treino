@@ -1,0 +1,100 @@
+name: Android — Laboratório moldura (apenas testes)
+# Workflow explicitamente manual: não publica release, não altera main.
+# APK STANDALONE separado do app normal (package .moldura) e com targetSdk 30, só para testar se a notificação
+# em cartão sai SEM a moldura do Android 12+ (ver scripts/configure_moldura_pilot.py).
+on:
+  workflow_dispatch:
+  # TEMPORÁRIO (remover ao dar merge): o workflow precisa existir na main para ser disparado à mão; enquanto está só nesta branch, ele roda quando o próprio workflow ou o script mudam.
+  push:
+    branches: ['ccr-3333f8eb-80vn4n']
+    paths:
+      - '.github/workflows/android-moldura-lab.yml'
+      - 'scripts/configure_moldura_pilot.py'
+permissions:
+  contents: read
+concurrency:
+  group: moldura-pilot-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  moldura:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verificar código do projeto
+        run: npm test
+      - name: Dependências JS do app
+        run: npm ci --no-audit --no-fund
+        working-directory: native
+      - name: Typecheck React Native
+        run: npx tsc --noEmit
+        working-directory: native
+      - name: Preparar Android (Expo prebuild)
+        run: npx expo prebuild --platform android --no-install --clean
+        working-directory: native
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_MODO_NATIVE_AUDIO: '1'
+      - name: Isolar o APK de laboratório e baixar o targetSdk para 30
+        run: python3 scripts/configure_moldura_pilot.py native/android/app/build.gradle native/android/gradle.properties
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKM" ] || SDKM="$(command -v sdkmanager)"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Compilar APK standalone de laboratório
+        working-directory: native/android
+        env:
+          CI: '1'
+          EXPO_PUBLIC_MODO_NATIVE_AUDIO: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: Conferir pacote, manifesto e assinatura
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          mapfile -t APKS < <(find native/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk')
+          [ "${#APKS[@]}" -eq 1 ] || { echo 'APK único não encontrado'; exit 1; }
+          cp "${APKS[0]}" dist/modo-treino-moldura-lab.apk
+          TOOLS="$ANDROID_HOME/build-tools/36.0.0"
+          "$TOOLS/apksigner" verify --verbose --print-certs dist/*.apk > dist/assinatura.txt
+          "$TOOLS/aapt2" dump badging dist/*.apk > dist/badging.txt
+          "$TOOLS/aapt2" dump permissions dist/*.apk > dist/permissoes.txt
+          "$TOOLS/aapt2" dump xmltree --file AndroidManifest.xml dist/*.apk > dist/manifest.txt
+          grep -q "name='art.josperd.modotreino.moldura'" dist/badging.txt
+          grep -q "targetSdkVersion:'30'" dist/badging.txt
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' dist/permissoes.txt
+          grep -q 'TapePlaybackService' dist/manifest.txt
+          unzip -l dist/*.apk | grep -q 'assets/index.android.bundle'
+          (cd dist && sha256sum modo-treino-moldura-lab.apk > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+          echo 'APK de laboratório (.moldura, targetSdk 30): instalar separadamente, jamais publicar como release normal.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Enviar APK experimental e evidências
+        # always(): se uma checagem acima falhar, o APK e os dumps ainda ficam disponíveis para diagnóstico
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: modo-treino-moldura-lab
+          path: dist/
+          retention-days: 14
+          if-no-files-found: warn

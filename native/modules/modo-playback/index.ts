@@ -5,8 +5,8 @@ import {requireOptionalNativeModule} from 'expo';
 
 export type NativeTrack = {id: string; uri: string; title: string; artist?: string; source: 'file' | 'device' | 'radio'; /** Capa da notificação: índice 0–7 da cor da fita, ou 'radio'. */ art?: number | 'radio'};
 export type NativeState = {mediaId: string | null; title?: string | null; artist?: string | null; uri?: string | null; index: number; playing: boolean; playWhenReady: boolean; status: number; positionMs: number; durationMs: number; count: number; repeat: boolean; shuffle: boolean; rate: number; volume: number; /** Título transmitido pela própria rádio (ICY), quando há. */ streamTitle?: string | null};
-/** 'card' = cartão ilustrado do app (padrão); 'system' = player do Android com barra de tempo arrastável. */
-export type NotificationStyle = 'card' | 'system';
+/** 'card' = cartão ilustrado do app (padrão); 'system' = player do Android com barra de tempo arrastável; 'full' = cartão sem moldura (laboratório: só funciona em build com targetSdk < 31). */
+export type NotificationStyle = 'card' | 'system' | 'full';
 type Native = {
   loadQueue(items: NativeTrack[], index: number, autoplay: boolean): Promise<NativeState>;
   insertNext(item: NativeTrack): Promise<NativeState>;
