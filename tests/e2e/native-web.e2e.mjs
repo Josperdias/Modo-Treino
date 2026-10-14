@@ -571,12 +571,9 @@ test('rádio: estações do diretório, estilos em português e lista de países
   await context.close();
 });
 
-test('"Tocando agora": o mini player abre o cartão do player; sem nada tocando oferece as fitas', {skip}, async () => {
+test('"Tocando agora": sem nada tocando não há player na tela; com música ele abre o cartão do player', {skip}, async () => {
   const {context, page, errors} = await open({seed: {[MUSIC]: musicLib()}});
-  await page.getByRole('button', {name: /^Abrir músicas/}).click();
-  await page.getByText('Nada tocando. Escolha uma fita ou uma rádio.').waitFor();
-  await page.getByLabel('VER FITAS').click();
-  await page.getByText('Suas fitas,', {exact: false}).waitFor();
+  assert.equal(await page.getByRole('button', {name: /^Abrir músicas/}).count(), 0, 'nada tocando: nenhum rádio vazio');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -646,11 +643,21 @@ test('Fitas: ao rolar a lista, o miniplayer (com a fita tocando) desliza para ba
   await context.close();
 });
 
-test('player compacto: aparece nas telas, some na aba Músicas e fica no modo execução e no descanso', {skip}, async () => {
-  const {context, page} = await open({seed: {[MUSIC]: musicLib()}});
-  assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1);
-  await tab(page, 'Progresso'); assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1);
-  await tab(page, 'Músicas'); await settle(page, 400); assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 0);
+test('player compacto: só aparece com música tocando; some na aba Músicas; recolhe e abre; fica no modo execução e no descanso', {skip}, async () => {
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
+  const toolbar = page.getByRole('toolbar', {name: 'Player de música'});
+  assert.equal(await toolbar.count(), 0, 'nada tocando: nada de rádio vazio na tela inicial');
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Stronger', {exact: true}).click(); await settle(page, 600);
+  await tab(page, 'Início'); await settle(page, 500);
+  assert.equal(await toolbar.count(), 1);
+  await page.getByLabel('Recolher o player').click(); await settle(page, 500);
+  assert.equal(await page.getByLabel('Abrir o player').count(), 1, 'recolhido: fica a tirinha com a setinha');
+  assert.equal(await page.getByLabel('Voltar uma faixa').count(), 0, 'recolhido: sem teclas grandes');
+  await page.getByLabel('Abrir o player').click(); await settle(page, 500);
+  assert.equal(await page.getByLabel('Voltar uma faixa').count(), 1, 'aberto de novo');
+  await tab(page, 'Progresso'); assert.equal(await toolbar.count(), 1);
+  await tab(page, 'Músicas'); await settle(page, 400); assert.equal(await toolbar.count(), 0);
   await tab(page, 'Início');
   await startWorkout(page);
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1, 'no cartão');
