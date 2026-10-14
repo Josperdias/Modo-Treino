@@ -12,7 +12,6 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
-import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -32,6 +31,21 @@ class TapePlaybackService : MediaSessionService() {
   private val main = Handler(Looper.getMainLooper())
   private var retries = 0
   private var favorite = false
+  private var provider: NotificationStyleProvider? = null
+  private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
+  private fun notifStyle(): String = prefs.getString(KEY_STYLE, "card") ?: "card"
+
+  /** Enquanto toca no estilo cartão, repõe a notificação a cada 2 s para a barra de tempo andar (o player do sistema anda sozinho). */
+  private val cardTicker = object : Runnable {
+    override fun run() {
+      val p = exoPlayer ?: return
+      if (!p.isPlaying || notifStyle() != "card") return
+      provider?.refreshCard()?.let { n ->
+        try { androidx.core.app.NotificationManagerCompat.from(this@TapePlaybackService).notify(n.notificationId, n.notification) } catch (e: SecurityException) { /* sem permissão de notificação */ }
+      }
+      main.postDelayed(this, 2000)
+    }
+  }
   private var sleepVolume = 1f
   private var sleepEndAt = 0L
   private val sleepFade = object : Runnable {
@@ -69,6 +83,7 @@ class TapePlaybackService : MediaSessionService() {
         .add(SessionCommand(ACTION_FAV, Bundle.EMPTY))
         .add(SessionCommand(ACTION_FAV_STATE, Bundle.EMPTY))
         .add(SessionCommand(ACTION_SLEEP, Bundle.EMPTY))
+        .add(SessionCommand(ACTION_STYLE, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
         .setAvailableSessionCommands(commands)
@@ -80,6 +95,10 @@ class TapePlaybackService : MediaSessionService() {
       when (customCommand.customAction) {
         ACTION_FAV -> PlaybackBus.emit("fav")
         ACTION_SLEEP -> setSleep(args.getLong("ms", 0L))
+        ACTION_STYLE -> {
+          prefs.edit().putString(KEY_STYLE, if (args.getString("style") == "system") "system" else "card").apply()
+          session.setCustomLayout(ImmutableList.of(favButton(favorite)))   // força a notificação a ser refeita no estilo novo
+        }
         ACTION_FAV_STATE -> {
           favorite = args.getBoolean("on", false)
           session.setCustomLayout(ImmutableList.of(favButton(favorite)))
@@ -120,17 +139,20 @@ class TapePlaybackService : MediaSessionService() {
       override fun onPlayerError(error: PlaybackException) { recover(player) }
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { retries = 0 }
       override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_READY) retries = 0 }
+      override fun onIsPlayingChanged(isPlaying: Boolean) {
+        main.removeCallbacks(cardTicker)
+        if (isPlaying) main.postDelayed(cardTicker, 2000)
+      }
     })
     exoPlayer = player
     mediaSession = MediaSession.Builder(this, player)
       .setCallback(Callback())
       .setBitmapLoader(CapaLoader(this))   // a capa é a fita do app, não um ícone genérico
       .build()
-    // Ícone pequeno da notificação: o cassete do app (se o módulo de notificações estiver no APK).
-    val provider = DefaultMediaNotificationProvider(this)
-    val small = resources.getIdentifier("ic_stat_tape", "drawable", packageName)
-    if (small != 0) provider.setSmallIcon(small)
-    setMediaNotificationProvider(provider)
+    // Estilo da notificação (cartão ilustrado ou player do sistema), escolhido em Ajustes.
+    val styleProvider = NotificationStyleProvider(this, { notifStyle() }, { favorite })
+    provider = styleProvider
+    setMediaNotificationProvider(styleProvider)
   }
 
   override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -150,6 +172,9 @@ class TapePlaybackService : MediaSessionService() {
     const val ACTION_FAV = "mt_fav"
     const val ACTION_FAV_STATE = "mt_fav_state"
     const val ACTION_SLEEP = "mt_sleep"
+    const val ACTION_STYLE = "mt_style"
+    const val PREFS = "modo_playback"
+    const val KEY_STYLE = "notif_style"
     private const val FADE_MS = 8000L
   }
 }

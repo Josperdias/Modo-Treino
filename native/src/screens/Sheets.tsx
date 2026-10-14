@@ -6,6 +6,7 @@ import {EXERCISES, Exercise, file, imageInfo, Persona, personaName, Treino} from
 import {useApp} from '../store';
 import {BackupApi, shareBackup, shareCsv} from '../backup';
 import {GITHUB_REPO} from '../updates';
+import {ModoPlayback, NotificationStyle} from '../../modules/modo-playback';
 import {abrirAjustesDeNotificacao, diagnostico, estadoNotificacoes, mostrarTreino, NotifState, pedirNotificacoes} from '../notify';
 import {ModoNotif} from '../../modules/modo-notif';
 import {Btn, Card, Chips, Icon, Kicker, Pop, Press, Sheet, Switch} from '../ui';
@@ -58,6 +59,10 @@ function NotifPermission({visible}: {visible: boolean}) {
   const [info, setInfo] = useState<string[]>([]);
   const refresh = () => { void estadoNotificacoes().then(setSt); setInfo(diagnostico()); };
   useEffect(() => { if (visible) refresh(); }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Estilo da notificação de música (só existe no motor nativo Media3): cartão ilustrado ou player do sistema.
+  const [estilo, setEstilo] = useState<NotificationStyle>('card');
+  useEffect(() => { if (visible && ModoPlayback.available) void ModoPlayback.getNotificationStyle().then(setEstilo).catch(() => {}); }, [visible]);
+  const escolher = (v: NotificationStyle) => { setEstilo(v); void ModoPlayback.setNotificationStyle(v).catch(() => {}); };
   if (st === 'unavailable') return null;
   const ok = st === 'granted';
   // Mostra os dois cartões com dados de exemplo, para ver (e conferir no Android) como ficam.
@@ -77,6 +82,19 @@ function NotifPermission({visible}: {visible: boolean}) {
           : 'O Android está bloqueando as notificações do Modo Treino. Abra os ajustes do app e ligue "Mostrar notificações" (e, em alguns celulares, "Tela de bloqueio" e "Notificações flutuantes").'}
       </Text>
       {info.length > 0 && <View style={{marginBottom: 10}}>{info.map((l) => <Text key={l} style={T.small} selectable>{l}</Text>)}</View>}
+      {ModoPlayback.available && (
+        <View style={{marginBottom: 12}}>
+          <Text style={T.h3}>Notificação da música</Text>
+          <Text style={[T.small, {marginTop: 2, marginBottom: 8}]}>
+            {estilo === 'card' ? 'Cartão ilustrado do app: a fita colorida, o nome e os botões. O Android o desenha dentro de uma moldura e não deixa arrastar o tempo.'
+              : 'Player do Android: tela cheia, com a barra de tempo que você arrasta, o ♥ e a capa do app.'}
+          </Text>
+          <View style={{flexDirection: 'row', gap: 8}}>
+            <View style={{flex: 1}}><Btn small kind={estilo === 'card' ? 'primary' : 'ghost'} icon="albums" text="CARTÃO" label="Notificação em cartão ilustrado" onPress={() => escolher('card')} /></View>
+            <View style={{flex: 1}}><Btn small kind={estilo === 'system' ? 'primary' : 'ghost'} icon="play-circle" text="PLAYER" label="Notificação no player do sistema" onPress={() => escolher('system')} /></View>
+          </View>
+        </View>
+      )}
       <View style={{gap: 8}}>
         {st === 'ask' && <Btn small icon="notifications" text="PERMITIR NOTIFICAÇÕES" onPress={() => { void pedirNotificacoes().then((n) => { setSt(n); setInfo(diagnostico()); }); }} />}
         {st !== 'ask' && <Btn small kind={ok ? 'ghost' : 'primary'} icon="settings-sharp" text="AJUSTES DE NOTIFICAÇÃO" onPress={() => { abrirAjustesDeNotificacao(); }} />}
