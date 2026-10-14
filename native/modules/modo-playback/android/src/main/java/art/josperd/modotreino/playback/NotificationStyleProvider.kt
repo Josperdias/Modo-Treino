@@ -79,20 +79,20 @@ class NotificationStyleProvider(
     return system.handleCustomCommand(session, action, extras)
   }
 
-  private var seekPending: List<PendingIntent>? = null
+  private var seekPending: List<PendingIntent?>? = null
   private var seekFor: MediaSession? = null
   private var favPending: PendingIntent? = null
   private var favFor: MediaSession? = null
 
   /** O Media3 só entrega o PendingIntent de um comando personalizado dentro de uma Action (o ícone da Action não aparece, o cartão tem o seu). Cada chamada cria um PendingIntent novo no sistema, então guarda-se um só por sessão. */
-  private fun favIntent(session: MediaSession, factory: MediaNotification.ActionFactory): PendingIntent {
-    favPending?.let { if (favFor === session) return it }
+  private fun favIntent(session: MediaSession, factory: MediaNotification.ActionFactory): PendingIntent? {
+    if (favFor === session) return favPending
     val icon = IconCompat.createWithResource(context, id("ic_heart", "drawable").takeIf { it != 0 } ?: android.R.drawable.btn_star)
     return factory.createCustomAction(session, icon, "Favoritar", TapePlaybackService.ACTION_FAV, Bundle.EMPTY).actionIntent.also { favPending = it; favFor = session }
   }
 
   /** Um PendingIntent por zona (a ação tem o número da zona: só `extras` diferentes seriam fundidos pelo Android). Criados uma vez por sessão. */
-  private fun seekIntents(session: MediaSession, factory: MediaNotification.ActionFactory): List<PendingIntent> {
+  private fun seekIntents(session: MediaSession, factory: MediaNotification.ActionFactory): List<PendingIntent?> {
     seekPending?.let { if (seekFor === session) return it }
     val icon = IconCompat.createWithResource(context, id("ic_next", "drawable").takeIf { it != 0 } ?: android.R.drawable.ic_media_next)
     return (0 until SEEK_ZONES).map { i ->
@@ -169,7 +169,7 @@ class NotificationStyleProvider(
     val fav = favorite()
     big.setImageViewResource(id("fav", "id"), id(if (fav) "ic_heart_fill" else "ic_heart", "drawable"))
     big.setContentDescription(id("fav", "id"), if (fav) "Tirar das favoritas" else "Favoritar")
-    big.setOnClickPendingIntent(id("fav", "id"), favIntent(session, factory))
+    favIntent(session, factory)?.let { big.setOnClickPendingIntent(id("fav", "id"), it) }
     if (open != null) big.setOnClickPendingIntent(id("open", "id"), open)
     if (!live) {
       big.setTextViewText(id("pos", "id"), clock(posSec))
@@ -178,7 +178,7 @@ class NotificationStyleProvider(
       if (durSec > 0) {
         val zones = seekIntents(session, factory)
         for (i in 0 until SEEK_ZONES) {
-          big.setOnClickPendingIntent(id("seek_$i", "id"), zones[i])
+          zones[i]?.let { big.setOnClickPendingIntent(id("seek_$i", "id"), it) }
           big.setContentDescription(id("seek_$i", "id"), "Ir para ${i * 100 / SEEK_ZONES}% da música")
         }
       }
