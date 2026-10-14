@@ -72,18 +72,17 @@ const DotsBack = React.memo(function DotsBack() {
   );
 });
 
-/** Vidro do visor: degradê verde-limão, linhas de varredura e reflexo diagonal. */
+/** Vidro do visor. O fundo verde é feito de Views lisas (preenchem a caixa exatamente, em qualquer largura); só as linhas de varredura são desenho. */
 const LcdGlass = React.memo(function LcdGlass() {
   return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-      <Defs>
-        <LinearGradient id="lcdg" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#B6FF8A" /><Stop offset="1" stopColor="#3FD64F" /></LinearGradient>
-        <Pattern id="scan" x={0} y={0} width={4} height={3} patternUnits="userSpaceOnUse"><Rect x={0} y={2} width={4} height={1} fill={LCD.edge} opacity={0.12} /></Pattern>
-      </Defs>
-      <Rect width="100%" height="100%" fill="url(#lcdg)" />
-      <Rect width="100%" height="100%" fill="url(#scan)" />
-      <Rect width="100%" height="38%" fill="#FFFFFF" opacity={0.14} />
-    </Svg>
+    <>
+      <View style={[StyleSheet.absoluteFill, {backgroundColor: '#6FE56A'}]} pointerEvents="none" />
+      <View style={MP.glassTop} pointerEvents="none" />
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+        <Defs><Pattern id="scan" x={0} y={0} width={4} height={3} patternUnits="userSpaceOnUse"><Rect x={0} y={2} width={4} height={1} fill={LCD.edge} opacity={0.12} /></Pattern></Defs>
+        <Rect width="100%" height="100%" fill="url(#scan)" />
+      </Svg>
+    </>
   );
 });
 
@@ -300,6 +299,7 @@ const MP = StyleSheet.create({
   deck: {width: 52, height: 50, borderRadius: 10, backgroundColor: '#0B1033', borderWidth: 2, borderColor: INK, alignItems: 'center', justifyContent: 'center'},
   disc: {width: 34, height: 34, borderRadius: 17, backgroundColor: C.yellow, alignItems: 'center', justifyContent: 'center'},
   lcd: {flex: 1, minWidth: 0, height: 50, borderRadius: 10, borderWidth: 3, borderColor: LCD.edge, paddingHorizontal: 6, overflow: 'hidden', justifyContent: 'center'},
+  glassTop: {position: 'absolute', left: 0, right: 0, top: 0, height: '48%', backgroundColor: '#9BF58A'},
   lcdRow: {flexDirection: 'row', alignItems: 'center', gap: 5},
   marquee: {height: 19, overflow: 'hidden'},
   marqueeRow: {position: 'absolute', left: 0, top: 0, width: 4000, flexDirection: 'row'},

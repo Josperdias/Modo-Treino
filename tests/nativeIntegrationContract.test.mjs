@@ -72,3 +72,25 @@ test('Media3: estilo da notificação (cartão ilustrado ou player do sistema) c
   // padrão = cartão ilustrado
   assert.match(svc, /getString\(KEY_STYLE, "card"\)/);
 });
+
+test('cartão de música grande: a fileira de botões cabe na moldura do Android (≤ 240 dp)', () => {
+  const xml = fs.readFileSync('native/modules/modo-notif/android/src/main/res/layout/card_music_big.xml', 'utf8');
+  let total = 0;
+  for (const id of ['fav', 'prev', 'play', 'next', 'open']) {
+    const m = xml.match(new RegExp(`android:id="@\\+id/${id}"[\\s\\S]*?/>`));
+    assert.ok(m, `botão ${id}`);
+    const w = m[0].match(/android:layout_width="(\d+)dp"/); assert.ok(w, `largura fixa de ${id}`);
+    const ml = m[0].match(/android:layout_marginLeft="(\d+)dp"/);
+    total += Number(w[1]) + (ml ? Number(ml[1]) : 0);
+  }
+  assert.ok(total <= 240, `a fileira soma ${total} dp: acima de 240 dp ela sai cortada nas pontas em celulares de 360 dp`);
+});
+
+test('cartão de música: toque na barra pula (20 zonas de 5%), e o ♥ e as zonas são tratados pelo provedor', () => {
+  const xml = fs.readFileSync('native/modules/modo-notif/android/src/main/res/layout/card_music_big.xml', 'utf8');
+  for (let i = 0; i < 20; i++) assert.match(xml, new RegExp(`@\\+id/seek_${i}"`), `zona ${i}`);
+  assert.ok(!/@\+id\/seek_20"/.test(xml));
+  const prov = fs.readFileSync('native/modules/modo-playback/android/src/main/java/art/josperd/modotreino/playback/NotificationStyleProvider.kt', 'utf8');
+  assert.match(prov, /SEEK_ZONES = 20/); assert.match(prov, /override fun handleCustomCommand/); assert.match(prov, /player\.seekTo\(/);
+  assert.match(prov, /seekIntents\(session, factory\)/);
+});
