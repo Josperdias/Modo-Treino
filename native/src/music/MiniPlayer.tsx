@@ -39,8 +39,8 @@ function GoldBody() {
               <Stop offset="0" stopColor={GOLD.top} /><Stop offset="0.5" stopColor={GOLD.mid} /><Stop offset="1" stopColor={GOLD.low} />
             </LinearGradient>
             <Pattern id="halftone" x={0} y={0} width={12} height={12} patternUnits="userSpaceOnUse">
-              <Circle cx={3} cy={3} r={1.7} fill="#C77A00" opacity={0.3} />
-              <Circle cx={9} cy={9} r={1.7} fill="#C77A00" opacity={0.3} />
+              <Circle cx={3} cy={3} r={1.7} fill="#C77A00" opacity={0.15} />
+              <Circle cx={9} cy={9} r={1.7} fill="#C77A00" opacity={0.15} />
             </Pattern>
             <Pattern id="checker" x={0} y={0} width={10} height={10} patternUnits="userSpaceOnUse">
               <Rect x={0} y={0} width={5} height={5} fill={INK} /><Rect x={5} y={5} width={5} height={5} fill={INK} />
@@ -70,7 +70,7 @@ function DotsBack() {
       {w > 0 && (
         <Svg width={w} height={h}>
           <Defs>
-            <Pattern id="navydots" x={0} y={0} width={14} height={14} patternUnits="userSpaceOnUse"><Circle cx={7} cy={7} r={1.2} fill="#FFFFFF" opacity={0.14} /></Pattern>
+            <Pattern id="navydots" x={0} y={0} width={14} height={14} patternUnits="userSpaceOnUse"><Circle cx={7} cy={7} r={1.2} fill="#FFFFFF" opacity={0.07} /></Pattern>
           </Defs>
           <Rect x={0} y={0} width={w} height={h} fill="url(#navydots)" />
         </Svg>

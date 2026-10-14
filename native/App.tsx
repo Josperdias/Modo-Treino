@@ -54,8 +54,8 @@ function TabBar({tab, onTab}: {tab: Tab; onTab: (t: Tab) => void}) {
   const pill = useAnimatedStyle(() => ({transform: [{translateX: x.value}]}));
   return (
     <View style={TB.bar} accessibilityRole="tablist" onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
-      <View style={TB.dots} pointerEvents="none"><Pattern kind="dots" color="#FFFFFF" opacity={0.08} size={16} /></View>
-      <View style={TB.perf} pointerEvents="none"><Pattern kind="dots" color={C.yellow} opacity={1} size={10} /></View>
+      <View style={TB.dots} pointerEvents="none"><Pattern kind="dots" color="#FFFFFF" opacity={0.045} size={16} /></View>
+      <View style={TB.perf} pointerEvents="none"><Pattern kind="dots" color={C.yellow} opacity={0.55} size={10} /></View>
       {w > 0 && <Animated.View style={[TB.pill, {width: seg}, pill]} pointerEvents="none"><View style={TB.pillShadow} /><View style={TB.pillInner}><Pattern kind="stripes" color={C.ink} opacity={0.09} size={12} /></View></Animated.View>}
       {TABS.map((t) => {
         const on = t.key === tab;
