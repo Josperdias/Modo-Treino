@@ -53,20 +53,18 @@ function PatternDefs() {
 /** Uma figurinha sobre a fita. Em modo de edição ela se arrasta com o dedo (a posição é uma fração da largura e da altura da fita). */
 function StickerView({st, i, w, h, edit, selected, onSelect, onMove}: {st: FitaSticker; i: number; w: number; h: number; edit: boolean; selected: boolean; onSelect?: (i: number) => void; onMove?: (i: number, x: number, y: number) => void}) {
   const fs = Math.max(14, w * 0.12 * st.s);
-  const box = fs * 1.7;   // caixa folgada: o emoji do Android desenha um pouco além da altura da linha e era cortado
-  // A figurinha inteira fica sempre dentro da fita: perto da beira ela encosta, mas não é cortada.
-  // (girada, o quadrado ocupa mais espaço: a margem cresce junto)
-  const rad = ((st.r || 0) * Math.PI) / 180, grow = ((Math.abs(Math.cos(rad)) + Math.abs(Math.sin(rad))) - 1) * box / 2;
-  const left = Math.max(grow, Math.min(w - box - grow, st.x * w - box / 2));
-  const top = Math.max(grow, Math.min(h - box - grow, st.y * h - box / 2));
-  const live = useRef({st, w, h, i, onSelect, onMove, cx: 0, cy: 0});
-  live.current = {st, w, h, i, onSelect, onMove, cx: (left + box / 2) / Math.max(1, w), cy: (top + box / 2) / Math.max(1, h)};
+  const box = fs * 1.7;
+  // A figurinha pode ir até a beira: o centro fica na fita, mas ela é recortada pelo contorno da fita (como um adesivo de verdade).
+  const left = st.x * w - box / 2;
+  const top = st.y * h - box / 2;
+  const live = useRef({st, w, h, i, onSelect, onMove});
+  live.current = {st, w, h, i, onSelect, onMove};
   const start = useRef({x: 0, y: 0});
   const pan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponderCapture: () => true,   // a rolagem do painel não rouba o arrasto
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => { start.current = {x: live.current.cx, y: live.current.cy}; live.current.onSelect?.(live.current.i); },
+    onPanResponderGrant: () => { start.current = {x: live.current.st.x, y: live.current.st.y}; live.current.onSelect?.(live.current.i); },
     onPanResponderMove: (_, g) => {
       const c = live.current;
       c.onMove?.(c.i, Math.max(0, Math.min(1, start.current.x + g.dx / Math.max(1, c.w))), Math.max(0, Math.min(1, start.current.y + g.dy / Math.max(1, c.h))));
@@ -145,9 +143,13 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
         <Text style={[CS.side, {color: hasImg ? '#FFFFFF' : ink, textShadowColor: hasImg ? 'rgba(11,16,51,.7)' : 'transparent', textShadowRadius: 4}]}>MODO MÚSICA · {side}</Text>
         <View style={hasImg ? CS.titleOnImg : undefined}><Text numberOfLines={1} style={[CS.title, hasImg && {marginTop: 0}]}>{label.toUpperCase()}</Text></View>
       </View>
-      {deco?.stickers?.map((st, i) => (
-        <StickerView key={i} st={st} i={i} w={w} h={h} edit={!!edit} selected={edit?.selected === i} onSelect={edit?.onSelect} onMove={edit?.onMove} />
-      ))}
+      {deco?.stickers?.length ? (
+        <View pointerEvents="box-none" accessibilityLabel="Figurinhas da fita" style={{position: 'absolute', left: 0, top: 0, width: w, height: h, overflow: 'hidden', borderRadius: 22 * k}}>
+          {deco.stickers.map((st, i) => (
+            <StickerView key={i} st={st} i={i} w={w} h={h} edit={!!edit} selected={edit?.selected === i} onSelect={edit?.onSelect} onMove={edit?.onMove} />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -208,13 +210,15 @@ export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stic
         <Circle cx={68} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={68} cy={44} r={2.4} fill={t.body} />
       </Svg>
       {image ? <View pointerEvents="none" style={{position: 'absolute', left: 10 * k, top: 8 * k}}><FitImage uri={image} fit={imgFit} w={80 * k} h={22 * k} radius={3 * k} /></View> : null}
-      {(stickers || []).slice(0, 6).map((st, i) => {
-        const fs = Math.max(9, size * 0.17 * st.s);
-        const bw = fs * 1.55, bh = fs * 1.55;
-        const rad = ((st.r || 0) * Math.PI) / 180, grow = ((Math.abs(Math.cos(rad)) + Math.abs(Math.sin(rad))) - 1) * bw / 2;
-        const left = Math.max(grow, Math.min(size - bw - grow, st.x * size - bw / 2)), top = Math.max(grow, Math.min(h - bh - grow, st.y * h - bh / 2));
-        return <Text key={i} pointerEvents="none" style={{position: 'absolute', left, top, width: bw, height: bh, textAlign: 'center', fontSize: fs, lineHeight: bh * 0.95, transform: [{rotate: `${st.r || 0}deg`}]}}>{st.e}</Text>;
-      })}
+      {stickers?.length ? (
+        <View pointerEvents="none" style={{position: 'absolute', left: 0, top: 0, width: size, height: h, overflow: 'hidden', borderRadius: 10 * k}}>
+          {stickers.slice(0, 6).map((st, i) => {
+            const fs = Math.max(9, size * 0.17 * st.s);
+            const bw = fs * 1.55, bh = fs * 1.55;
+            return <Text key={i} style={{position: 'absolute', left: st.x * size - bw / 2, top: st.y * h - bh / 2, width: bw, height: bh, textAlign: 'center', fontSize: fs, lineHeight: bh * 0.95, transform: [{rotate: `${st.r || 0}deg`}]}}>{st.e}</Text>;
+          })}
+        </View>
+      ) : null}
       {note ? <View pointerEvents="none" style={{position: 'absolute', top: -2 * k, right: -3 * k, width: 15 * k, height: 15 * k, backgroundColor: '#FFE27A', borderWidth: 1.5, borderColor: BORDER, borderRadius: 2, transform: [{rotate: '8deg'}]}} /> : null}
     </View>
   );

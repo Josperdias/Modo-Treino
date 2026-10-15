@@ -513,21 +513,23 @@ test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player)
   await settle(page, 700);
   assert.ok(await page.locator(`img[src="${CAPA}"]`).count() >= 1, 'a capa aparece no cassete grande do player');
   await page.screenshot({path: process.env.SHOT_CAPA || '/tmp/capa.png'});
-  // figurinhas nas beiras (x e y no limite) ficam inteiras dentro da fita, nunca cortadas
+  // figurinhas na beira (x e y no limite): passam do contorno da fita, mas a fita as RECORTA (como um adesivo de verdade)
   const caixas = await page.evaluate(() => {
-    const fita = document.querySelector('[aria-label^="Fita cassete"]').getBoundingClientRect();
-    const out = {fita: {x: fita.x, y: fita.y, w: fita.width, h: fita.height}};
+    const raiz = document.querySelector('[aria-label^="Fita cassete"]');
+    const fita = raiz.getBoundingClientRect();
+    const camada = raiz.querySelector('[aria-label="Figurinhas da fita"]');
+    const out = {fita: {x: fita.x, y: fita.y, w: fita.width, h: fita.height}, recorta: getComputedStyle(camada).overflow};
     for (const e of ['⭐', '🎧']) {
-      const el = [...document.querySelectorAll('[aria-label^="Fita cassete"] *')].find((n) => n.children.length === 0 && n.textContent.trim() === e);
+      const el = [...camada.querySelectorAll('*')].find((n) => n.children.length === 0 && n.textContent.trim() === e);
       const r = el.getBoundingClientRect(); out[e] = {x: r.x, y: r.y, w: r.width, h: r.height};
     }
     return out;
   });
   const F = caixas.fita;
-  for (const e of ['⭐', '🎧']) {
-    const b = caixas[e];
-    assert.ok(b.x >= F.x - 1 && b.y >= F.y - 1 && b.x + b.w <= F.x + F.w + 1 && b.y + b.h <= F.y + F.h + 1, `a figurinha ${e} cabe inteira na fita`);
-  }
+  assert.equal(caixas.recorta, 'hidden', 'a fita recorta as figurinhas que passam da beira');
+  assert.ok(caixas['⭐'].x + caixas['⭐'].w > F.x + F.w && caixas['⭐'].y + caixas['⭐'].h > F.y + F.h, 'a figurinha do canto inferior direito passa da beira (e é cortada)');
+  assert.ok(caixas['🎧'].x < F.x && caixas['🎧'].y < F.y, 'a do canto superior esquerdo também');
+  assert.ok(caixas['⭐'].x + caixas['⭐'].w / 2 <= F.x + F.w + 1 && caixas['⭐'].y + caixas['⭐'].h / 2 <= F.y + F.h + 1, 'o centro fica na fita: dá para pegar e arrastar de volta');
   await page.getByLabel('Fechar').last().click(); await settle(page, 500);
   await tab(page, 'Músicas');
   await page.getByLabel('Mais opções de Lose Yourself').click();
