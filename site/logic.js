@@ -570,7 +570,7 @@
 
 
   /* ---------- personalização das fitas (cor, padrão, figurinhas arrastáveis, imagem no rótulo e anotação) ---------- */
-  var DECO_COLORS = 8, DECO_MAX_STICKERS = 6, DECO_MAX_NOTE = 280;
+  var DECO_COLORS = 14, DECO_MAX_STICKERS = 6, DECO_MAX_NOTE = 280;
   var DECO_PATTERNS = ['dots', 'stripes', 'check', 'stars'];
   // Posições iniciais (fração da largura e da altura da fita) das figurinhas que chegam sem posição.
   var DECO_SLOTS = [[0.88, 0.2], [0.12, 0.8], [0.88, 0.82], [0.12, 0.2], [0.5, 0.9], [0.5, 0.1]];

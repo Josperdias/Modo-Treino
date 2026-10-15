@@ -409,7 +409,7 @@ test('releaseNotes: pega só o trecho antes do "---", sem markdown, limitado', (
 test('cleanDeco: só guarda campos válidos e devolve null quando não sobra nada', () => {
   assert.equal(L.cleanDeco(null), null);
   assert.equal(L.cleanDeco({}), null);
-  assert.equal(L.cleanDeco({color: 9, pattern: 'xadrez', note: '   ', stickers: [1, '', {e: ''}]}), null);
+  assert.equal(L.cleanDeco({color: 14, pattern: 'xadrez', note: '   ', stickers: [1, '', {e: ''}]}), null);
   assert.deepEqual(L.cleanDeco({color: '3', pattern: 'dots', note: 'supino 3x10  ', stickers: ['⭐'], image: 'file:///capa.png', lixo: 1}),
     {color: 3, pattern: 'dots', stickers: [{e: '⭐', x: 0.88, y: 0.2, s: 1}], note: 'supino 3x10', image: 'file:///capa.png'});
 });
@@ -434,5 +434,5 @@ test('setDeco: junta campos, apaga com null e some quando fica vazia', () => {
 });
 test('cleanDecoMap: limpa o mapa carregado do armazenamento', () => {
   assert.deepEqual(L.cleanDecoMap('x'), {});
-  assert.deepEqual(L.cleanDecoMap({a: {color: 1}, b: {color: 99}, c: null}), {a: {color: 1}});
+  assert.deepEqual(L.cleanDecoMap({a: {color: 1}, b: {color: 99}, c: null, d: {color: 13}}), {a: {color: 1}, d: {color: 13}});
 });

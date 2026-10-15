@@ -101,13 +101,19 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
 
       </View>
       <ScrollView style={{flexGrow: 0, flexShrink: 1, marginTop: 10}} contentContainerStyle={{gap: 12, paddingBottom: 8}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
-        <Text style={T.kicker}>COR DA FITA</Text>
+        <Text style={T.kicker}>COR DA FITA · LISA OU XADREZ</Text>
         <View style={S.row}>
           {TAPES.map((t, i) => {
             const on = (color ?? tapeIndex(track.id)) === i && color !== undefined;
             return (
-              <Press key={i} accessibilityRole="button" accessibilityLabel={`Cor ${i + 1} de 8`} accessibilityState={{selected: color === i}} onPress={() => setColor(i)} quiet style={[S.swatch, {backgroundColor: t.body}, on && S.swatchOn]}>
-                {on ? <Icon name="checkmark" size={20} color={C.white} /> : null}
+              <Press key={i} accessibilityRole="button" accessibilityLabel={`Cor ${i + 1} de ${TAPES.length}${t.alt ? ', xadrez' : ''}`} accessibilityState={{selected: color === i}} onPress={() => setColor(i)} quiet style={[S.swatch, {backgroundColor: t.body}, on && S.swatchOn]}>
+                {t.alt ? (
+                  <View pointerEvents="none" style={S.check}>
+                    <View style={[S.sq, {backgroundColor: t.body}]} /><View style={[S.sq, {backgroundColor: t.alt}]} />
+                    <View style={[S.sq, {backgroundColor: t.alt}]} /><View style={[S.sq, {backgroundColor: t.body}]} />
+                  </View>
+                ) : null}
+                {on ? <Icon name="checkmark" size={20} color={t.alt && t.alt !== '#141B34' && t.body !== '#141B34' ? C.ink : C.white} /> : null}
               </Press>
             );
           })}
@@ -162,6 +168,8 @@ const S = StyleSheet.create({
   toolBtn: {width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card, borderWidth: 2, borderColor: C.ink},
   row: {flexDirection: 'row', flexWrap: 'wrap', gap: 10},
   swatch: {width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.ink},
+  check: {...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap', borderRadius: 20, overflow: 'hidden'},
+  sq: {width: '50%', height: '50%'},
   swatchOn: {borderWidth: 4, borderColor: C.ink, transform: [{scale: 1.08}]},
   chip: {paddingHorizontal: 14, height: 40, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card, borderWidth: 2, borderColor: C.line},
   chipOn: {backgroundColor: C.yellow, borderColor: C.ink},

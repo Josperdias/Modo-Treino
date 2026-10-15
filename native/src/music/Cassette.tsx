@@ -35,6 +35,11 @@ function PatternDefs() {
       <SvgPattern id="pt-dots" patternUnits="userSpaceOnUse" width={16} height={16}><Circle cx={8} cy={8} r={3} fill="#FFFFFF" opacity={0.22} /></SvgPattern>
       <SvgPattern id="pt-stripes" patternUnits="userSpaceOnUse" width={18} height={18} patternTransform="rotate(45)"><Rect x={0} y={0} width={9} height={18} fill="#FFFFFF" opacity={0.2} /></SvgPattern>
       <SvgPattern id="pt-check" patternUnits="userSpaceOnUse" width={24} height={24}><Rect x={0} y={0} width={12} height={12} fill="#FFFFFF" opacity={0.2} /><Rect x={12} y={12} width={12} height={12} fill="#FFFFFF" opacity={0.2} /></SvgPattern>
+      {TAPES.map((t, i) => (t.alt ? (
+        <SvgPattern key={i} id={`ck-${i}`} patternUnits="userSpaceOnUse" width={40} height={40}>
+          <Rect x={0} y={0} width={40} height={40} fill={t.body} /><Rect x={20} y={0} width={20} height={20} fill={t.alt} /><Rect x={0} y={20} width={20} height={20} fill={t.alt} />
+        </SvgPattern>
+      ) : null))}
       <SvgPattern id="pt-stars" patternUnits="userSpaceOnUse" width={30} height={30}><Path d={star} fill="#FFFFFF" opacity={0.24} transform="translate(5 5)" /></SvgPattern>
     </Defs>
   );
@@ -85,9 +90,9 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
   const hub = 40 * k;
   const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width);
   const tone = deco?.color != null ? TAPES[deco.color] : null;
-  const shell = tone ? tone.body : '#25316C';
+  const shell = tone ? (tone.alt ? `url(#ck-${deco!.color})` : tone.body) : '#25316C';
   const labelBg = tone ? tone.label : '#FBD4D4';
-  const band = tone ? tone.body : '#F6A4C1';
+  const band = tone ? (tone.alt || tone.body) : '#F6A4C1';
   const ink = tone ? tone.ink : '#443765';
   const hasImg = !!deco?.image;
   return (
@@ -128,7 +133,7 @@ const CS = StyleSheet.create({
 });
 
 // Cada fita tem a sua cor, para reconhecer uma música de relance na lista (corpo, rótulo e carretéis combinam).
-export const TAPES: {body: string; label: string; ink: string}[] = [
+export const TAPES: {body: string; label: string; ink: string; alt?: string}[] = [
   {body: '#F0568A', label: '#FFD3E3', ink: '#7A1740'},   // rosa
   {body: '#3F7BEA', label: '#CFE0FF', ink: '#173E8F'},   // azul
   {body: '#F5B71F', label: '#FFEDB0', ink: '#7A5200'},   // amarelo
@@ -137,6 +142,13 @@ export const TAPES: {body: string; label: string; ink: string}[] = [
   {body: '#F2793A', label: '#FFD9C2', ink: '#8A3410'},   // laranja
   {body: '#1FB5C9', label: '#C7F1F7', ink: '#0B5D69'},   // turquesa
   {body: '#E0453F', label: '#FFD0CD', ink: '#7C1814'},   // vermelho
+  // 8 a 13: xadrez de duas cores (corpo em quadradinhos `body` e `alt`)
+  {body: '#141B34', alt: '#F7F3EA', label: '#F7F3EA', ink: '#141B34'},   // preto e branco
+  {body: '#F0568A', alt: '#FFFFFF', label: '#FFD3E3', ink: '#7A1740'},   // rosa e branco
+  {body: '#F5B71F', alt: '#141B34', label: '#FFEDB0', ink: '#141B34'},   // amarelo e preto
+  {body: '#3F7BEA', alt: '#FFFFFF', label: '#CFE0FF', ink: '#173E8F'},   // azul e branco
+  {body: '#E0453F', alt: '#141B34', label: '#FFD0CD', ink: '#7C1814'},   // vermelho e preto
+  {body: '#8A5CE6', alt: '#F0568A', label: '#E2D4FF', ink: '#42218F'},   // roxo e rosa
 ];
 const BORDER = '#0B1033';
 
@@ -148,7 +160,8 @@ export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stic
   return (
     <View style={{width: size, height: h}}>
       <Svg width={size} height={h} viewBox="0 0 100 64">
-        <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.body} stroke={BORDER} strokeWidth={3} />
+        {t.alt ? <Defs><SvgPattern id="mk" patternUnits="userSpaceOnUse" width={20} height={20}><Rect x={0} y={0} width={20} height={20} fill={t.body} /><Rect x={10} y={0} width={10} height={10} fill={t.alt} /><Rect x={0} y={10} width={10} height={10} fill={t.alt} /></SvgPattern></Defs> : null}
+        <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.alt ? 'url(#mk)' : t.body} stroke={BORDER} strokeWidth={3} />
         <Rect x={9} y={7} width={82} height={24} rx={4} fill={t.label} stroke={BORDER} strokeWidth={1.5} />
         {!image && <Rect x={16} y={14} width={44} height={3} rx={1.5} fill={t.ink} opacity={0.75} />}
         {!image && <Rect x={16} y={20} width={28} height={3} rx={1.5} fill={t.ink} opacity={0.45} />}
