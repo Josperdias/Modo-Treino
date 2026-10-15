@@ -526,10 +526,11 @@ test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player)
     return out;
   });
   const F = caixas.fita;
-  assert.equal(caixas.recorta, 'hidden', 'a fita recorta as figurinhas que passam da beira');
-  assert.ok(caixas['⭐'].x + caixas['⭐'].w > F.x + F.w && caixas['⭐'].y + caixas['⭐'].h > F.y + F.h, 'a figurinha do canto inferior direito passa da beira (e é cortada)');
-  assert.ok(caixas['🎧'].x < F.x && caixas['🎧'].y < F.y, 'a do canto superior esquerdo também');
-  assert.ok(caixas['⭐'].x + caixas['⭐'].w / 2 <= F.x + F.w + 1 && caixas['⭐'].y + caixas['⭐'].h / 2 <= F.y + F.h + 1, 'o centro fica na fita: dá para pegar e arrastar de volta');
+  assert.equal(caixas.recorta, 'visible', 'a fita não recorta as figurinhas: elas cobrem a borda e um pouco da moldura');
+  const S1 = caixas['⭐'], S2 = caixas['🎧'];
+  assert.ok(S1.x + S1.w >= F.x + F.w && S1.y + S1.h >= F.y + F.h, 'a figurinha do canto inferior direito chega até a beira da fita');
+  assert.ok(S1.x + S1.w / 2 <= F.x + F.w + 16 && S1.y + S1.h / 2 <= F.y + F.h + 16, 'e passa dela só um pouco (não é cortada pela moldura)');
+  assert.ok(S2.x <= F.x && S2.y <= F.y, 'a do canto superior esquerdo também cobre a beira');
   await page.getByLabel('Fechar').last().click(); await settle(page, 500);
   await tab(page, 'Músicas');
   await page.getByLabel('Mais opções de Lose Yourself').click();
