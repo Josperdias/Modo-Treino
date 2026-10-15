@@ -25,6 +25,7 @@ type Native = {
   setSleepTimer(minutes: number): Promise<NativeState>;
   setNotificationStyle(style: NotificationStyle): Promise<NotificationStyle>;
   getNotificationStyle(): Promise<NotificationStyle>;
+  extractCover(uri: string): Promise<string | null>;
   addListener(name: 'onState', cb: (state: NativeState) => void): {remove(): void};
   addListener(name: 'onAction', cb: (event: {action: string}) => void): {remove(): void};
 };
@@ -55,6 +56,8 @@ export const ModoPlayback = {
   /** Estilo da notificação de música (vale na hora se o player está ativo). */
   setNotificationStyle: (style: NotificationStyle) => requirePlayer().setNotificationStyle(style),
   getNotificationStyle: () => requirePlayer().getNotificationStyle(),
+  /** Capa do álbum guardada dentro do arquivo da música: devolve o caminho de uma cópia no cache, ou null se não houver capa. */
+  extractCover: (uri: string) => requirePlayer().extractCover(uri),
   onState: (cb: (state: NativeState) => void) => {
     if (!android) return () => {};
     const sub = android.addListener('onState', cb);

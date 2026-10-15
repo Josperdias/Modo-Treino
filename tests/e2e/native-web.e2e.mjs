@@ -1060,3 +1060,16 @@ test('barra do player: a bolinha acompanha o dedo ao arrastar (volume muda na ho
   assert.deepEqual(errors.filter((e) => !/no supported source/.test(e)), []);   // o navegador não toca file:// de mentira
   await context.close();
 });
+
+test('imagem do rótulo: "usar a capa do álbum da música" pega a capa que vem dentro do arquivo', {skip}, async () => {
+  const CAPA = 'https://capa.test/album.jpg';
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS, cover: CAPA}});
+  await context.route(CAPA, (r) => r.fulfill({status: 200, contentType: 'image/jpeg', body: readFileSync(new URL('../../native/assets/exercicios/' + CAPA_FILE, import.meta.url))}));
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Usar a capa do álbum da música').click(); await settle(page, 600);
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'].image, CAPA, 'a capa do álbum virou a imagem do rótulo');
+  await context.close();
+});

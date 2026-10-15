@@ -11,6 +11,7 @@ import type {FitaEdge, FitaImgFit, FitaImgFitMode, FitaPattern, FitaSticker} fro
 import Cassette, {EDGES, PATTERNS, TAPES} from './Cassette';
 import {tapeIndex} from './tapeIndex';
 import {Track, useMusic} from './MusicProvider';
+import {coverSupported, trackCover} from './cover';
 
 export const STICKERS = ['⭐', '🔥', '💪', '🎧', '❤️', '⚡', '🏋️', '🏃', '🎵', '🌈', '🌸', '👑', '💥', '😎', '🚀', '🎯'];
 const MAX_STICKERS = 6, MAX_NOTE = 280;
@@ -72,6 +73,21 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
       if (image && image !== oldImage) drop(image);   // imagem escolhida e trocada antes de salvar
       setImage(uri); setFit({m: 'cover', z: 1, x: 0, y: 0}); setImgMode(true);
     } catch { setErr('Não consegui abrir essa imagem. Tente outra.'); }
+  };
+  // Usa a capa do álbum que já vem dentro do arquivo da música (a mesma que o app de música do celular mostra).
+  const takeCover = async () => {
+    setErr('');
+    const found = await trackCover(track.uri);
+    if (!found) { setErr('Esta música não tem capa dentro do arquivo. Escolha uma imagem da galeria.'); return; }
+    let uri = found;
+    try {
+      await FileSystem.makeDirectoryAsync(CAPAS(), {intermediates: true});
+      const to = CAPAS() + `${Date.now().toString(36)}.jpg`;
+      await FileSystem.copyAsync({from: found, to});
+      uri = to;
+    } catch { /* sem cópia (navegador): usa o caminho recebido */ }
+    if (image && image !== oldImage) drop(image);
+    setImage(uri); setFit({m: 'cover', z: 1, x: 0, y: 0}); setImgMode(true);
   };
   const save = () => {
     m.setDeco(track.id, {color: color ?? null, pattern: pattern ?? null, edge: edge ?? null, stickers, note, image: image ?? null, imgFit: image ? fit : null} as never);
@@ -170,6 +186,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
           <View style={{flex: 1}}><Btn small kind="ghost" icon="image" text={image ? 'TROCAR IMAGEM' : 'ESCOLHER IMAGEM'} label="Escolher imagem do rótulo" onPress={() => { void pickImage(); }} /></View>
           {image ? <View style={{flex: 1}}><Btn small kind="ghost" icon="close-circle-outline" text="TIRAR IMAGEM" onPress={() => { setImage(undefined); setImgMode(false); }} /></View> : null}
         </View>
+        {coverSupported() ? <Btn small kind="ghost" icon="musical-notes" text="USAR A CAPA DO ÁLBUM DA MÚSICA" label="Usar a capa do álbum da música" onPress={() => { void takeCover(); }} /> : null}
         {image ? <Btn small kind={imgMode ? 'primary' : 'ghost'} icon="move" text={imgMode ? 'PRONTO: VOLTAR ÀS FIGURINHAS' : 'AJUSTAR A IMAGEM COM O DEDO'} label={imgMode ? 'Terminar de ajustar a imagem' : 'Ajustar a imagem com o dedo'} onPress={() => setImgMode(!imgMode)} /> : null}
         {image ? (
           <View style={S.fitBox} accessibilityLabel="Enquadrar a imagem do rótulo">
