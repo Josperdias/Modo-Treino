@@ -473,6 +473,12 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   await page.mouse.move(box.x + box.width / 2 - 120, box.y + box.height / 2 + 40, {steps: 6}); await page.mouse.up();
   await page.getByLabel('Girar a figurinha para a direita').click(); await page.getByLabel('Girar a figurinha para a direita').click();
   await page.getByLabel('Figurinha maior').click();
+  // bolinha do canto: arrastar para fora aumenta e em volta gira a figurinha ⭐ (selecionada ao tocar nela)
+  const estrela = page.getByLabel(/^Figurinha ⭐/); const eb = await estrela.boundingBox();
+  await page.mouse.click(eb.x + eb.width / 2, eb.y + eb.height / 2);
+  const grip = await page.getByLabel('Arraste para girar e mudar o tamanho da figurinha').boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 70, grip.y + grip.height / 2 + 20, {steps: 6}); await page.mouse.up();
   await page.getByLabel('Anotação da fita').fill('Fazer 3 séries de supino\ndescanso de 45 s');
   await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 600);
   assert.match(await body(page), /📝 Fazer 3 séries de supino/, 'a anotação aparece na linha da fita');
@@ -483,6 +489,7 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   assert.ok(d.stickers[0].x < 0.88 && d.stickers[0].y > 0.2, 'a figurinha arrastada mudou de lugar');
   assert.equal(d.stickers[0].s, 1.2, 'o botão "maior" aumentou a figurinha');
   assert.equal(d.stickers[0].r, 30, 'girar duas vezes para a direita = 30 graus');
+  assert.ok(d.stickers[1].s > 1 || d.stickers[1].r !== 0, 'a bolinha do canto mudou o tamanho e/ou o giro da figurinha');
   await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await settle(page, 600);
   await tab(page, 'Início');
   await page.getByRole('button', {name: /^Abrir músicas/}).click();
@@ -543,6 +550,17 @@ test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player)
   await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
   const fit = (await store(page, MUSIC)).deco['dev:1'].imgFit;
   assert.deepEqual(fit, {z: 1.85, x: 0.25, y: -0.5}, 'o enquadramento da imagem é guardado');
+  // ajustar a imagem com o dedo: arrastar escolhe a região que aparece no rótulo
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Ajustar a imagem com o dedo').click(); await settle(page, 500);
+  const alvo = await page.getByLabel(/^Imagem do rótulo/).boundingBox();
+  await page.mouse.move(alvo.x + alvo.width / 2, alvo.y + alvo.height / 2); await page.mouse.down();
+  await page.mouse.move(alvo.x + alvo.width / 2 + 40, alvo.y + alvo.height / 2 + 14, {steps: 6}); await page.mouse.up();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  const fit2 = (await store(page, MUSIC)).deco['dev:1'].imgFit;
+  assert.ok(fit2.x !== 0.25 || fit2.y !== -0.5, 'arrastar a imagem mudou a região mostrada');
+  assert.equal(fit2.z, 1.85, 'o zoom continua o mesmo');
   await page.getByLabel('Mais opções de Lose Yourself').click();
   await page.getByLabel('Personalizar a fita Lose Yourself').click();
   await page.getByLabel('Voltar a fita ao padrão').click(); await settle(page, 600);

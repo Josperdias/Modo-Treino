@@ -26,6 +26,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
   const [edge, setEdge] = useState<FitaEdge | undefined>();
   const [stickers, setStickers] = useState<FitaSticker[]>([]);
   const [sel, setSel] = useState<number | null>(null);
+  const [imgMode, setImgMode] = useState(false);   // dedo move/dá zoom na imagem do rótulo (em vez de mexer nas figurinhas)
   const [note, setNote] = useState('');
   const [image, setImage] = useState<string | undefined>();
   const [fit, setFit] = useState<FitaImgFit>({z: 1, x: 0, y: 0});
@@ -34,7 +35,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
   useEffect(() => {
     if (!track || !open) return;
     const d = m.deco(track.id);
-    setColor(d?.color); setPattern(d?.pattern); setEdge(d?.edge); setStickers(d?.stickers || []); setSel(null); setNote(d?.note || ''); setImage(d?.image); setFit(d?.imgFit || {z: 1, x: 0, y: 0}); setOldImage(d?.image); setErr('');
+    setColor(d?.color); setPattern(d?.pattern); setEdge(d?.edge); setStickers(d?.stickers || []); setSel(null); setImgMode(false); setNote(d?.note || ''); setImage(d?.image); setFit(d?.imgFit || {z: 1, x: 0, y: 0}); setOldImage(d?.image); setErr('');
   }, [track?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!track) return null;
@@ -44,6 +45,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
     setSel(cur.length);
     return [...cur, {e, x, y, s: 1, r: 0}];
   });
+  const xform = (i: number, s: number, r: number) => setStickers((cur) => cur.map((st, k) => (k === i ? {...st, s: Math.round(s * 100) / 100, r} : st)));
   const move = (i: number, x: number, y: number) => setStickers((cur) => cur.map((s, k) => (k === i ? {...s, x, y} : s)));
   const resize = (d: number) => setStickers((cur) => cur.map((s, k) => (k === sel ? {...s, s: Math.max(0.6, Math.min(2.2, Math.round((s.s + d) * 100) / 100))} : s)));
   const spin = (d: number) => setStickers((cur) => cur.map((s, k) => {
@@ -68,7 +70,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
         uri = to;
       } catch { /* sem cópia (navegador): usa o arquivo escolhido mesmo */ }
       if (image && image !== oldImage) drop(image);   // imagem escolhida e trocada antes de salvar
-      setImage(uri); setFit({z: 1, x: 0, y: 0});
+      setImage(uri); setFit({z: 1, x: 0, y: 0}); setImgMode(true);
     } catch { setErr('Não consegui abrir essa imagem. Tente outra.'); }
   };
   const save = () => {
@@ -92,13 +94,13 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
         <View accessibilityLabel="Prévia da fita">
           <Card color={C.yellow} offset={4} style={{paddingTop: 14, paddingBottom: 12, paddingHorizontal: 14, alignItems: 'center'}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
             <View style={{width: '100%'}}>
-              <Cassette playing={false} label={track.title} deco={draft} edit={{selected: sel, onSelect: setSel, onMove: move}} />
+              <Cassette playing={false} label={track.title} deco={draft} edit={{selected: sel, onSelect: setSel, onMove: move, onXform: xform, imageMode: imgMode && !!image, onFit: setFit}} />
             </View>
           </Card>
-          <Text style={S.hint}>{stickers.length ? 'Arraste as figurinhas até a beira: a moldura amarela corta o que passar.' : 'Escolha figurinhas abaixo e arraste para o lugar que quiser.'}</Text>
+          <Text style={S.hint}>{imgMode && image ? 'Arraste a imagem para escolher a região e use dois dedos para dar zoom.' : stickers.length ? 'Arraste a figurinha; com dois dedos (ou pela bolinha do canto) você aumenta e gira. A moldura amarela corta o que passar.' : 'Escolha figurinhas abaixo e arraste para o lugar que quiser.'}</Text>
         </View>
 
-        {sel !== null && stickers[sel] ? (
+        {!(imgMode && image) && sel !== null && stickers[sel] ? (
           <View style={S.tools} accessibilityLabel="Ajustes da figurinha selecionada">
             <Text style={{fontSize: 26}}>{stickers[sel].e}</Text>
             <View style={{flex: 1}} />
@@ -166,8 +168,9 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
         <Text style={T.small}>A imagem fica atrás do nome da fita, onde fica a etiqueta.</Text>
         <View style={{flexDirection: 'row', gap: 10}}>
           <View style={{flex: 1}}><Btn small kind="ghost" icon="image" text={image ? 'TROCAR IMAGEM' : 'ESCOLHER IMAGEM'} label="Escolher imagem do rótulo" onPress={() => { void pickImage(); }} /></View>
-          {image ? <View style={{flex: 1}}><Btn small kind="ghost" icon="close-circle-outline" text="TIRAR IMAGEM" onPress={() => setImage(undefined)} /></View> : null}
+          {image ? <View style={{flex: 1}}><Btn small kind="ghost" icon="close-circle-outline" text="TIRAR IMAGEM" onPress={() => { setImage(undefined); setImgMode(false); }} /></View> : null}
         </View>
+        {image ? <Btn small kind={imgMode ? 'primary' : 'ghost'} icon="move" text={imgMode ? 'PRONTO: VOLTAR ÀS FIGURINHAS' : 'AJUSTAR A IMAGEM COM O DEDO'} label={imgMode ? 'Terminar de ajustar a imagem' : 'Ajustar a imagem com o dedo'} onPress={() => setImgMode(!imgMode)} /> : null}
         {image ? (
           <View style={S.fitBox} accessibilityLabel="Enquadrar a imagem do rótulo">
             <Text style={S.fitLabel}>ENQUADRAR</Text>

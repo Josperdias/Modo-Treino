@@ -5,6 +5,7 @@ import Animated, {useReducedMotion, cancelAnimation, Easing, useAnimatedStyle, u
 import Svg, {Circle, Defs, G, Line, Path, Pattern as SvgPattern, Rect} from 'react-native-svg';
 import {C} from '../theme';
 import type {FitaDeco, FitaEdge, FitaImgFit, FitaPattern, FitaSticker} from '../../logic';
+import {Icon} from '../ui';
 import {tapeIndex} from './tapeIndex';
 
 const W = 320, H = 200;
@@ -50,46 +51,123 @@ function PatternDefs() {
   );
 }
 
-/** Uma figurinha sobre a fita. Em modo de edição ela se arrasta com o dedo (a posição é uma fração da largura e da altura da fita). */
-function StickerView({st, i, w, h, edit, selected, onSelect, onMove}: {st: FitaSticker; i: number; w: number; h: number; edit: boolean; selected: boolean; onSelect?: (i: number) => void; onMove?: (i: number, x: number, y: number) => void}) {
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+const wrap180 = (deg: number) => { let r = Math.round(deg) % 360; if (r > 180) r -= 360; if (r < -180) r += 360; return r; };
+const touchDist = (t: {pageX: number; pageY: number}[]) => Math.hypot(t[1].pageX - t[0].pageX, t[1].pageY - t[0].pageY);
+const touchAngle = (t: {pageX: number; pageY: number}[]) => (Math.atan2(t[1].pageY - t[0].pageY, t[1].pageX - t[0].pageX) * 180) / Math.PI;
+
+/** Uma figurinha sobre a fita. Em modo de edição: arrasta com um dedo, e muda de tamanho e gira com DOIS dedos (pinça e giro)
+ * ou arrastando a bolinha do canto (puxar para longe aumenta, em volta do centro gira). */
+function StickerView({st, i, w, h, edit, selected, onSelect, onMove, onXform}: {st: FitaSticker; i: number; w: number; h: number; edit: boolean; selected: boolean; onSelect?: (i: number) => void; onMove?: (i: number, x: number, y: number) => void; onXform?: (i: number, s: number, r: number) => void}) {
   const fs = Math.max(14, w * 0.12 * st.s);
   const box = fs * 1.7;
   // A figurinha pode ir até a beira e passar do contorno da fita, cobrindo a borda e a moldura em volta (a moldura amarela do player a recorta
   // na sua própria beira). O centro nunca sai da fita, então sempre dá para pegar de volta.
   const left = st.x * w - box / 2, top = st.y * h - box / 2;
-  const live = useRef({st, w, h, i, onSelect, onMove});
-  live.current = {st, w, h, i, onSelect, onMove};
+  const live = useRef({st, w, h, i, box, onSelect, onMove, onXform});
+  live.current = {st, w, h, i, box, onSelect, onMove, onXform};
   const start = useRef({x: 0, y: 0});
+  const pinch = useRef<{d0: number; a0: number; s0: number; r0: number} | null>(null);
   const pan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponderCapture: () => true,   // a rolagem do painel não rouba o arrasto
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => { start.current = {x: live.current.st.x, y: live.current.st.y}; live.current.onSelect?.(live.current.i); },
-    onPanResponderMove: (_, g) => {
+    onPanResponderGrant: () => { start.current = {x: live.current.st.x, y: live.current.st.y}; pinch.current = null; live.current.onSelect?.(live.current.i); },
+    onPanResponderMove: (e, g) => {
       const c = live.current;
-      c.onMove?.(c.i, Math.max(0, Math.min(1, start.current.x + g.dx / Math.max(1, c.w))), Math.max(0, Math.min(1, start.current.y + g.dy / Math.max(1, c.h))));
+      const t = e.nativeEvent.touches as unknown as {pageX: number; pageY: number}[];
+      if (t && t.length >= 2) {   // dois dedos: pinça muda o tamanho, giro muda o ângulo
+        const d = touchDist(t), a = touchAngle(t);
+        if (!pinch.current) pinch.current = {d0: Math.max(1, d), a0: a, s0: c.st.s, r0: c.st.r || 0};
+        const p = pinch.current;
+        c.onXform?.(c.i, clamp(p.s0 * (d / p.d0), 0.6, 2.2), wrap180(p.r0 + (a - p.a0)));
+        return;
+      }
+      if (pinch.current) { start.current = {x: c.st.x - g.dx / Math.max(1, c.w), y: c.st.y - g.dy / Math.max(1, c.h)}; pinch.current = null; }
+      c.onMove?.(c.i, clamp(start.current.x + g.dx / Math.max(1, c.w), 0, 1), clamp(start.current.y + g.dy / Math.max(1, c.h), 0, 1));
+    },
+    onPanResponderRelease: () => { pinch.current = null; },
+  }), []);
+  // Bolinha do canto (um dedo): a distância até o centro dá o tamanho e o ângulo dá o giro.
+  const grip = useRef({vx: 0, vy: 0, s0: 1, r0: 0});
+  const handle = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      const c = live.current, a = ((c.st.r || 0) * Math.PI) / 180, half = c.box / 2;
+      grip.current = {vx: half * Math.cos(a) - half * Math.sin(a), vy: half * Math.sin(a) + half * Math.cos(a), s0: c.st.s, r0: c.st.r || 0};
+    },
+    onPanResponderMove: (_, g) => {
+      const c = live.current, v0 = grip.current;
+      const vx = v0.vx + g.dx, vy = v0.vy + g.dy;
+      const d0 = Math.max(1, Math.hypot(v0.vx, v0.vy)), d = Math.hypot(vx, vy);
+      const da = (Math.atan2(vy, vx) - Math.atan2(v0.vy, v0.vx)) * 180 / Math.PI;
+      c.onXform?.(c.i, clamp(v0.s0 * (d / d0), 0.6, 2.2), wrap180(v0.r0 + da));
     },
   }), []);
   return (
     <View {...(edit ? pan.panHandlers : {})} pointerEvents={edit ? 'auto' : 'none'} accessible={edit} accessibilityRole={edit ? 'button' : undefined} accessibilityLabel={edit ? `Figurinha ${st.e}, arraste para mudar de lugar` : undefined}
       style={{position: 'absolute', left, top, width: box, height: box, alignItems: 'center', justifyContent: 'center', transform: [{rotate: `${st.r || 0}deg`}], borderRadius: fs, borderWidth: edit && selected ? 2 : 0, borderColor: C.ink, borderStyle: 'dashed', backgroundColor: edit && selected ? 'rgba(255,255,255,.35)' : 'transparent'}}>
       <Text style={{fontSize: fs, lineHeight: fs * 1.5, textAlign: 'center'}}>{st.e}</Text>
+      {edit && selected ? (
+        <View {...handle.panHandlers} accessible accessibilityRole="adjustable" accessibilityLabel="Arraste para girar e mudar o tamanho da figurinha"
+          style={{position: 'absolute', right: -13, bottom: -13, width: 28, height: 28, borderRadius: 14, backgroundColor: C.white, borderWidth: 2, borderColor: C.ink, alignItems: 'center', justifyContent: 'center'}}>
+          <Icon name="sync" size={15} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
-/** Imagem do rótulo com zoom e posição escolhidos: um quadro recorta a imagem (cover) ampliada e deslocada. */
-function FitImage({uri, fit, w, h, radius}: {uri: string; fit?: FitaImgFit; w: number; h: number; radius: number}) {
+/** Imagem do rótulo: cobre o quadro (como "cover") e depois recebe zoom (1 a 3) e deslocamento (-1 a 1). Em modo de edição:
+ * arrastar com um dedo move a imagem e a pinça de dois dedos dá zoom — a pessoa escolhe a região que aparece. */
+function FitImage({uri, fit, w, h, radius, editable, onFit}: {uri: string; fit?: FitaImgFit; w: number; h: number; radius: number; editable?: boolean; onFit?: (f: FitaImgFit) => void}) {
+  const [nat, setNat] = useState<{w: number; h: number} | null>(null);
+  useEffect(() => {
+    let on = true;
+    Image.getSize(uri, (iw, ih) => { if (on && iw > 0 && ih > 0) setNat({w: iw, h: ih}); }, () => {});
+    return () => { on = false; };
+  }, [uri]);
   const z = fit?.z ?? 1, x = fit?.x ?? 0, y = fit?.y ?? 0;
-  const bw = w * z, bh = h * z;
+  const base = nat ? Math.max(w / nat.w, h / nat.h) : 0;
+  const dw = nat ? nat.w * base * z : w * z, dh = nat ? nat.h * base * z : h * z;
+  const live = useRef({fit: {z, x, y}, w, h, dw, dh, onFit});
+  live.current = {fit: {z, x, y}, w, h, dw, dh, onFit};
+  const start = useRef({x: 0, y: 0});
+  const pinch = useRef<{d0: number; z0: number} | null>(null);
+  const pan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => { start.current = {x: live.current.fit.x, y: live.current.fit.y}; pinch.current = null; },
+    onPanResponderMove: (e, g) => {
+      const c = live.current;
+      const t = e.nativeEvent.touches as unknown as {pageX: number; pageY: number}[];
+      if (t && t.length >= 2) {
+        const d = touchDist(t);
+        if (!pinch.current) pinch.current = {d0: Math.max(1, d), z0: c.fit.z};
+        c.onFit?.({...c.fit, z: Math.round(clamp(pinch.current.z0 * (d / pinch.current.d0), 1, 3) * 100) / 100});
+        return;
+      }
+      if (pinch.current) { start.current = {x: c.fit.x, y: c.fit.y}; pinch.current = null; return; }
+      const rx = (c.dw - c.w) / 2, ry = (c.dh - c.h) / 2;
+      // arrastar para a direita leva a imagem para a direita (mostra a região da esquerda)
+      c.onFit?.({z: c.fit.z, x: rx > 0.5 ? Math.round(clamp(start.current.x + g.dx / rx, -1, 1) * 100) / 100 : c.fit.x, y: ry > 0.5 ? Math.round(clamp(start.current.y + g.dy / ry, -1, 1) * 100) / 100 : c.fit.y});
+    },
+    onPanResponderRelease: () => { pinch.current = null; },
+  }), []);
   return (
-    <View pointerEvents="none" style={{width: w, height: h, borderRadius: radius, overflow: 'hidden'}}>
-      <Image source={{uri}} resizeMode="cover" style={{position: 'absolute', width: bw, height: bh, left: (w - bw) / 2 + (x * (bw - w)) / 2, top: (h - bh) / 2 + (y * (bh - h)) / 2}} />
+    <View {...(editable ? pan.panHandlers : {})} pointerEvents={editable ? 'auto' : 'none'} accessible={!!editable} accessibilityLabel={editable ? 'Imagem do rótulo: arraste para escolher a região e use dois dedos para dar zoom' : undefined}
+      style={{width: w, height: h, borderRadius: radius, overflow: 'hidden', borderWidth: editable ? 2 : 0, borderColor: C.ink, borderStyle: 'dashed'}}>
+      <Image source={{uri}} resizeMode="cover" style={{position: 'absolute', width: dw, height: dh, left: (w - dw) / 2 + (x * (dw - w)) / 2, top: (h - dh) / 2 + (y * (dh - h)) / 2}} />
     </View>
   );
 }
 
-export type CassetteEdit = {selected: number | null; onSelect: (i: number) => void; onMove: (i: number, x: number, y: number) => void};
+export type CassetteEdit = {selected: number | null; onSelect: (i: number) => void; onMove: (i: number, x: number, y: number) => void; onXform: (i: number, s: number, r: number) => void;
+  /** Modo "ajustar imagem": as figurinhas ficam paradas e o dedo move/dá zoom na imagem do rótulo. */
+  imageMode?: boolean; onFit?: (f: FitaImgFit) => void};
 
 /** Fita cassete: os carretéis giram enquanto toca e a fita passa de um lado para o outro conforme a faixa avança.
  * `deco`: a cor, o padrão, a imagem do rótulo e as figurinhas escolhidas pela pessoa. `edit`: modo de personalizar (figurinhas arrastáveis). */
@@ -136,7 +214,7 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
         <Rect x={102} y={156} width={116} height={26} rx={6} fill="#101733" opacity={0.7} />
         <Circle cx={118} cy={170} r={4} fill="#53629D" /><Circle cx={202} cy={170} r={4} fill="#53629D" />
       </Svg>
-      {hasImg ? <View pointerEvents="none" style={{position: 'absolute', left: 23 * k, top: 19 * k}}><FitImage uri={deco!.image!} fit={deco!.imgFit} w={(W - 46) * k} h={72 * k} radius={9 * k} /></View> : null}
+      {hasImg ? <View pointerEvents={edit?.imageMode ? 'auto' : 'none'} style={{position: 'absolute', left: 23 * k, top: 19 * k, zIndex: edit?.imageMode ? 5 : 0}}><FitImage uri={deco!.image!} fit={deco!.imgFit} w={(W - 46) * k} h={72 * k} radius={9 * k} editable={!!edit?.imageMode} onFit={edit?.onFit} /></View> : null}
       <Animated.View style={[CS.reel, {left: (LEFT.x - 20) * k, top: (LEFT.y - 20) * k, width: hub, height: hub}, style]}><Hub size={hub} /></Animated.View>
       <Animated.View style={[CS.reel, {left: (RIGHT.x - 20) * k, top: (RIGHT.y - 20) * k, width: hub, height: hub}, style]}><Hub size={hub} /></Animated.View>
       <View style={[CS.sticker, {left: 34 * k, right: 34 * k, top: 24 * k}]} pointerEvents="none">
@@ -146,7 +224,7 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
       {deco?.stickers?.length ? (
         <View pointerEvents="box-none" accessibilityLabel="Figurinhas da fita" style={{position: 'absolute', left: 0, top: 0, width: w, height: h}}>
           {deco.stickers.map((st, i) => (
-            <StickerView key={i} st={st} i={i} w={w} h={h} edit={!!edit} selected={edit?.selected === i} onSelect={edit?.onSelect} onMove={edit?.onMove} />
+            <StickerView key={i} st={st} i={i} w={w} h={h} edit={!!edit && !edit.imageMode} selected={edit?.selected === i} onSelect={edit?.onSelect} onMove={edit?.onMove} onXform={edit?.onXform} />
           ))}
         </View>
       ) : null}
