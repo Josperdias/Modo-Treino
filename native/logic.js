@@ -602,7 +602,15 @@
       if (list.length) out.stickers = list;
     }
     if (typeof raw.note === 'string') { var n = raw.note.replace(/\s+$/g, '').slice(0, DECO_MAX_NOTE); if (n.trim()) out.note = n; }
-    if (typeof raw.image === 'string' && raw.image.length > 0 && raw.image.length <= 600) out.image = raw.image;
+    if (typeof raw.image === 'string' && raw.image.length > 0 && raw.image.length <= 600) {
+      out.image = raw.image;
+      // Enquadramento da imagem no rótulo: zoom 1 a 3 e deslocamento -1 a 1 (0 = centralizada). Só guarda quando mudou do padrão.
+      var f = raw.imgFit;
+      if (f && typeof f === 'object') {
+        var z = round2(clampN(f.z, 1, 3, 1)), fx = round2(clampN(f.x, -1, 1, 0)), fy = round2(clampN(f.y, -1, 1, 0));
+        if (z !== 1 || fx !== 0 || fy !== 0) out.imgFit = {z: z, x: fx, y: fy};
+      }
+    }
     return Object.keys(out).length ? out : null;
   }
   // deco: {idDaFita: {...}}. patch === null apaga a personalização daquela fita; um objeto troca os campos informados.

@@ -7,7 +7,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {Btn, Icon, Pattern, Press, Sheet} from '../ui';
 import {C, R, T} from '../theme';
-import type {FitaEdge, FitaPattern, FitaSticker} from '../../logic';
+import type {FitaEdge, FitaImgFit, FitaPattern, FitaSticker} from '../../logic';
 import Cassette, {EDGES, PATTERNS, TAPES} from './Cassette';
 import {tapeIndex} from './tapeIndex';
 import {Track, useMusic} from './MusicProvider';
@@ -28,12 +28,13 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
   const [sel, setSel] = useState<number | null>(null);
   const [note, setNote] = useState('');
   const [image, setImage] = useState<string | undefined>();
+  const [fit, setFit] = useState<FitaImgFit>({z: 1, x: 0, y: 0});
   const [oldImage, setOldImage] = useState<string | undefined>();
   const [err, setErr] = useState('');
   useEffect(() => {
     if (!track || !open) return;
     const d = m.deco(track.id);
-    setColor(d?.color); setPattern(d?.pattern); setEdge(d?.edge); setStickers(d?.stickers || []); setSel(null); setNote(d?.note || ''); setImage(d?.image); setOldImage(d?.image); setErr('');
+    setColor(d?.color); setPattern(d?.pattern); setEdge(d?.edge); setStickers(d?.stickers || []); setSel(null); setNote(d?.note || ''); setImage(d?.image); setFit(d?.imgFit || {z: 1, x: 0, y: 0}); setOldImage(d?.image); setErr('');
   }, [track?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!track) return null;
@@ -62,21 +63,22 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
         uri = to;
       } catch { /* sem cópia (navegador): usa o arquivo escolhido mesmo */ }
       if (image && image !== oldImage) drop(image);   // imagem escolhida e trocada antes de salvar
-      setImage(uri);
+      setImage(uri); setFit({z: 1, x: 0, y: 0});
     } catch { setErr('Não consegui abrir essa imagem. Tente outra.'); }
   };
   const save = () => {
-    m.setDeco(track.id, {color: color ?? null, pattern: pattern ?? null, edge: edge ?? null, stickers, note, image: image ?? null} as never);
+    m.setDeco(track.id, {color: color ?? null, pattern: pattern ?? null, edge: edge ?? null, stickers, note, image: image ?? null, imgFit: image ? fit : null} as never);
     if (oldImage && oldImage !== image) drop(oldImage);
     onClose();
   };
+  const nudge = (dx: number, dy: number, dz = 0) => setFit((f) => ({z: Math.max(1, Math.min(3, Math.round((f.z + dz) * 100) / 100)), x: Math.max(-1, Math.min(1, Math.round((f.x + dx) * 100) / 100)), y: Math.max(-1, Math.min(1, Math.round((f.y + dy) * 100) / 100))}));
   const reset = () => {
     m.setDeco(track.id, null);
     drop(oldImage); if (image && image !== oldImage) drop(image);
     onClose();
   };
   const cancel = () => { if (image && image !== oldImage) drop(image); onClose(); };
-  const draft = {color, pattern, edge, stickers, image};
+  const draft = {color, pattern, edge, stickers, image, imgFit: fit};
   const tone = TAPES[color ?? tapeIndex(track.id)];
 
   return (
@@ -158,6 +160,20 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
           <View style={{flex: 1}}><Btn small kind="ghost" icon="image" text={image ? 'TROCAR IMAGEM' : 'ESCOLHER IMAGEM'} label="Escolher imagem do rótulo" onPress={() => { void pickImage(); }} /></View>
           {image ? <View style={{flex: 1}}><Btn small kind="ghost" icon="close-circle-outline" text="TIRAR IMAGEM" onPress={() => setImage(undefined)} /></View> : null}
         </View>
+        {image ? (
+          <View style={S.fitBox} accessibilityLabel="Enquadrar a imagem do rótulo">
+            <Text style={S.fitLabel}>ENQUADRAR</Text>
+            <View style={S.fitRow}>
+              <Press accessibilityRole="button" accessibilityLabel="Imagem para a esquerda" onPress={() => nudge(-0.25, 0)} quiet style={S.toolBtn}><Icon name="arrow-back" size={20} /></Press>
+              <Press accessibilityRole="button" accessibilityLabel="Imagem para cima" onPress={() => nudge(0, -0.25)} quiet style={S.toolBtn}><Icon name="arrow-up" size={20} /></Press>
+              <Press accessibilityRole="button" accessibilityLabel="Imagem para baixo" onPress={() => nudge(0, 0.25)} quiet style={S.toolBtn}><Icon name="arrow-down" size={20} /></Press>
+              <Press accessibilityRole="button" accessibilityLabel="Imagem para a direita" onPress={() => nudge(0.25, 0)} quiet style={S.toolBtn}><Icon name="arrow-forward" size={20} /></Press>
+              <View style={{width: 10}} />
+              <Press accessibilityRole="button" accessibilityLabel="Menos zoom na imagem" onPress={() => nudge(0, 0, -0.25)} quiet style={S.toolBtn}><Icon name="remove" size={22} /></Press>
+              <Press accessibilityRole="button" accessibilityLabel="Mais zoom na imagem" onPress={() => nudge(0, 0, 0.25)} quiet style={S.toolBtn}><Icon name="add" size={22} /></Press>
+            </View>
+          </View>
+        ) : null}
         {err ? <Text style={[T.small, {color: '#9B2C4A'}]}>{err}</Text> : null}
 
         <Text style={T.kicker}>ANOTAÇÃO <Text style={{color: C.ink}}>{note.length}/{MAX_NOTE}</Text></Text>
@@ -175,6 +191,9 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
 const S = StyleSheet.create({
   stage: {alignItems: 'center', gap: 10, backgroundColor: '#17104A', borderRadius: R.lg, paddingTop: 16, paddingBottom: 10, paddingHorizontal: 12, overflow: 'hidden', borderWidth: 2, borderColor: C.ink, borderBottomWidth: 5},
   hint: {fontSize: 12, fontWeight: '700', color: '#C9D2F5', textAlign: 'center'},
+  fitBox: {backgroundColor: C.soft, borderRadius: R.md, padding: 10, gap: 8},
+  fitLabel: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: C.muted},
+  fitRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
   tools: {flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.yellow, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 2, borderColor: C.ink},
   toolBtn: {width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card, borderWidth: 2, borderColor: C.ink},
   row: {flexDirection: 'row', flexWrap: 'wrap', gap: 10},

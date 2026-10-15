@@ -65,7 +65,9 @@ export type FitaPattern = 'dots' | 'stripes' | 'check' | 'stars';
 /** Borda da fita: xadrez preto e branco, listras de obra (amarelo e preto) ou listras de docinho (rosa e branco). */
 export type FitaEdge = 'check' | 'hazard' | 'candy';
 /** Personalização de uma fita: cor (0 a 13: 0 a 7 lisas, 8 a 13 xadrez de duas cores), padrão, até 6 figurinhas arrastáveis, imagem no rótulo (caminho do arquivo) e anotação (até 280 letras). */
-export type FitaDeco = {color?: number; pattern?: FitaPattern; edge?: FitaEdge; stickers?: FitaSticker[]; note?: string; image?: string};
+/** Enquadramento da imagem do rótulo: zoom (1 a 3) e deslocamento (-1 a 1; 0 = centralizada). */
+export type FitaImgFit = {z: number; x: number; y: number};
+export type FitaDeco = {imgFit?: FitaImgFit; color?: number; pattern?: FitaPattern; edge?: FitaEdge; stickers?: FitaSticker[]; note?: string; image?: string};
 export function cleanDeco(raw: unknown): FitaDeco | null;
 export function setDeco(deco: Record<string, FitaDeco> | undefined, id: string, patch: Partial<Omit<FitaDeco, 'stickers'>> & {stickers?: (FitaSticker | string)[]} | null): Record<string, FitaDeco>;
 export function cleanDecoMap(map: unknown): Record<string, FitaDeco>;

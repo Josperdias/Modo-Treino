@@ -4,7 +4,7 @@ import {Text} from '../text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, Defs, G, Line, Path, Pattern as SvgPattern, Rect} from 'react-native-svg';
 import {C} from '../theme';
-import type {FitaDeco, FitaEdge, FitaPattern, FitaSticker} from '../../logic';
+import type {FitaDeco, FitaEdge, FitaImgFit, FitaPattern, FitaSticker} from '../../logic';
 import {tapeIndex} from './tapeIndex';
 
 const W = 320, H = 200;
@@ -74,6 +74,17 @@ function StickerView({st, i, w, h, edit, selected, onSelect, onMove}: {st: FitaS
   );
 }
 
+/** Imagem do rótulo com zoom e posição escolhidos: um quadro recorta a imagem (cover) ampliada e deslocada. */
+function FitImage({uri, fit, w, h, radius}: {uri: string; fit?: FitaImgFit; w: number; h: number; radius: number}) {
+  const z = fit?.z ?? 1, x = fit?.x ?? 0, y = fit?.y ?? 0;
+  const bw = w * z, bh = h * z;
+  return (
+    <View pointerEvents="none" style={{width: w, height: h, borderRadius: radius, overflow: 'hidden'}}>
+      <Image source={{uri}} resizeMode="cover" style={{position: 'absolute', width: bw, height: bh, left: (w - bw) / 2 + (x * (bw - w)) / 2, top: (h - bh) / 2 + (y * (bh - h)) / 2}} />
+    </View>
+  );
+}
+
 export type CassetteEdit = {selected: number | null; onSelect: (i: number) => void; onMove: (i: number, x: number, y: number) => void};
 
 /** Fita cassete: os carretéis giram enquanto toca e a fita passa de um lado para o outro conforme a faixa avança.
@@ -121,7 +132,7 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
         <Rect x={102} y={156} width={116} height={26} rx={6} fill="#101733" opacity={0.7} />
         <Circle cx={118} cy={170} r={4} fill="#53629D" /><Circle cx={202} cy={170} r={4} fill="#53629D" />
       </Svg>
-      {hasImg ? <Image source={{uri: deco!.image}} resizeMode="cover" style={{position: 'absolute', left: 23 * k, top: 19 * k, width: (W - 46) * k, height: 72 * k, borderRadius: 9 * k}} /> : null}
+      {hasImg ? <View pointerEvents="none" style={{position: 'absolute', left: 23 * k, top: 19 * k}}><FitImage uri={deco!.image!} fit={deco!.imgFit} w={(W - 46) * k} h={72 * k} radius={9 * k} /></View> : null}
       <Animated.View style={[CS.reel, {left: (LEFT.x - 20) * k, top: (LEFT.y - 20) * k, width: hub, height: hub}, style]}><Hub size={hub} /></Animated.View>
       <Animated.View style={[CS.reel, {left: (RIGHT.x - 20) * k, top: (RIGHT.y - 20) * k, width: hub, height: hub}, style]}><Hub size={hub} /></Animated.View>
       <View style={[CS.sticker, {left: 34 * k, right: 34 * k, top: 24 * k}]} pointerEvents="none">
@@ -166,7 +177,7 @@ const BORDER = '#0B1033';
 
 /** Mini cassete de UMA música (uma fita), colorido por música. Estático e leve de propósito: listas com centenas de fitas.
  * Personalização opcional: `color` troca a cor, `stickers` coloca as figurinhas nos lugares escolhidos, `image` vira a capa no rótulo e `note` cola um bilhetinho amarelo. */
-export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stickers, image, note, edge}: {id: string; size?: number; on?: boolean; color?: number; stickers?: FitaSticker[]; image?: string; note?: boolean; edge?: FitaEdge}) {
+export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stickers, image, imgFit, note, edge}: {id: string; size?: number; on?: boolean; color?: number; stickers?: FitaSticker[]; image?: string; imgFit?: FitaImgFit; note?: boolean; edge?: FitaEdge}) {
   const t = TAPES[color ?? tapeIndex(id)] || TAPES[tapeIndex(id)];
   const h = size * 0.64, k = size / 100;
   return (
@@ -190,7 +201,7 @@ export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stic
         <Circle cx={32} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={32} cy={44} r={2.4} fill={t.body} />
         <Circle cx={68} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={68} cy={44} r={2.4} fill={t.body} />
       </Svg>
-      {image ? <Image source={{uri: image}} resizeMode="cover" style={{position: 'absolute', left: 10 * k, top: 8 * k, width: 80 * k, height: 22 * k, borderRadius: 3 * k}} /> : null}
+      {image ? <View pointerEvents="none" style={{position: 'absolute', left: 10 * k, top: 8 * k}}><FitImage uri={image} fit={imgFit} w={80 * k} h={22 * k} radius={3 * k} /></View> : null}
       {(stickers || []).slice(0, 6).map((st, i) => {
         const fs = Math.max(9, size * 0.17 * st.s);
         return <Text key={i} pointerEvents="none" style={{position: 'absolute', left: st.x * size - fs * 0.6, top: st.y * h - fs * 0.62, fontSize: fs, lineHeight: fs * 1.2}}>{st.e}</Text>;

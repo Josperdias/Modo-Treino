@@ -31,7 +31,7 @@ const FitaRow = React.memo(function FitaRow({t, current, playing, sub, deco, onP
     <View style={P.rowWrap}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Tocar ${t.title}`} onPress={() => onPlay(t)} android_ripple={{color: 'rgba(20,27,52,.12)'}}
         style={({pressed}) => [P.row, current && P.rowOn, pressed && {opacity: 0.85}]}>
-        <MiniTape id={t.id} edge={deco?.edge} color={deco?.color} stickers={deco?.stickers} image={deco?.image} note={!!deco?.note} />
+        <MiniTape id={t.id} edge={deco?.edge} color={deco?.color} stickers={deco?.stickers} image={deco?.image} imgFit={deco?.imgFit} note={!!deco?.note} />
         <View style={{flex: 1}}>
           <Text numberOfLines={2} style={P.rowTitle}>{t.title}</Text>
           <Text style={T.small} numberOfLines={1}>{current ? (playing ? 'Tocando agora' : 'Pausada') : deco?.note ? `📝 ${deco.note.split('\n')[0]}` : sub}</Text>

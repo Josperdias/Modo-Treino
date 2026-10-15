@@ -39,6 +39,7 @@ const INSTALLED = JSON.parse(readFileSync(new URL('../../native/package.json', i
 const bump = (v, k) => { const [a, b, c] = v.split('.').map(Number); return k < 0 && c === 0 ? `${a}.${b - 1}.9` : `${a}.${b}.${c + k}`; }; // k=-1 em x.y.0 vira x.(y-1).9 (nunca patch negativo)
 const rel = (tag, extra = {}) => ({tag_name: tag, draft: false, prerelease: true, html_url: `https://github.com/${REPO}/releases/tag/${tag}`, assets: [], ...extra});
 const APP = 'modo-treino-native-v1', MUSIC = 'modotreino-native-music-v1';
+const CAPA_FILE = 'barra_w_vinho.jpg';
 const TRACKS = [['Eye of the Tiger', 245], ['Lose Yourself', 326], ['Till I Collapse', 297], ['Stronger', 312]].map(([title, duration], i) => ({id: 'dev:' + i, title, uri: 'file:///musica/' + i + '.mp3', duration, source: 'device'}));
 
 /** seed: {chave: valor} gravado no localStorage antes do app abrir (uma vez). device: simula o MediaStore (só no navegador). */
@@ -492,6 +493,37 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   await page.getByLabel('Voltar a fita ao padrão').click(); await settle(page, 600);
   assert.equal((await store(page, MUSIC)).deco['dev:1'], undefined, 'voltar ao padrão apaga a personalização');
   assert.doesNotMatch(await body(page), /📝 Fazer 3 séries/);
+  await context.close();
+});
+
+test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player) e sai ao voltar ao padrão', {skip}, async () => {
+  const CAPA = 'https://capa.test/rotulo.png';
+  const deco = {'dev:1': {image: CAPA, imgFit: {z: 1.6, x: 0.5, y: -0.5}, color: 8, stickers: [{e: '🔥', x: 0.85, y: 0.2, s: 1.2}]}};
+  const {context, page} = await open({seed: {[MUSIC]: musicLib({deco})}, device: {permission: 'granted', tracks: TRACKS}});
+  await context.route(CAPA, (r) => r.fulfill({status: 200, contentType: 'image/jpeg', body: readFileSync(new URL('../../native/assets/exercicios/' + CAPA_FILE, import.meta.url))}));
+  await tab(page, 'Músicas');
+  await page.locator(`img[src="${CAPA}"]`).first().waitFor({state: 'attached'});
+  assert.equal(await page.locator(`img[src="${CAPA}"]`).count(), 1, 'a capa aparece no mini cassete da lista');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await settle(page, 700);
+  await tab(page, 'Início');
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByRole('heading', {name: 'Tocando agora'}).waitFor();
+  await settle(page, 700);
+  assert.ok(await page.locator(`img[src="${CAPA}"]`).count() >= 1, 'a capa aparece no cassete grande do player');
+  await page.screenshot({path: process.env.SHOT_CAPA || '/tmp/capa.png'});
+  await page.getByLabel('Fechar').last().click(); await settle(page, 500);
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Mais zoom na imagem').click();   // enquadramento: o zoom sobe de 1,6 para 1,85
+  await page.getByLabel('Imagem para a esquerda').click();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  const fit = (await store(page, MUSIC)).deco['dev:1'].imgFit;
+  assert.deepEqual(fit, {z: 1.85, x: 0.25, y: -0.5}, 'o enquadramento da imagem é guardado');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Voltar a fita ao padrão').click(); await settle(page, 600);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'], undefined);
   await context.close();
 });
 

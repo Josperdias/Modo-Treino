@@ -438,3 +438,9 @@ test('cleanDecoMap: limpa o mapa carregado do armazenamento', () => {
   assert.deepEqual(L.cleanDecoMap('x'), {});
   assert.deepEqual(L.cleanDecoMap({a: {color: 1}, b: {color: 99}, c: null, d: {color: 13}}), {a: {color: 1}, d: {color: 13}});
 });
+
+test('cleanDeco: enquadramento da imagem só vale com imagem, fica nos limites e some quando é o padrão', () => {
+  assert.equal(L.cleanDeco({imgFit: {z: 2, x: 0.5, y: 0}}), null, 'sem imagem não há enquadramento');
+  assert.deepEqual(L.cleanDeco({image: 'file:///a.jpg', imgFit: {z: 9, x: -5, y: 0.333}}), {image: 'file:///a.jpg', imgFit: {z: 3, x: -1, y: 0.33}});
+  assert.deepEqual(L.cleanDeco({image: 'file:///a.jpg', imgFit: {z: 1, x: 0, y: 0}}), {image: 'file:///a.jpg'});
+});
