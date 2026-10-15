@@ -116,13 +116,13 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
           {(query || tag) ? <Press accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => { setQuery(''); setTag(null); }} quiet><Icon name="close-circle" size={20} color="#B7C1E3" /></Press> : null}
         </View>
         <View style={S.actions}>
-          <Pop accessibilityRole="button" accessibilityLabel="Surpreenda-me com uma rádio aleatória" onPress={surprise} color={C.pink} offset={3} radius={20} style={{flex: 1.4}} innerStyle={S.act}>
-            <Icon name="dice" size={17} /><Text style={S.actText} numberOfLines={1}>SURPREENDA</Text>
+          <Pop accessibilityRole="button" accessibilityLabel="Surpreenda-me com uma rádio aleatória" onPress={surprise} color={C.pink} offset={3} radius={21} style={{width: 52}} innerStyle={S.dice}>
+            <Icon name="dice" size={24} />
           </Pop>
-          <Pop accessibilityRole="button" accessibilityLabel="Ver rádios por país" onPress={() => setCountries(true)} color={C.sky} offset={3} radius={20} style={{flex: 0.85}} innerStyle={S.act}>
+          <Pop accessibilityRole="button" accessibilityLabel="Ver rádios por país" onPress={() => setCountries(true)} color={C.sky} offset={3} radius={20} style={{flex: 1}} innerStyle={S.act}>
             <Icon name="flag" size={16} /><Text style={S.actText} numberOfLines={1}>PAÍSES</Text>
           </Pop>
-          <Pop accessibilityRole="button" accessibilityLabel={tag ? `Escolher estilo, agora ${GENRES.find((g) => g.tag === tag)?.label}` : 'Escolher estilo'} accessibilityState={{expanded: stylesOpen}} onPress={() => setStylesOpen(!stylesOpen)} color={tag ? C.yellow : C.card} offset={3} radius={20} style={{flex: 1.15}} innerStyle={S.act}>
+          <Pop accessibilityRole="button" accessibilityLabel={tag ? `Escolher estilo, agora ${GENRES.find((g) => g.tag === tag)?.label}` : 'Escolher estilo'} accessibilityState={{expanded: stylesOpen}} onPress={() => setStylesOpen(!stylesOpen)} color={tag ? C.yellow : C.card} offset={3} radius={20} style={{flex: 1.25}} innerStyle={S.act}>
             <Icon name="options" size={17} /><Text style={S.actText} numberOfLines={1}>{tag ? (GENRES.find((g) => g.tag === tag)?.label || 'ESTILO').toUpperCase() : 'ESTILOS'}</Text><Icon name={stylesOpen ? 'chevron-up' : 'chevron-down'} size={15} />
           </Pop>
         </View>
@@ -172,11 +172,6 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
         </Animated.View>
       )}
       <View style={S.bottom} pointerEvents="box-none">
-        <View style={S.legend} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <View style={[S.dot, {backgroundColor: '#1D1F66'}]} /><Text style={S.legendText}>rádio</Text>
-          <View style={[S.dot, {backgroundColor: '#E63950'}]} /><Text style={S.legendText}>escolhida</Text>
-          <View style={[S.dot, {backgroundColor: '#22B35E'}]} /><Text style={S.legendText}>tocando</Text>
-        </View>
         {showCard && card && cardHidden && (
           <Animated.View entering={ZoomIn.duration(220)} exiting={ZoomOut.duration(140)} style={{alignSelf: 'flex-end'}}>
             <Pop accessibilityRole="button" accessibilityLabel={`Abrir o cartão da rádio ${card.n}`} onPress={() => setCardHidden(false)} color={C.card} offset={3} radius={26} style={{width: 52}} innerStyle={S.reopen}>
@@ -184,6 +179,11 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
             </Pop>
           </Animated.View>
         )}
+        <View style={S.legend} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View style={[S.dot, {backgroundColor: '#1D1F66'}]} /><Text style={S.legendText}>rádio</Text>
+          <View style={[S.dot, {backgroundColor: '#E63950'}]} /><Text style={S.legendText}>escolhida</Text>
+          <View style={[S.dot, {backgroundColor: '#22B35E'}]} /><Text style={S.legendText}>tocando</Text>
+        </View>
         {showCard && card && !cardHidden && (
           <Animated.View key={card.i} entering={FadeInDown.duration(260)} exiting={FadeOutDown.duration(160)}>
             <Press accessibilityRole="button" accessibilityLabel={`Rádio ${card.n}`} onPress={() => focus(card)} style={S.card} quiet>
@@ -289,12 +289,13 @@ export default function RadioScreen({active = true}: {active?: boolean}) {
 
 const S = StyleSheet.create({
   root: {flex: 1, backgroundColor: '#101733', overflow: 'hidden'},
-  globe: {...StyleSheet.absoluteFillObject, top: 96},   // o mundo ocupa a tela toda: busca, botões e cartão flutuam por cima dele
+  globe: {...StyleSheet.absoluteFillObject, bottom: -96},   // o mundo ocupa a tela toda: busca, botões e cartão flutuam por cima dele
   scrim: {position: 'absolute', left: 0, right: 0, top: 0, height: 190},
   top: {position: 'absolute', left: 0, right: 0, top: 0, zIndex: 3, paddingHorizontal: 16, paddingTop: 8},
   titleRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
   title: {fontSize: 28, fontWeight: '900', color: C.white, letterSpacing: 0.5},
   actions: {flexDirection: 'row', gap: 8, marginTop: 10},
+  dice: {width: 52, height: 42, alignItems: 'center', justifyContent: 'center'},
   act: {flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 42, paddingHorizontal: 6},
   actText: {fontSize: 13, fontWeight: '900', letterSpacing: 0.6, color: C.ink, flexShrink: 1},
   count: {backgroundColor: 'rgba(8,12,36,.62)', borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4},

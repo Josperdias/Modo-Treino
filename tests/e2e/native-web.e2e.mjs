@@ -767,7 +767,8 @@ test('rádio: o mundo fica atrás dos controles, o cartão da estação é compa
   const globe = await page.locator('iframe, webview').first().boundingBox();   // o globo começa logo abaixo do seletor FITAS/BAGS/RÁDIO, por trás da busca
   const surpresa = await page.getByLabel('Surpreenda-me com uma rádio aleatória').boundingBox();
   assert.ok(globe && surpresa && globe.y < surpresa.y, 'o globo passa por trás dos botões');
-  assert.ok(await page.getByText('SURPREENDA', {exact: true}).isVisible(), 'o texto SURPREENDA aparece completo');
+  const busca = await page.getByLabel('Buscar rádio').boundingBox();
+  assert.ok(globe && busca && globe.y <= busca.y, 'o globo também passa por trás do título e da busca');
   await page.getByRole('toolbar', {name: 'Player de música'}).waitFor();   // música tocando: o rádio dourado também aparece na aba Rádio
   await context.close();
 });
