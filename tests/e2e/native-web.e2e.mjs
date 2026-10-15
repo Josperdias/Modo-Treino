@@ -526,11 +526,14 @@ test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player)
     return out;
   });
   const F = caixas.fita;
-  assert.equal(caixas.recorta, 'visible', 'a fita não recorta as figurinhas: elas cobrem a borda e um pouco da moldura');
+  assert.equal(caixas.recorta, 'visible', 'a fita não recorta as figurinhas: quem corta é a moldura amarela, mais para fora');
   const S1 = caixas['⭐'], S2 = caixas['🎧'];
-  assert.ok(S1.x + S1.w >= F.x + F.w && S1.y + S1.h >= F.y + F.h, 'a figurinha do canto inferior direito chega até a beira da fita');
-  assert.ok(S1.x + S1.w / 2 <= F.x + F.w + 16 && S1.y + S1.h / 2 <= F.y + F.h + 16, 'e passa dela só um pouco (não é cortada pela moldura)');
-  assert.ok(S2.x <= F.x && S2.y <= F.y, 'a do canto superior esquerdo também cobre a beira');
+  assert.ok(S1.x + S1.w / 2 >= F.x + F.w - 2 && S1.y + S1.h / 2 >= F.y + F.h - 2, 'a figurinha do canto inferior direito vai até a beira da fita (centro na quina)');
+  assert.ok(S1.x + S1.w > F.x + F.w + 8, 'e passa da beira da fita, cobrindo a moldura em volta');
+  assert.ok(S2.x < F.x - 8 && S2.y < F.y - 8, 'a do canto superior esquerdo também');
+  // a moldura amarela (o cartão) é quem recorta o que passa mais para fora
+  const moldura = await page.evaluate(() => { let n = document.querySelector('[aria-label^="Fita cassete"]'); while (n && getComputedStyle(n).overflow !== 'hidden') n = n.parentElement; return !!n; });
+  assert.ok(moldura, 'existe uma moldura que recorta as figurinhas que passam dela');
   await page.getByLabel('Fechar').last().click(); await settle(page, 500);
   await tab(page, 'Músicas');
   await page.getByLabel('Mais opções de Lose Yourself').click();

@@ -54,21 +54,17 @@ function PatternDefs() {
 function StickerView({st, i, w, h, edit, selected, onSelect, onMove}: {st: FitaSticker; i: number; w: number; h: number; edit: boolean; selected: boolean; onSelect?: (i: number) => void; onMove?: (i: number, x: number, y: number) => void}) {
   const fs = Math.max(14, w * 0.12 * st.s);
   const box = fs * 1.7;
-  // A figurinha pode ir até a beira e passar do contorno da fita, cobrindo a borda e um pouco da moldura em volta (sem ser cortada):
-  // o desenho do emoji (≈ 1,1 da fonte) fica a no máximo `m` pixels para fora da fita.
-  const rad = ((st.r || 0) * Math.PI) / 180, half = fs * 0.58 * (Math.abs(Math.cos(rad)) + Math.abs(Math.sin(rad)));
-  const m = Math.min(14, w * 0.04);
-  const cx = Math.max(half - m, Math.min(w - half + m, st.x * w));
-  const cy = Math.max(half - m, Math.min(h - half + m, st.y * h));
-  const left = cx - box / 2, top = cy - box / 2;
-  const live = useRef({st, w, h, i, onSelect, onMove, fx: 0, fy: 0});
-  live.current = {st, w, h, i, onSelect, onMove, fx: cx / Math.max(1, w), fy: cy / Math.max(1, h)};
+  // A figurinha pode ir até a beira e passar do contorno da fita, cobrindo a borda e a moldura em volta (a moldura amarela do player a recorta
+  // na sua própria beira). O centro nunca sai da fita, então sempre dá para pegar de volta.
+  const left = st.x * w - box / 2, top = st.y * h - box / 2;
+  const live = useRef({st, w, h, i, onSelect, onMove});
+  live.current = {st, w, h, i, onSelect, onMove};
   const start = useRef({x: 0, y: 0});
   const pan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponderCapture: () => true,   // a rolagem do painel não rouba o arrasto
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => { start.current = {x: live.current.fx, y: live.current.fy}; live.current.onSelect?.(live.current.i); },
+    onPanResponderGrant: () => { start.current = {x: live.current.st.x, y: live.current.st.y}; live.current.onSelect?.(live.current.i); },
     onPanResponderMove: (_, g) => {
       const c = live.current;
       c.onMove?.(c.i, Math.max(0, Math.min(1, start.current.x + g.dx / Math.max(1, c.w))), Math.max(0, Math.min(1, start.current.y + g.dy / Math.max(1, c.h))));
@@ -215,13 +211,11 @@ export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stic
       </Svg>
       {image ? <View pointerEvents="none" style={{position: 'absolute', left: 10 * k, top: 8 * k}}><FitImage uri={image} fit={imgFit} w={80 * k} h={22 * k} radius={3 * k} /></View> : null}
       {stickers?.length ? (
-        <View pointerEvents="none" style={{position: 'absolute', left: 0, top: 0, width: size, height: h}}>
+        <View pointerEvents="none" style={{position: 'absolute', left: -size * 0.06, top: -size * 0.06, width: size * 1.12, height: h + size * 0.12, overflow: 'hidden'}}>
           {stickers.slice(0, 6).map((st, i) => {
             const fs = Math.max(9, size * 0.17 * st.s);
             const bw = fs * 1.55, bh = fs * 1.55;
-            const rad = ((st.r || 0) * Math.PI) / 180, half = fs * 0.58 * (Math.abs(Math.cos(rad)) + Math.abs(Math.sin(rad))), m = size * 0.03;
-            const cx = Math.max(half - m, Math.min(size - half + m, st.x * size)), cy = Math.max(half - m, Math.min(h - half + m, st.y * h));
-            return <Text key={i} style={{position: 'absolute', left: cx - bw / 2, top: cy - bh / 2, width: bw, height: bh, textAlign: 'center', fontSize: fs, lineHeight: bh * 0.95, transform: [{rotate: `${st.r || 0}deg`}]}}>{st.e}</Text>;
+            return <Text key={i} style={{position: 'absolute', left: st.x * size - bw / 2 + size * 0.06, top: st.y * h - bh / 2 + size * 0.06, width: bw, height: bh, textAlign: 'center', fontSize: fs, lineHeight: bh * 0.95, transform: [{rotate: `${st.r || 0}deg`}]}}>{st.e}</Text>;
           })}
         </View>
       ) : null}

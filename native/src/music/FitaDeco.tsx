@@ -5,7 +5,7 @@ import {ScrollView, StyleSheet, View} from 'react-native';
 import {Text, TextInput} from '../text';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import {Btn, Icon, Pattern, Press, Sheet} from '../ui';
+import {Btn, Card, Icon, Pattern, Press, Sheet} from '../ui';
 import {C, R, T} from '../theme';
 import type {FitaEdge, FitaImgFit, FitaPattern, FitaSticker} from '../../logic';
 import Cassette, {EDGES, PATTERNS, TAPES} from './Cassette';
@@ -89,12 +89,13 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
   return (
     <Sheet visible={open} onClose={cancel} title="Personalizar a fita">
       <View style={{gap: 10}}>
-        <View style={S.stage}>
-          <Pattern kind="dots" color="#FFFFFF" opacity={0.18} size={14} />
-          <View style={{width: '80%'}}>
-            <Cassette playing={false} label={track.title} deco={draft} edit={{selected: sel, onSelect: setSel, onMove: move}} />
-          </View>
-          <Text style={S.hint}>{stickers.length ? 'Arraste as figurinhas para onde quiser na fita.' : 'Escolha figurinhas abaixo e arraste para o lugar que quiser.'}</Text>
+        <View accessibilityLabel="Prévia da fita">
+          <Card color={C.yellow} offset={4} style={{paddingTop: 14, paddingBottom: 12, paddingHorizontal: 14, alignItems: 'center'}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
+            <View style={{width: '100%'}}>
+              <Cassette playing={false} label={track.title} deco={draft} edit={{selected: sel, onSelect: setSel, onMove: move}} />
+            </View>
+          </Card>
+          <Text style={S.hint}>{stickers.length ? 'Arraste as figurinhas até a beira: a moldura amarela corta o que passar.' : 'Escolha figurinhas abaixo e arraste para o lugar que quiser.'}</Text>
         </View>
 
         {sel !== null && stickers[sel] ? (
@@ -197,7 +198,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
 
 const S = StyleSheet.create({
   stage: {alignItems: 'center', gap: 10, backgroundColor: '#17104A', borderRadius: R.lg, paddingTop: 16, paddingBottom: 10, paddingHorizontal: 12, overflow: 'hidden', borderWidth: 2, borderColor: C.ink, borderBottomWidth: 5},
-  hint: {fontSize: 12, fontWeight: '700', color: '#C9D2F5', textAlign: 'center'},
+  hint: {fontSize: 12, fontWeight: '700', color: C.muted, textAlign: 'center', marginTop: 4},
   fitBox: {backgroundColor: C.soft, borderRadius: R.md, padding: 10, gap: 8},
   fitLabel: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: C.muted},
   fitRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
