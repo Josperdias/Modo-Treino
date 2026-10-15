@@ -549,7 +549,7 @@ test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player)
   await page.getByLabel('Imagem para a esquerda').click();
   await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
   const fit = (await store(page, MUSIC)).deco['dev:1'].imgFit;
-  assert.deepEqual(fit, {z: 1.85, x: 0.25, y: -0.5}, 'o enquadramento da imagem é guardado');
+  assert.deepEqual(fit, {m: 'cover', z: 1.85, x: 0.25, y: -0.5}, 'o enquadramento da imagem é guardado');
   // ajustar a imagem com o dedo: arrastar escolhe a região que aparece no rótulo
   await page.getByLabel('Mais opções de Lose Yourself').click();
   await page.getByLabel('Personalizar a fita Lose Yourself').click();
@@ -561,6 +561,19 @@ test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player)
   const fit2 = (await store(page, MUSIC)).deco['dev:1'].imgFit;
   assert.ok(fit2.x !== 0.25 || fit2.y !== -0.5, 'arrastar a imagem mudou a região mostrada');
   assert.equal(fit2.z, 1.85, 'o zoom continua o mesmo');
+  // imagem menor que a área: modo "inteira" e zoom abaixo de 1; e "esticar" para forçar o ajuste
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Imagem inteira, menor se precisar').click();
+  for (let k = 0; k < 5; k++) await page.getByLabel('Menos zoom na imagem').click();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  const fit3 = (await store(page, MUSIC)).deco['dev:1'].imgFit;
+  assert.equal(fit3.m, 'contain'); assert.ok(fit3.z < 1 && fit3.z >= 0.25, `o zoom passou de 1 para baixo (${fit3.z}): a imagem fica menor que a área`);
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Forçar a imagem a ocupar a área toda').click();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'].imgFit.m, 'stretch');
   await page.getByLabel('Mais opções de Lose Yourself').click();
   await page.getByLabel('Personalizar a fita Lose Yourself').click();
   await page.getByLabel('Voltar a fita ao padrão').click(); await settle(page, 600);

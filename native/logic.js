@@ -573,6 +573,7 @@
   var DECO_COLORS = 14, DECO_MAX_STICKERS = 6, DECO_MAX_NOTE = 280;
   var DECO_PATTERNS = ['dots', 'stripes', 'check', 'stars'];
   var DECO_EDGES = ['check', 'hazard', 'candy'];
+  var DECO_FIT_MODES = ['cover', 'contain', 'stretch'];
   // Posições iniciais (fração da largura e da altura da fita) das figurinhas que chegam sem posição.
   var DECO_SLOTS = [[0.88, 0.2], [0.12, 0.8], [0.88, 0.82], [0.12, 0.2], [0.5, 0.9], [0.5, 0.1]];
   function clampN(v, lo, hi, dflt) { var n = Number(v); if (v === null || v === '' || v === undefined || !isFinite(n)) return dflt; return Math.max(lo, Math.min(hi, n)); }
@@ -604,11 +605,13 @@
     if (typeof raw.note === 'string') { var n = raw.note.replace(/\s+$/g, '').slice(0, DECO_MAX_NOTE); if (n.trim()) out.note = n; }
     if (typeof raw.image === 'string' && raw.image.length > 0 && raw.image.length <= 600) {
       out.image = raw.image;
-      // Enquadramento da imagem no rótulo: zoom 1 a 3 e deslocamento -1 a 1 (0 = centralizada). Só guarda quando mudou do padrão.
+      // Enquadramento da imagem no rótulo: modo (preencher, inteira ou esticar), zoom de 0,25 a 3 e deslocamento -1 a 1 (0 = centralizada).
+      // Só guarda quando mudou do padrão (preencher, zoom 1, centralizada).
       var f = raw.imgFit;
       if (f && typeof f === 'object') {
-        var z = round2(clampN(f.z, 1, 3, 1)), fx = round2(clampN(f.x, -1, 1, 0)), fy = round2(clampN(f.y, -1, 1, 0));
-        if (z !== 1 || fx !== 0 || fy !== 0) out.imgFit = {z: z, x: fx, y: fy};
+        var m = DECO_FIT_MODES.indexOf(f.m) >= 0 ? f.m : 'cover';
+        var z = round2(clampN(f.z, 0.25, 3, 1)), fx = round2(clampN(f.x, -1, 1, 0)), fy = round2(clampN(f.y, -1, 1, 0));
+        if (z !== 1 || fx !== 0 || fy !== 0 || m !== 'cover') out.imgFit = {m: m, z: z, x: fx, y: fy};
       }
     }
     return Object.keys(out).length ? out : null;

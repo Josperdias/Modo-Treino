@@ -7,7 +7,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {Btn, Card, Icon, Pattern, Press, Sheet} from '../ui';
 import {C, R, T} from '../theme';
-import type {FitaEdge, FitaImgFit, FitaPattern, FitaSticker} from '../../logic';
+import type {FitaEdge, FitaImgFit, FitaImgFitMode, FitaPattern, FitaSticker} from '../../logic';
 import Cassette, {EDGES, PATTERNS, TAPES} from './Cassette';
 import {tapeIndex} from './tapeIndex';
 import {Track, useMusic} from './MusicProvider';
@@ -29,13 +29,13 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
   const [imgMode, setImgMode] = useState(false);   // dedo move/dá zoom na imagem do rótulo (em vez de mexer nas figurinhas)
   const [note, setNote] = useState('');
   const [image, setImage] = useState<string | undefined>();
-  const [fit, setFit] = useState<FitaImgFit>({z: 1, x: 0, y: 0});
+  const [fit, setFit] = useState<FitaImgFit>({m: 'cover', z: 1, x: 0, y: 0});
   const [oldImage, setOldImage] = useState<string | undefined>();
   const [err, setErr] = useState('');
   useEffect(() => {
     if (!track || !open) return;
     const d = m.deco(track.id);
-    setColor(d?.color); setPattern(d?.pattern); setEdge(d?.edge); setStickers(d?.stickers || []); setSel(null); setImgMode(false); setNote(d?.note || ''); setImage(d?.image); setFit(d?.imgFit || {z: 1, x: 0, y: 0}); setOldImage(d?.image); setErr('');
+    setColor(d?.color); setPattern(d?.pattern); setEdge(d?.edge); setStickers(d?.stickers || []); setSel(null); setImgMode(false); setNote(d?.note || ''); setImage(d?.image); setFit(d?.imgFit || {m: 'cover', z: 1, x: 0, y: 0}); setOldImage(d?.image); setErr('');
   }, [track?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!track) return null;
@@ -70,7 +70,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
         uri = to;
       } catch { /* sem cópia (navegador): usa o arquivo escolhido mesmo */ }
       if (image && image !== oldImage) drop(image);   // imagem escolhida e trocada antes de salvar
-      setImage(uri); setFit({z: 1, x: 0, y: 0}); setImgMode(true);
+      setImage(uri); setFit({m: 'cover', z: 1, x: 0, y: 0}); setImgMode(true);
     } catch { setErr('Não consegui abrir essa imagem. Tente outra.'); }
   };
   const save = () => {
@@ -78,7 +78,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
     if (oldImage && oldImage !== image) drop(oldImage);
     onClose();
   };
-  const nudge = (dx: number, dy: number, dz = 0) => setFit((f) => ({z: Math.max(1, Math.min(3, Math.round((f.z + dz) * 100) / 100)), x: Math.max(-1, Math.min(1, Math.round((f.x + dx) * 100) / 100)), y: Math.max(-1, Math.min(1, Math.round((f.y + dy) * 100) / 100))}));
+  const nudge = (dx: number, dy: number, dz = 0) => setFit((f) => ({m: f.m, z: Math.max(0.25, Math.min(3, Math.round((f.z + dz) * 100) / 100)), x: Math.max(-1, Math.min(1, Math.round((f.x + dx) * 100) / 100)), y: Math.max(-1, Math.min(1, Math.round((f.y + dy) * 100) / 100))}));
   const reset = () => {
     m.setDeco(track.id, null);
     drop(oldImage); if (image && image !== oldImage) drop(image);
@@ -173,7 +173,13 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
         {image ? <Btn small kind={imgMode ? 'primary' : 'ghost'} icon="move" text={imgMode ? 'PRONTO: VOLTAR ÀS FIGURINHAS' : 'AJUSTAR A IMAGEM COM O DEDO'} label={imgMode ? 'Terminar de ajustar a imagem' : 'Ajustar a imagem com o dedo'} onPress={() => setImgMode(!imgMode)} /> : null}
         {image ? (
           <View style={S.fitBox} accessibilityLabel="Enquadrar a imagem do rótulo">
-            <Text style={S.fitLabel}>ENQUADRAR</Text>
+            <Text style={S.fitLabel}>COMO A IMAGEM ENCAIXA</Text>
+            <View style={S.row}>
+              {([['cover', 'PREENCHER', 'Imagem preenche toda a área'], ['contain', 'INTEIRA', 'Imagem inteira, menor se precisar'], ['stretch', 'ESTICAR', 'Forçar a imagem a ocupar a área toda']] as [FitaImgFitMode, string, string][]).map(([k, name, label]) => (
+                <Press key={k} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected: fit.m === k}} onPress={() => setFit((f) => ({...f, m: k, x: 0, y: 0}))} quiet style={[S.chip, fit.m === k && S.chipOn]}><Text style={S.chipText}>{name}</Text></Press>
+              ))}
+            </View>
+            <Text style={S.fitLabel}>POSIÇÃO E TAMANHO</Text>
             <View style={S.fitRow}>
               <Press accessibilityRole="button" accessibilityLabel="Imagem para a esquerda" onPress={() => nudge(-0.25, 0)} quiet style={S.toolBtn}><Icon name="arrow-back" size={20} /></Press>
               <Press accessibilityRole="button" accessibilityLabel="Imagem para cima" onPress={() => nudge(0, -0.25)} quiet style={S.toolBtn}><Icon name="arrow-up" size={20} /></Press>

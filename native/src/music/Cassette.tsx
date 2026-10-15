@@ -129,11 +129,12 @@ function FitImage({uri, fit, w, h, radius, editable, onFit}: {uri: string; fit?:
     Image.getSize(uri, (iw, ih) => { if (on && iw > 0 && ih > 0) setNat({w: iw, h: ih}); }, () => {});
     return () => { on = false; };
   }, [uri]);
-  const z = fit?.z ?? 1, x = fit?.x ?? 0, y = fit?.y ?? 0;
-  const base = nat ? Math.max(w / nat.w, h / nat.h) : 0;
-  const dw = nat ? nat.w * base * z : w * z, dh = nat ? nat.h * base * z : h * z;
-  const live = useRef({fit: {z, x, y}, w, h, dw, dh, onFit});
-  live.current = {fit: {z, x, y}, w, h, dw, dh, onFit};
+  const m = fit?.m ?? 'cover', z = fit?.z ?? 1, x = fit?.x ?? 0, y = fit?.y ?? 0;
+  // preencher (cover): a imagem cobre toda a área; inteira (contain): aparece inteira e pode ficar menor que a área; esticar: força o ajuste à área.
+  let dw = w * z, dh = h * z;
+  if (nat && m !== 'stretch') { const base = m === 'contain' ? Math.min(w / nat.w, h / nat.h) : Math.max(w / nat.w, h / nat.h); dw = nat.w * base * z; dh = nat.h * base * z; }
+  const live = useRef({fit: {m, z, x, y}, w, h, dw, dh, onFit});
+  live.current = {fit: {m, z, x, y}, w, h, dw, dh, onFit};
   const start = useRef({x: 0, y: 0});
   const pinch = useRef<{d0: number; z0: number} | null>(null);
   const pan = useMemo(() => PanResponder.create({
@@ -147,20 +148,20 @@ function FitImage({uri, fit, w, h, radius, editable, onFit}: {uri: string; fit?:
       if (t && t.length >= 2) {
         const d = touchDist(t);
         if (!pinch.current) pinch.current = {d0: Math.max(1, d), z0: c.fit.z};
-        c.onFit?.({...c.fit, z: Math.round(clamp(pinch.current.z0 * (d / pinch.current.d0), 1, 3) * 100) / 100});
+        c.onFit?.({...c.fit, z: Math.round(clamp(pinch.current.z0 * (d / pinch.current.d0), 0.25, 3) * 100) / 100});
         return;
       }
       if (pinch.current) { start.current = {x: c.fit.x, y: c.fit.y}; pinch.current = null; return; }
-      const rx = (c.dw - c.w) / 2, ry = (c.dh - c.h) / 2;
-      // arrastar para a direita leva a imagem para a direita (mostra a região da esquerda)
-      c.onFit?.({z: c.fit.z, x: rx > 0.5 ? Math.round(clamp(start.current.x + g.dx / rx, -1, 1) * 100) / 100 : c.fit.x, y: ry > 0.5 ? Math.round(clamp(start.current.y + g.dy / ry, -1, 1) * 100) / 100 : c.fit.y});
+      const rx = Math.abs(c.dw - c.w) / 2, ry = Math.abs(c.dh - c.h) / 2;
+      // arrastar para a direita leva a imagem para a direita (mostra a região da esquerda); imagem menor que a área anda dentro da folga
+      c.onFit?.({m: c.fit.m, z: c.fit.z, x: rx > 0.5 ? Math.round(clamp(start.current.x + g.dx / rx, -1, 1) * 100) / 100 : c.fit.x, y: ry > 0.5 ? Math.round(clamp(start.current.y + g.dy / ry, -1, 1) * 100) / 100 : c.fit.y});
     },
     onPanResponderRelease: () => { pinch.current = null; },
   }), []);
   return (
     <View {...(editable ? pan.panHandlers : {})} pointerEvents={editable ? 'auto' : 'none'} accessible={!!editable} accessibilityLabel={editable ? 'Imagem do rótulo: arraste para escolher a região e use dois dedos para dar zoom' : undefined}
       style={{width: w, height: h, borderRadius: radius, overflow: 'hidden', borderWidth: editable ? 2 : 0, borderColor: C.ink, borderStyle: 'dashed'}}>
-      <Image source={{uri}} resizeMode="cover" style={{position: 'absolute', width: dw, height: dh, left: (w - dw) / 2 + (x * (dw - w)) / 2, top: (h - dh) / 2 + (y * (dh - h)) / 2}} />
+      <Image source={{uri}} resizeMode={m === 'stretch' ? 'stretch' : 'cover'} style={{position: 'absolute', width: dw, height: dh, left: (w - dw) / 2 + x * Math.abs(dw - w) / 2, top: (h - dh) / 2 + y * Math.abs(dh - h) / 2}} />
     </View>
   );
 }
