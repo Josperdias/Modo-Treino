@@ -6,7 +6,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 
 ### Treino: "não vou fazer" com dupla verificação
 - **Botão X vermelho** ao lado do "?" em cada exercício para desistir dele. Pede confirmação ao marcar e, de novo, ao finalizar o treino ("Confirmar o que ficou de fora?").
-- **Dá para se arrepender**: o aviso fica **na frente da ilustração**, com degradê circular vermelho, X grande, faixas amarelas e pretas e o botão **VOLTAR E FAZER ESTE**; tocar numa série também desfaz. Na barrinha de progresso o exercício pulado fica vermelho. O nome do exercício aparece riscado em vermelho, com o selo "FORA DO TREINO DE HOJE", e séries e carga ficam esmaecidas. Cada exercício abre sempre no topo da tela.
+- **Dá para se arrepender**: o aviso fica **na frente da ilustração**, com degradê circular vermelho, X grande, faixas amarelas e pretas e o botão **VOLTAR E FAZER ESTE**; tocar numa série também desfaz. Na barrinha de progresso o exercício pulado fica vermelho. O nome do exercício aparece riscado em vermelho, com o selo "FORA DO TREINO DE HOJE", e séries e carga ficam esmaecidas. Acima da barra de botões aparece uma divisa vermelha com degradê e "x" que crescem de baixo para cima. Cada exercício abre sempre no topo da tela.
 - O treino salvo no histórico guarda o que ficou de fora; o treino só fica "completo" quando tudo foi feito ou decidido.
 - **Progresso verde não se perde mais ao voltar**: abrir o player pelo mini rádio durante o treino não fecha mais o treino, e o app lembra em qual exercício você parou (por dia e treino).
 

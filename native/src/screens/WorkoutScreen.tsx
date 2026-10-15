@@ -1,6 +1,6 @@
 /** Modo execução: um cartão por exercício, botões grandes para marcar as séries e descanso entre exercícios. */
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Alert, BackHandler, Image, ScrollView, StyleSheet, View} from 'react-native';
+import {Alert, BackHandler, Image, ScrollView, StyleSheet, useWindowDimensions, View} from 'react-native';
 import {Text} from '../text';
 import Animated, {Easing, FadeIn, FadeInRight, FadeOut, FadeOutLeft, LinearTransition, useAnimatedStyle, useSharedValue, withSequence, withTiming, ZoomIn} from 'react-native-reanimated';
 import {doneCount, nextStep, restPlan, snapshotSession, tapSeries} from '../../logic';
@@ -10,7 +10,7 @@ import {todayKey, useApp} from '../store';
 import {AText, Btn, Confetti, Confirm, FitText, Float, Icon, Pattern, Pop, Press, Pulse, Ring, Sheet, useToast} from '../ui';
 import ExerciseVideo from '../ExerciseVideo';
 import {calar, falar} from '../voice';
-import Svg, {Defs, Pattern as SvgPattern, RadialGradient, Rect, Stop} from 'react-native-svg';
+import Svg, {Defs, LinearGradient, Path, Pattern as SvgPattern, RadialGradient, Rect, Stop} from 'react-native-svg';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {C, INK, R, T, useNarrow} from '../theme';
 import MiniPlayer from '../music/MiniPlayer';
@@ -43,6 +43,38 @@ function Hazard({h = 14, id}: {h?: number; id: string}) {
       </Defs>
       <Rect x={0} y={0} width="100%" height={h} fill={`url(#${id})`} />
     </Svg>
+  );
+}
+
+/** Divisa vermelha acima da barra de botões quando o exercício foi pulado: degradê que sobe de baixo e vários "x" que crescem até a barra. */
+const EDGE = 104;
+function SkipEdge() {
+  const {width} = useWindowDimensions();
+  const d = React.useMemo(() => {
+    const gap = 20; const rows = Math.floor((EDGE - 8) / gap); const cols = Math.ceil(width / gap) + 1;
+    let out = '';
+    for (let i = 0; i < rows; i++) {
+      const r = 6.2 * Math.pow(1 - i / (rows + 0.6), 1.2);   // i = 0 é a fileira de baixo (a maior)
+      const y = EDGE - 14 - i * gap; const off = i % 2 ? gap / 2 : 0;
+      for (let c = 0; c < cols; c++) { const x = c * gap + off - gap / 2; out += `M${x - r} ${y - r}L${x + r} ${y + r}M${x + r} ${y - r}L${x - r} ${y + r}`; }
+    }
+    return out;
+  }, [width]);
+  return (
+    <Animated.View entering={FadeIn.duration(260)} exiting={FadeOut.duration(160)} pointerEvents="none" style={W.skipEdge}>
+      <Svg width={width} height={EDGE}>
+        <Defs>
+          <LinearGradient id="skipEdgeG" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#E63950" stopOpacity="0" />
+            <Stop offset="0.6" stopColor="#E63950" stopOpacity="0.2" />
+            <Stop offset="1" stopColor="#E63950" stopOpacity="0.5" />
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width={width} height={EDGE} fill="url(#skipEdgeG)" />
+        <Path d={d} stroke="#B8243C" strokeOpacity={0.5} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+        <Rect x={0} y={EDGE - 5} width={width} height={5} fill="#E63950" />
+      </Svg>
+    </Animated.View>
   );
 }
 
@@ -379,7 +411,8 @@ export default function WorkoutScreen({treino, startIndex, onClose, onSaved, onO
           </Animated.View>
         </Animated.View>
       </ScrollView>
-      <View style={[W.controls, {paddingBottom: insets.bottom + 12}]}>
+      <View style={[W.controls, {paddingBottom: insets.bottom + 12}, skippedNow && {borderTopColor: '#E63950'}]}>
+        {skippedNow ? <SkipEdge /> : null}
         <Pop accessibilityRole="button" accessibilityLabel="Exercício anterior" disabled={i === 0} onPress={() => { setI(i - 1); setHelp(false); }} quiet radius={22} offset={4} color={C.card} innerStyle={W.nav}><Icon name="play-skip-back" size={24} color={i === 0 ? C.muted : C.ink} /></Pop>
         <Pop accessibilityRole="button" accessibilityLabel={label} onPress={() => { if (cur < total && !skippedNow) tap(ex, cur + 1); else goNext(i); }} radius={22} offset={5} style={{flex: 1}} innerStyle={W.main}>
           <FitText style={W.mainText}>{label}</FitText><Icon name={cur < total && !skippedNow ? 'checkmark' : 'arrow-forward'} size={22} color={C.ink} />
@@ -437,6 +470,7 @@ const W = StyleSheet.create({
   stepper: {flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 22},
   stepBtn: {width: 42, height: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: C.yellow},
   stepNum: {minWidth: 24, textAlign: 'center', fontSize: 18, fontWeight: '900', color: C.ink},
+  skipEdge: {position: 'absolute', left: 0, right: 0, top: -EDGE, height: EDGE},
   controls: {flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, backgroundColor: C.paper, borderTopWidth: 1.5, borderTopColor: C.line},
   nav: {width: 50, height: 58, alignItems: 'center', justifyContent: 'center'},
   main: {height: 58, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12},
