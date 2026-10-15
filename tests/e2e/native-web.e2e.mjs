@@ -454,6 +454,37 @@ test('fitas: cada música do celular vira uma fita (cassete), com busca; nada é
   await context.close();
 });
 
+test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "Tocando agora" e persistem; voltar ao padrão limpa', {skip}, async () => {
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByRole('heading', {name: 'Personalizar a fita'}).waitFor();
+  await page.getByLabel('Cor 3 de 8').click();
+  await page.getByLabel('Figurinha 🔥').click();
+  await page.getByLabel('Figurinha ⭐').click();
+  for (const g of ['💪', '🎧', '❤️']) await page.getByLabel(`Figurinha ${g}`).click();   // o 5º não entra: o limite é 4
+  assert.equal(await page.getByLabel('Figurinha ❤️').getAttribute('aria-selected'), 'false', 'no máximo 4 figurinhas');
+  await page.getByLabel('Anotação da fita').fill('Fazer 3 séries de supino\ndescanso de 45 s');
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 600);
+  assert.match(await body(page), /📝 Fazer 3 séries de supino/, 'a anotação aparece na linha da fita');
+  const saved = await store(page, MUSIC);
+  assert.deepEqual(saved.deco['dev:1'], {color: 2, stickers: ['🔥', '⭐', '💪', '🎧'], note: 'Fazer 3 séries de supino\ndescanso de 45 s'});
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await settle(page, 600);
+  await tab(page, 'Início');
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByText('📝 ANOTAÇÃO DA FITA').waitFor();   // o player mostra a anotação da fita que toca
+  assert.match(await body(page), /descanso de 45 s/);
+  await page.getByLabel('Fechar').last().click(); await settle(page, 500);
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Voltar a fita ao padrão').click(); await settle(page, 600);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'], undefined, 'voltar ao padrão apaga a personalização');
+  assert.doesNotMatch(await body(page), /📝 Fazer 3 séries/);
+  await context.close();
+});
+
 test('fita → bag: "colocar na bag" guarda só a referência e uma fita pode estar em várias bags', {skip}, async () => {
   const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}});
   await tab(page, 'Músicas');

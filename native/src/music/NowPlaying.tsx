@@ -18,6 +18,7 @@ export default function NowPlaying({visible, onClose, onTapes}: {visible: boolea
   const t = m.now;
   const live = m.live;
   const fav = t ? m.isFav(t.id) : false;
+  const deco = t && !live ? m.deco(t.id) : undefined;
   const bag = m.queueName ?? m.activeTape.name;
   const sub = !t ? '' : live ? `${flag(t.cc)} ${t.country || 'Rádio'} · ao vivo` : `Fita · ${bag}`;
   return (
@@ -38,11 +39,18 @@ export default function NowPlaying({visible, onClose, onTapes}: {visible: boolea
 
           <View style={S.head}>
             <View style={{flex: 1}}>
-              <Text style={S.title} numberOfLines={2}>{live && m.radioTrack?.title ? m.radioTrack.title : t.title}</Text>
+              <Text style={S.title} numberOfLines={2}>{live && m.radioTrack?.title ? m.radioTrack.title : t.title}{deco?.stickers?.length ? `  ${deco.stickers.join(' ')}` : ''}</Text>
               <Text style={S.sub} numberOfLines={1}>{live && m.radioTrack?.title ? `${t.title} · ${flag(t.cc)} ${t.country || ''}` : sub}</Text>
             </View>
             {live && <View style={S.live}><View style={S.liveDot} /><Text style={S.liveText}>AO VIVO</Text></View>}
           </View>
+
+          {deco?.note ? (
+            <Animated.View entering={FadeIn.duration(260)} style={S.noteCard} accessible accessibilityLabel={`Anotação da fita: ${deco.note}`}>
+              <Text style={S.noteKicker}>📝 ANOTAÇÃO DA FITA</Text>
+              <Text style={S.noteText}>{deco.note}</Text>
+            </Animated.View>
+          ) : null}
 
           {!live && <SeekBar />}
 
@@ -77,6 +85,9 @@ const S = StyleSheet.create({
   live: {flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFD3DE', borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: C.ink},
   liveDot: {width: 8, height: 8, borderRadius: 4, backgroundColor: '#D0204A'},
   liveText: {fontSize: 11, fontWeight: '900', letterSpacing: 1, color: C.ink},
+  noteCard: {backgroundColor: '#FFF1A8', borderRadius: R.md, padding: 12, marginTop: 6, marginBottom: 4, borderWidth: 2, borderColor: C.ink, borderBottomWidth: 4, transform: [{rotate: '-0.6deg'}]},
+  noteKicker: {fontSize: 11, fontWeight: '900', letterSpacing: 1.2, color: '#7A5200'},
+  noteText: {fontSize: 15, lineHeight: 21, color: C.ink, marginTop: 4},
   controls: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 4},
   side: {width: 48, height: 52, alignItems: 'center', justifyContent: 'center'},
   play: {width: 76, height: 76, alignItems: 'center', justifyContent: 'center'},

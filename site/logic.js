@@ -568,6 +568,45 @@
     };
   }
 
+
+  /* ---------- personalização das fitas (cor, figurinhas, imagem e anotação) ---------- */
+  var DECO_COLORS = 8, DECO_MAX_STICKERS = 4, DECO_MAX_NOTE = 280;
+  // Limpa o que veio do armazenamento ou do formulário: só guarda campos válidos e devolve null quando não sobra nada.
+  function cleanDeco(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    var out = {};
+    var c = Number(raw.color);
+    if (raw.color !== null && raw.color !== undefined && raw.color !== '' && Number.isInteger(c) && c >= 0 && c < DECO_COLORS) out.color = c;
+    if (Array.isArray(raw.stickers)) {
+      var seen = {}, list = [];
+      raw.stickers.forEach(function (x) {
+        if (typeof x !== 'string') return;
+        var v = x.trim().slice(0, 8);
+        if (v && !seen[v] && list.length < DECO_MAX_STICKERS) { seen[v] = true; list.push(v); }
+      });
+      if (list.length) out.stickers = list;
+    }
+    if (typeof raw.note === 'string') { var n = raw.note.replace(/\s+$/g, '').slice(0, DECO_MAX_NOTE); if (n.trim()) out.note = n; }
+    if (typeof raw.image === 'string' && raw.image.length > 0 && raw.image.length <= 600) out.image = raw.image;
+    return Object.keys(out).length ? out : null;
+  }
+  // deco: {idDaFita: {...}}. patch === null apaga a personalização daquela fita; um objeto troca os campos informados.
+  function setDeco(deco, id, patch) {
+    var next = {};
+    Object.keys(deco || {}).forEach(function (k) { next[k] = deco[k]; });
+    if (patch === null) { delete next[id]; return next; }
+    var merged = cleanDeco(Object.assign({}, next[id] || {}, patch || {}));
+    if (merged) next[id] = merged; else delete next[id];
+    return next;
+  }
+  // Normaliza o mapa inteiro (ao carregar) e descarta o que é lixo.
+  function cleanDecoMap(map) {
+    var out = {};
+    if (!map || typeof map !== 'object') return out;
+    Object.keys(map).forEach(function (k) { var d = cleanDeco(map[k]); if (d) out[k] = d; });
+    return out;
+  }
+
   return {
     MAX_SETS,
     MAX_REPS,
@@ -612,5 +651,8 @@
     formatClock,
     sessionsToCsv,
     validateBackup,
+    cleanDeco,
+    setDeco,
+    cleanDecoMap,
   };
 });

@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {LayoutChangeEvent, StyleSheet, View} from 'react-native';
+import {Image, LayoutChangeEvent, StyleSheet, View} from 'react-native';
 import {Text} from '../text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, G, Line, Rect} from 'react-native-svg';
@@ -72,7 +72,7 @@ const CS = StyleSheet.create({
 });
 
 // Cada fita tem a sua cor, para reconhecer uma música de relance na lista (corpo, rótulo e carretéis combinam).
-const TAPES: {body: string; label: string; ink: string}[] = [
+export const TAPES: {body: string; label: string; ink: string}[] = [
   {body: '#F0568A', label: '#FFD3E3', ink: '#7A1740'},   // rosa
   {body: '#3F7BEA', label: '#CFE0FF', ink: '#173E8F'},   // azul
   {body: '#F5B71F', label: '#FFEDB0', ink: '#7A5200'},   // amarelo
@@ -84,18 +84,30 @@ const TAPES: {body: string; label: string; ink: string}[] = [
 ];
 const BORDER = '#0B1033';
 
-/** Mini cassete de UMA música (uma fita), colorido por música. Estático e leve de propósito: listas com centenas de fitas. */
-export const MiniTape = React.memo(function MiniTape({id, size = 76}: {id: string; size?: number; on?: boolean}) {
-  const t = TAPES[tapeIndex(id)];
+/** Mini cassete de UMA música (uma fita), colorido por música. Estático e leve de propósito: listas com centenas de fitas.
+ * Personalização opcional: `color` troca a cor, `stickers` coloca figurinhas, `image` vira a capa no rótulo e `note` cola um bilhetinho amarelo. */
+export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stickers, image, note}: {id: string; size?: number; on?: boolean; color?: number; stickers?: string[]; image?: string; note?: boolean}) {
+  const t = TAPES[color ?? tapeIndex(id)] || TAPES[tapeIndex(id)];
+  const h = size * 0.64, k = size / 100;
+  const shown = (stickers || []).slice(0, size >= 120 ? 4 : 2);
   return (
-    <Svg width={size} height={size * 0.64} viewBox="0 0 100 64">
-      <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.body} stroke={BORDER} strokeWidth={3} />
-      <Rect x={9} y={7} width={82} height={24} rx={4} fill={t.label} stroke={BORDER} strokeWidth={1.5} />
-      <Rect x={16} y={14} width={44} height={3} rx={1.5} fill={t.ink} opacity={0.75} />
-      <Rect x={16} y={20} width={28} height={3} rx={1.5} fill={t.ink} opacity={0.45} />
-      <Rect x={16} y={34} width={68} height={20} rx={10} fill="#0B1033" />
-      <Circle cx={32} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={32} cy={44} r={2.4} fill={t.body} />
-      <Circle cx={68} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={68} cy={44} r={2.4} fill={t.body} />
-    </Svg>
+    <View style={{width: size, height: h}}>
+      <Svg width={size} height={h} viewBox="0 0 100 64">
+        <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.body} stroke={BORDER} strokeWidth={3} />
+        <Rect x={9} y={7} width={82} height={24} rx={4} fill={t.label} stroke={BORDER} strokeWidth={1.5} />
+        {!image && <Rect x={16} y={14} width={44} height={3} rx={1.5} fill={t.ink} opacity={0.75} />}
+        {!image && <Rect x={16} y={20} width={28} height={3} rx={1.5} fill={t.ink} opacity={0.45} />}
+        <Rect x={16} y={34} width={68} height={20} rx={10} fill="#0B1033" />
+        <Circle cx={32} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={32} cy={44} r={2.4} fill={t.body} />
+        <Circle cx={68} cy={44} r={6.5} fill="#F7F3EA" /><Circle cx={68} cy={44} r={2.4} fill={t.body} />
+      </Svg>
+      {image ? <Image source={{uri: image}} resizeMode="cover" style={{position: 'absolute', left: 10 * k, top: 8 * k, width: 80 * k, height: 22 * k, borderRadius: 3 * k}} /> : null}
+      {shown.length ? (
+        <View pointerEvents="none" style={{position: 'absolute', right: 6 * k, bottom: 1 * k, flexDirection: 'row'}}>
+          {shown.map((x, i) => <Text key={x + i} style={{fontSize: Math.max(11, size * 0.2), lineHeight: Math.max(13, size * 0.23), transform: [{rotate: `${(i % 2 ? 8 : -8)}deg`}]}}>{x}</Text>)}
+        </View>
+      ) : null}
+      {note ? <View pointerEvents="none" style={{position: 'absolute', top: -2 * k, right: -3 * k, width: 15 * k, height: 15 * k, backgroundColor: '#FFE27A', borderWidth: 1.5, borderColor: BORDER, borderRadius: 2, transform: [{rotate: '8deg'}]}} /> : null}
+    </View>
   );
 });

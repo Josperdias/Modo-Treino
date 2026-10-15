@@ -17,6 +17,11 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - **Transição suave dos painéis**: o fundo escuro surge com fade (sem a quina dura) e a folha sobe com uma borda de degradê rosa com bolinhas que vão sumindo.
 - Bolinha da barra de tempo não é mais cortada nas pontas.
 
+### Fitas personalizáveis (parte 1)
+- **Mais opções ⋯ → PERSONALIZAR FITA**: cor da fita (8), até 4 figurinhas, imagem de capa (escolhida no celular e copiada para o app) e **anotação** de até 280 letras ("fita anotada": ex. "fazer 3 séries de supino ouvindo esta fita").
+- Na lista, a fita mostra a cor, as figurinhas, a capa e um bilhetinho amarelo; a linha mostra o começo da anotação. No "Tocando agora" aparecem as figurinhas e um cartão com a anotação.
+- Tudo fica só neste celular. **VOLTAR AO PADRÃO** limpa a fita (e apaga a cópia da imagem).
+
 ## [1.4.4] — 2026-10-14
 
 ### Ajustes a partir do seu teste da 1.4.3

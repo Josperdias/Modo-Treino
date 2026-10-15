@@ -7,6 +7,8 @@ import {flag} from '../data';
 import {Btn, Card, Chips, Equalizer, Icon, Kicker, Pattern, Pop, Press, Pulse, Sheet, useToast} from '../ui';
 import {C, R, T, useNarrow} from '../theme';
 import {MiniTape} from '../music/Cassette';
+import FitaDecoSheet from '../music/FitaDeco';
+import type {FitaDeco} from '../../logic';
 import LiveCassette from '../music/LiveCassette';
 import {PermissionCard, SourceButtons} from '../music/LibrarySources';
 import {Track, useMusic} from '../music/MusicProvider';
@@ -22,17 +24,17 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, 
 const HERO_GONE_Y = 520;   // depois desta rolagem o player grande já saiu da tela: o miniplayer assume
 const ROW_H = 84;   // altura fixa da linha: a lista calcula a posição sem medir cada item (rolagem lisa)
 
-type RowProps = {t: Track; current: boolean; playing: boolean; sub: string; onPlay: (t: Track) => void; onMenu: (t: Track) => void};
+type RowProps = {t: Track; current: boolean; playing: boolean; sub: string; deco?: FitaDeco; onPlay: (t: Track) => void; onMenu: (t: Track) => void};
 /** Uma fita na lista. Sem animações por linha e memoizada: só re-renderiza quando a própria fita muda de estado. */
-const FitaRow = React.memo(function FitaRow({t, current, playing, sub, onPlay, onMenu}: RowProps) {
+const FitaRow = React.memo(function FitaRow({t, current, playing, sub, deco, onPlay, onMenu}: RowProps) {
   return (
     <View style={P.rowWrap}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Tocar ${t.title}`} onPress={() => onPlay(t)} android_ripple={{color: 'rgba(20,27,52,.12)'}}
         style={({pressed}) => [P.row, current && P.rowOn, pressed && {opacity: 0.85}]}>
-        <MiniTape id={t.id} />
+        <MiniTape id={t.id} color={deco?.color} stickers={deco?.stickers} image={deco?.image} note={!!deco?.note} />
         <View style={{flex: 1}}>
           <Text numberOfLines={2} style={P.rowTitle}>{t.title}</Text>
-          <Text style={T.small} numberOfLines={1}>{current ? (playing ? 'Tocando agora' : 'Pausada') : sub}</Text>
+          <Text style={T.small} numberOfLines={1}>{current ? (playing ? 'Tocando agora' : 'Pausada') : deco?.note ? `📝 ${deco.note.split('\n')[0]}` : sub}</Text>
         </View>
         {current && playing && <Equalizer active />}
         <Pressable accessibilityRole="button" accessibilityLabel={`Mais opções de ${t.title}`} onPress={() => onMenu(t)} hitSlop={6} style={P.iconBtn}><Icon name="ellipsis-horizontal" size={20} /></Pressable>
@@ -53,6 +55,8 @@ export default function MusicScreen() {
   const [settings, setSettings] = useState(false);
   const [menu, setMenu] = useState<Track | null>(null);
   const [pickBag, setPickBag] = useState(false);
+  const [decoTrack, setDecoTrack] = useState<Track | null>(null);
+  const [decoOpen, setDecoOpen] = useState(false);
   const [q, setQ] = useState('');
   const list = useMemo(() => searchTracks(m.library, q), [m.library, q]);
   const listView = useRef<FlatList<Track>>(null);
@@ -85,8 +89,8 @@ export default function MusicScreen() {
     if (nowIndex >= 0) listView.current?.scrollToIndex({index: nowIndex, viewPosition: 0.35, animated: true});
   }, [nowIndex]);
   const renderItem = useCallback(({item}: {item: Track}) => (
-    <FitaRow t={item} current={nowId === item.id} playing={m.playing} sub={subOf(item)} onPlay={onPlay} onMenu={onMenu} />
-  ), [nowId, m.playing, onPlay, onMenu]);
+    <FitaRow t={item} current={nowId === item.id} playing={m.playing} sub={subOf(item)} deco={m.lib.deco[item.id]} onPlay={onPlay} onMenu={onMenu} />
+  ), [nowId, m.playing, onPlay, onMenu, m.lib.deco]);
 
   const header = (
     <View>
@@ -207,11 +211,14 @@ export default function MusicScreen() {
         <Chips options={TIMERS} value={m.sleepLeft ? -1 : 0} onChange={(n) => m.setSleep(n)} format={(n) => (n ? `${n} min` : 'Desligado')} label={(n) => (n ? `Pausar em ${n} minutos` : 'Desligar o timer')} />
       </Sheet>
 
+      <FitaDecoSheet track={decoTrack} open={decoOpen} onClose={() => setDecoOpen(false)} />
+
       <Sheet visible={!!menu} onClose={() => setMenu(null)} title={menu?.title || ''}>
         {menu && (
           <View style={{gap: 10, paddingBottom: 10}}>
             <Text style={T.small}>{where(menu).length ? `Está nas bags: ${where(menu).join(', ')}` : 'Ainda não está em nenhuma bag.'}</Text>
             <Btn small icon="play" text="TOCAR AGORA" onPress={() => { void m.playFita(menu, list); setMenu(null); }} />
+            <Btn small kind="ghost" icon="color-palette" text="PERSONALIZAR FITA" label={`Personalizar a fita ${menu.title}`} onPress={() => { setDecoTrack(menu); setDecoOpen(true); setMenu(null); }} />
             <Btn small kind="ghost" icon="bag-add" text={pickBag ? 'ESCOLHA A BAG' : 'COLOCAR NA BAG'} onPress={() => setPickBag(!pickBag)} />
             {pickBag && (
               <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10}}>

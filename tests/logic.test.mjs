@@ -404,3 +404,33 @@ test('releaseNotes: pega só o trecho antes do "---", sem markdown, limitado', (
   const longo = L.releaseNotes('- ' + 'a'.repeat(50) + '\n- ' + 'b'.repeat(50), 60);
   assert.equal(longo.length, 2); assert.ok(longo[1].endsWith('…') && longo[1].length <= 12);
 });
+
+/* ---------- personalização das fitas ---------- */
+test('cleanDeco: só guarda campos válidos e devolve null quando não sobra nada', () => {
+  assert.equal(L.cleanDeco(null), null);
+  assert.equal(L.cleanDeco({}), null);
+  assert.equal(L.cleanDeco({color: 9, note: '   ', stickers: [1, '']}), null);
+  assert.deepEqual(L.cleanDeco({color: '3', note: 'supino 3x10  ', stickers: ['⭐', '⭐', '🔥'], image: 'file:///capa.png', lixo: 1}),
+    {color: 3, stickers: ['⭐', '🔥'], note: 'supino 3x10', image: 'file:///capa.png'});
+});
+test('cleanDeco: no máximo 4 figurinhas, anotação de até 280 letras, cor 0 é válida', () => {
+  const d = L.cleanDeco({color: 0, stickers: ['a', 'b', 'c', 'd', 'e'], note: 'x'.repeat(500)});
+  assert.equal(d.color, 0);
+  assert.equal(d.stickers.length, 4);
+  assert.equal(d.note.length, 280);
+});
+test('setDeco: junta campos, apaga com null e some quando fica vazia', () => {
+  let m = L.setDeco({}, 'dev:1', {color: 2});
+  m = L.setDeco(m, 'dev:1', {note: 'fazer 5 séries'});
+  assert.deepEqual(m['dev:1'], {color: 2, note: 'fazer 5 séries'});
+  const before = m;
+  m = L.setDeco(m, 'dev:2', {stickers: ['🔥']});
+  assert.deepEqual(before, {'dev:1': {color: 2, note: 'fazer 5 séries'}}, 'não altera o mapa antigo');
+  m = L.setDeco(m, 'dev:1', {color: null, note: ''});
+  assert.equal(m['dev:1'], undefined, 'sem nada, a fita volta ao padrão');
+  assert.deepEqual(Object.keys(L.setDeco(m, 'dev:2', null)), []);
+});
+test('cleanDecoMap: limpa o mapa carregado do armazenamento', () => {
+  assert.deepEqual(L.cleanDecoMap('x'), {});
+  assert.deepEqual(L.cleanDecoMap({a: {color: 1}, b: {color: 99}, c: null}), {a: {color: 1}});
+});
