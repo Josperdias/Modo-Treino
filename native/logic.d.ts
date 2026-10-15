@@ -59,8 +59,8 @@ export function searchBags<X extends {name: string}>(bags: X[], query: string): 
 export function searchSessions<X extends {date: string; treino: string; items?: {nome: string}[]}>(sessions: X[], query: string): X[];
 export function formatClock(seconds: number): string;
 export function releaseNotes(body: string | null | undefined, max?: number): string[];
-/** Figurinha sobre a fita: emoji, posição (0 a 1 da largura e da altura) e tamanho (0,6 a 2,2). */
-export type FitaSticker = {e: string; x: number; y: number; s: number};
+/** Figurinha sobre a fita: emoji, posição (0 a 1 da largura e da altura), tamanho (0,6 a 2,2) e giro em graus (-180 a 180). */
+export type FitaSticker = {e: string; x: number; y: number; s: number; r: number};
 export type FitaPattern = 'dots' | 'stripes' | 'check' | 'stars';
 /** Borda da fita: xadrez preto e branco, listras de obra (amarelo e preto) ou listras de docinho (rosa e branco). */
 export type FitaEdge = 'check' | 'hazard' | 'candy';

@@ -471,6 +471,7 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   const box = await fire.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 - 120, box.y + box.height / 2 + 40, {steps: 6}); await page.mouse.up();
+  await page.getByLabel('Girar a figurinha para a direita').click(); await page.getByLabel('Girar a figurinha para a direita').click();
   await page.getByLabel('Figurinha maior').click();
   await page.getByLabel('Anotação da fita').fill('Fazer 3 séries de supino\ndescanso de 45 s');
   await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 600);
@@ -481,6 +482,7 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   assert.deepEqual(d.stickers.map((x) => x.e), ['🔥', '⭐', '💪', '🎧', '❤️', '⚡']);
   assert.ok(d.stickers[0].x < 0.88 && d.stickers[0].y > 0.2, 'a figurinha arrastada mudou de lugar');
   assert.equal(d.stickers[0].s, 1.2, 'o botão "maior" aumentou a figurinha');
+  assert.equal(d.stickers[0].r, 30, 'girar duas vezes para a direita = 30 graus');
   await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await settle(page, 600);
   await tab(page, 'Início');
   await page.getByRole('button', {name: /^Abrir músicas/}).click();
@@ -498,7 +500,7 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
 
 test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player) e sai ao voltar ao padrão', {skip}, async () => {
   const CAPA = 'https://capa.test/rotulo.png';
-  const deco = {'dev:1': {image: CAPA, imgFit: {z: 1.6, x: 0.5, y: -0.5}, color: 8, stickers: [{e: '🔥', x: 0.85, y: 0.2, s: 1.2}, {e: '⭐', x: 1, y: 1, s: 2}, {e: '🎧', x: 0, y: 0, s: 2}]}};
+  const deco = {'dev:1': {image: CAPA, imgFit: {z: 1.6, x: 0.5, y: -0.5}, color: 8, stickers: [{e: '🔥', x: 0.85, y: 0.2, s: 1.2, r: -25}, {e: '⭐', x: 1, y: 1, s: 2, r: 40}, {e: '🎧', x: 0, y: 0, s: 2}]}};
   const {context, page} = await open({seed: {[MUSIC]: musicLib({deco})}, device: {permission: 'granted', tracks: TRACKS}});
   await context.route(CAPA, (r) => r.fulfill({status: 200, contentType: 'image/jpeg', body: readFileSync(new URL('../../native/assets/exercicios/' + CAPA_FILE, import.meta.url))}));
   await tab(page, 'Músicas');

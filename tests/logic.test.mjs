@@ -413,14 +413,16 @@ test('cleanDeco: só guarda campos válidos e devolve null quando não sobra nad
   assert.equal(L.cleanDeco({edge: 'serrilhada'}), null, 'borda desconhecida é descartada');
   assert.deepEqual(L.cleanDeco({edge: 'hazard'}), {edge: 'hazard'});
   assert.deepEqual(L.cleanDeco({color: '3', pattern: 'dots', note: 'supino 3x10  ', stickers: ['⭐'], image: 'file:///capa.png', lixo: 1}),
-    {color: 3, pattern: 'dots', stickers: [{e: '⭐', x: 0.88, y: 0.2, s: 1}], note: 'supino 3x10', image: 'file:///capa.png'});
+    {color: 3, pattern: 'dots', stickers: [{e: '⭐', x: 0.88, y: 0.2, s: 1, r: 0}], note: 'supino 3x10', image: 'file:///capa.png'});
 });
 test('cleanDeco: figurinhas guardam posição e tamanho dentro dos limites; no máximo 6; anotação até 280; cor 0 vale', () => {
   const d = L.cleanDeco({color: 0, stickers: [{e: '🔥', x: 2, y: -1, s: 9}, {e: '💪', x: 0.5, y: 0.5}, '1', '2', '3', '4', '5'], note: 'x'.repeat(500)});
   assert.equal(d.color, 0);
   assert.equal(d.stickers.length, 6);
-  assert.deepEqual(d.stickers[0], {e: '🔥', x: 1, y: 0, s: 2.2});
-  assert.deepEqual(d.stickers[1], {e: '💪', x: 0.5, y: 0.5, s: 1});
+  assert.deepEqual(d.stickers[0], {e: '🔥', x: 1, y: 0, s: 2.2, r: 0});
+  assert.deepEqual(d.stickers[1], {e: '💪', x: 0.5, y: 0.5, s: 1, r: 0});
+  assert.equal(L.cleanDeco({stickers: [{e: '⭐', r: 500.6}]}).stickers[0].r, 180, 'o giro fica entre -180 e 180');
+  assert.equal(L.cleanDeco({stickers: [{e: '⭐', r: -45.4}]}).stickers[0].r, -45);
   assert.equal(d.note.length, 280);
 });
 test('setDeco: junta campos, apaga com null e some quando fica vazia', () => {

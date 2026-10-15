@@ -21,7 +21,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - **Mais opções ⋯ → PERSONALIZAR FITA**: a personalização aparece **na própria fita** (a lista, o cassete grande do player e o da aba Fitas). Tela com a fita em cima (fixa) e os controles rolando embaixo.
 - **Cor**: 8 lisas e 6 em **xadrez de duas cores** (preto e branco, rosa e branco, amarelo e preto, azul e branco, vermelho e preto, roxo e rosa), mais **padrão no corpo da fita** (bolinhas, listras, xadrez, estrelas).
 - **Borda da fita**: xadrez preto e branco, listras de obra (amarelo e preto) ou docinho (rosa e branco).
-- **Figurinhas arrastáveis**: até 6; arraste com o dedo para o lugar que quiser na fita, aumente, diminua ou tire.
+- **Figurinhas arrastáveis**: até 6; arraste com o dedo para o lugar que quiser na fita, **gire** (de 15 em 15°), aumente, diminua ou tire.
 - **Imagem no rótulo**, atrás do nome da fita (escolhida no celular e copiada para o app), com **ENQUADRAR**: setas para mover e zoom de 1× a 3×.
 - **Anotação** de até 280 letras ("fita anotada"): bilhetinho amarelo na lista, começo da anotação na linha e cartão no "Tocando agora".
 - Tudo fica só neste celular. **VOLTAR AO PADRÃO** limpa a fita (e apaga a cópia da imagem).

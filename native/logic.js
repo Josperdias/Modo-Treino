@@ -578,7 +578,7 @@
   function clampN(v, lo, hi, dflt) { var n = Number(v); if (v === null || v === '' || v === undefined || !isFinite(n)) return dflt; return Math.max(lo, Math.min(hi, n)); }
   function round2(n) { return Math.round(n * 100) / 100; }
   // Limpa o que veio do armazenamento ou do formulário: só guarda campos válidos e devolve null quando não sobra nada.
-  // Figurinha: {e: emoji, x, y (0 a 1 sobre a fita), s: tamanho 0.6 a 2.2}. Texto solto vira figurinha numa posição padrão.
+  // Figurinha: {e: emoji, x, y (0 a 1 sobre a fita), s: tamanho 0.6 a 2.2, r: giro em graus -180 a 180}. Texto solto vira figurinha numa posição padrão.
   function cleanDeco(raw) {
     if (!raw || typeof raw !== 'object') return null;
     var out = {};
@@ -593,10 +593,10 @@
         var slot = DECO_SLOTS[list.length % DECO_SLOTS.length];
         if (typeof x === 'string') {
           var e0 = x.trim().slice(0, 8);
-          if (e0) list.push({e: e0, x: slot[0], y: slot[1], s: 1});
+          if (e0) list.push({e: e0, x: slot[0], y: slot[1], s: 1, r: 0});
         } else if (x && typeof x === 'object' && typeof x.e === 'string') {
           var e1 = x.e.trim().slice(0, 8);
-          if (e1) list.push({e: e1, x: round2(clampN(x.x, 0, 1, slot[0])), y: round2(clampN(x.y, 0, 1, slot[1])), s: round2(clampN(x.s, 0.6, 2.2, 1))});
+          if (e1) list.push({e: e1, x: round2(clampN(x.x, 0, 1, slot[0])), y: round2(clampN(x.y, 0, 1, slot[1])), s: round2(clampN(x.s, 0.6, 2.2, 1)), r: Math.round(clampN(x.r, -180, 180, 0))});
         }
       });
       if (list.length) out.stickers = list;

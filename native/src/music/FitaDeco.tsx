@@ -42,10 +42,15 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
     if (cur.length >= MAX_STICKERS) return cur;
     const [x, y] = SLOTS[cur.length % SLOTS.length];
     setSel(cur.length);
-    return [...cur, {e, x, y, s: 1}];
+    return [...cur, {e, x, y, s: 1, r: 0}];
   });
   const move = (i: number, x: number, y: number) => setStickers((cur) => cur.map((s, k) => (k === i ? {...s, x, y} : s)));
   const resize = (d: number) => setStickers((cur) => cur.map((s, k) => (k === sel ? {...s, s: Math.max(0.6, Math.min(2.2, Math.round((s.s + d) * 100) / 100))} : s)));
+  const spin = (d: number) => setStickers((cur) => cur.map((s, k) => {
+    if (k !== sel) return s;
+    let r = Math.round(((s.r || 0) + d) % 360); if (r > 180) r -= 360; if (r < -180) r += 360;
+    return {...s, r};
+  }));
   const remove = () => { setStickers((cur) => cur.filter((_, k) => k !== sel)); setSel(null); };
 
   const pickImage = async () => {
@@ -96,6 +101,8 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
           <View style={S.tools} accessibilityLabel="Ajustes da figurinha selecionada">
             <Text style={{fontSize: 26}}>{stickers[sel].e}</Text>
             <View style={{flex: 1}} />
+            <Press accessibilityRole="button" accessibilityLabel="Girar a figurinha para a esquerda" onPress={() => spin(-15)} quiet style={S.toolBtn}><Icon name="arrow-undo" size={20} /></Press>
+            <Press accessibilityRole="button" accessibilityLabel="Girar a figurinha para a direita" onPress={() => spin(15)} quiet style={S.toolBtn}><Icon name="arrow-redo" size={20} /></Press>
             <Press accessibilityRole="button" accessibilityLabel="Figurinha menor" onPress={() => resize(-0.2)} quiet style={S.toolBtn}><Icon name="remove" size={22} /></Press>
             <Press accessibilityRole="button" accessibilityLabel="Figurinha maior" onPress={() => resize(0.2)} quiet style={S.toolBtn}><Icon name="add" size={22} /></Press>
             <Press accessibilityRole="button" accessibilityLabel="Tirar a figurinha da fita" onPress={remove} quiet style={[S.toolBtn, {backgroundColor: '#FBE3E8'}]}><Icon name="trash-outline" size={20} color="#9B2C4A" /></Press>
