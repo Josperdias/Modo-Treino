@@ -17,6 +17,9 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - **Transição suave dos painéis**: o fundo escuro surge com fade (sem a quina dura) e a folha sobe com uma borda de degradê rosa com bolinhas que vão sumindo.
 - Bolinha da barra de tempo não é mais cortada nas pontas.
 
+### Notificação de música
+- **Bolinha na barra de tempo do cartão**: uma bolinha amarela com contorno marca a posição da faixa (a barra continua só de toque: tocar numa região pula para ela; arrastar é no estilo PLAYER).
+
 ### Fitas personalizáveis (parte 1)
 - **Mais opções ⋯ → PERSONALIZAR FITA**: a personalização aparece **na própria fita** (a lista, o cassete grande do player e o da aba Fitas). Tela com a fita em cima (fixa) e os controles rolando embaixo.
 - **Cor**: 8 lisas e 6 em **xadrez de duas cores** (preto e branco, rosa e branco, amarelo e preto, azul e branco, vermelho e preto, roxo e rosa), mais **padrão no corpo da fita** (bolinhas, listras, xadrez, estrelas).

@@ -148,7 +148,7 @@ object Cards {
     big.setOnClickPendingIntent(R.id.open, act(ctx, "music", "open"))
     big.setTextViewText(R.id.pos, clock(s.position))
     big.setTextViewText(R.id.dur, if (s.duration > 0) clock(s.duration) else "--:--")
-    big.setProgressBar(R.id.bar, 1000, if (s.duration > 0) (1000L * s.position / s.duration).toInt().coerceIn(0, 1000) else 0, false)
+    big.setProgressBar(R.id.bar, 1000, if (s.duration > 0) (1000L * s.position / s.duration).toInt().coerceIn(1, 1000) else 1, false)
     return small to big
   }
 
