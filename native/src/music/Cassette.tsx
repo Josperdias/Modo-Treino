@@ -194,6 +194,8 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
   const band = tone ? (tone.alt || tone.body) : '#F6A4C1';
   const ink = tone ? tone.ink : '#443765';
   const hasImg = !!deco?.image;
+  // Com imagem, o que a imagem não cobrir fica na cor do corpo da fita (o azul padrão, ou a cor escolhida), não branco.
+  const labelFill = hasImg ? (tone ? tone.body : '#25316C') : labelBg;
   return (
     <View onLayout={onLayout} style={CS.wrap} accessible accessibilityRole="image" accessibilityLabel={`Fita cassete ${label}${playing ? ', tocando' : ''}`}>
       <Svg width="100%" height={h} viewBox={`0 0 ${W} ${H}`}>
@@ -207,7 +209,7 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
             <Rect x={13.2} y={13.2} width={W - 26.4} height={H - 26.4} rx={12} fill="none" stroke="#0B1033" strokeWidth={1.6} />
           </>
         ) : null}
-        <Rect x={22} y={18} width={W - 44} height={74} rx={10} fill={labelBg} stroke={tone ? '#0B1033' : '#EA9CC9'} strokeWidth={2} />
+        <Rect x={22} y={18} width={W - 44} height={74} rx={10} fill={labelFill} stroke={tone || hasImg ? '#0B1033' : '#EA9CC9'} strokeWidth={2} />
         {!hasImg && <Rect x={22} y={70} width={W - 44} height={22} rx={0} fill={band} opacity={tone ? 0.35 : 0.55} />}
         <Rect x={44} y={92} width={W - 88} height={66} rx={33} fill="#090D23" stroke="#53629D" strokeWidth={3} />
         <Circle cx={LEFT.x} cy={LEFT.y} r={left} fill="#3A2A22" />
@@ -281,7 +283,7 @@ export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stic
         <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.alt ? 'url(#mk)' : t.body} stroke={BORDER} strokeWidth={3} />
         {edge ? <Rect x={4.5} y={4.5} width={91} height={55} rx={7} fill="none" stroke="url(#me)" strokeWidth={5} /> : null}
         {edge ? <Rect x={1.2} y={1.2} width={97.6} height={61.6} rx={9.4} fill="none" stroke={BORDER} strokeWidth={1.6} /> : null}
-        <Rect x={9} y={7} width={82} height={24} rx={4} fill={t.label} stroke={BORDER} strokeWidth={1.5} />
+        <Rect x={9} y={7} width={82} height={24} rx={4} fill={image ? t.body : t.label} stroke={BORDER} strokeWidth={1.5} />
         {!image && <Rect x={16} y={14} width={44} height={3} rx={1.5} fill={t.ink} opacity={0.75} />}
         {!image && <Rect x={16} y={20} width={28} height={3} rx={1.5} fill={t.ink} opacity={0.45} />}
         <Rect x={16} y={34} width={68} height={20} rx={10} fill="#0B1033" />
