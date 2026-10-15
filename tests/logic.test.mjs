@@ -409,14 +409,16 @@ test('releaseNotes: pega só o trecho antes do "---", sem markdown, limitado', (
 test('cleanDeco: só guarda campos válidos e devolve null quando não sobra nada', () => {
   assert.equal(L.cleanDeco(null), null);
   assert.equal(L.cleanDeco({}), null);
-  assert.equal(L.cleanDeco({color: 9, note: '   ', stickers: [1, '']}), null);
-  assert.deepEqual(L.cleanDeco({color: '3', note: 'supino 3x10  ', stickers: ['⭐', '⭐', '🔥'], image: 'file:///capa.png', lixo: 1}),
-    {color: 3, stickers: ['⭐', '🔥'], note: 'supino 3x10', image: 'file:///capa.png'});
+  assert.equal(L.cleanDeco({color: 9, pattern: 'xadrez', note: '   ', stickers: [1, '', {e: ''}]}), null);
+  assert.deepEqual(L.cleanDeco({color: '3', pattern: 'dots', note: 'supino 3x10  ', stickers: ['⭐'], image: 'file:///capa.png', lixo: 1}),
+    {color: 3, pattern: 'dots', stickers: [{e: '⭐', x: 0.88, y: 0.2, s: 1}], note: 'supino 3x10', image: 'file:///capa.png'});
 });
-test('cleanDeco: no máximo 4 figurinhas, anotação de até 280 letras, cor 0 é válida', () => {
-  const d = L.cleanDeco({color: 0, stickers: ['a', 'b', 'c', 'd', 'e'], note: 'x'.repeat(500)});
+test('cleanDeco: figurinhas guardam posição e tamanho dentro dos limites; no máximo 6; anotação até 280; cor 0 vale', () => {
+  const d = L.cleanDeco({color: 0, stickers: [{e: '🔥', x: 2, y: -1, s: 9}, {e: '💪', x: 0.5, y: 0.5}, '1', '2', '3', '4', '5'], note: 'x'.repeat(500)});
   assert.equal(d.color, 0);
-  assert.equal(d.stickers.length, 4);
+  assert.equal(d.stickers.length, 6);
+  assert.deepEqual(d.stickers[0], {e: '🔥', x: 1, y: 0, s: 2.2});
+  assert.deepEqual(d.stickers[1], {e: '💪', x: 0.5, y: 0.5, s: 1});
   assert.equal(d.note.length, 280);
 });
 test('setDeco: junta campos, apaga com null e some quando fica vazia', () => {
@@ -424,7 +426,7 @@ test('setDeco: junta campos, apaga com null e some quando fica vazia', () => {
   m = L.setDeco(m, 'dev:1', {note: 'fazer 5 séries'});
   assert.deepEqual(m['dev:1'], {color: 2, note: 'fazer 5 séries'});
   const before = m;
-  m = L.setDeco(m, 'dev:2', {stickers: ['🔥']});
+  m = L.setDeco(m, 'dev:2', {stickers: [{e: '🔥', x: 0.3, y: 0.4, s: 1.2}]});
   assert.deepEqual(before, {'dev:1': {color: 2, note: 'fazer 5 séries'}}, 'não altera o mapa antigo');
   m = L.setDeco(m, 'dev:1', {color: null, note: ''});
   assert.equal(m['dev:1'], undefined, 'sem nada, a fita volta ao padrão');

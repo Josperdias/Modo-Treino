@@ -59,8 +59,11 @@ export function searchBags<X extends {name: string}>(bags: X[], query: string): 
 export function searchSessions<X extends {date: string; treino: string; items?: {nome: string}[]}>(sessions: X[], query: string): X[];
 export function formatClock(seconds: number): string;
 export function releaseNotes(body: string | null | undefined, max?: number): string[];
-/** Personalização de uma fita: cor (0 a 7), até 4 figurinhas, imagem de capa (caminho do arquivo) e anotação (até 280 letras). */
-export type FitaDeco = {color?: number; stickers?: string[]; note?: string; image?: string};
+/** Figurinha sobre a fita: emoji, posição (0 a 1 da largura e da altura) e tamanho (0,6 a 2,2). */
+export type FitaSticker = {e: string; x: number; y: number; s: number};
+export type FitaPattern = 'dots' | 'stripes' | 'check' | 'stars';
+/** Personalização de uma fita: cor (0 a 7), padrão, até 6 figurinhas arrastáveis, imagem no rótulo (caminho do arquivo) e anotação (até 280 letras). */
+export type FitaDeco = {color?: number; pattern?: FitaPattern; stickers?: FitaSticker[]; note?: string; image?: string};
 export function cleanDeco(raw: unknown): FitaDeco | null;
-export function setDeco(deco: Record<string, FitaDeco> | undefined, id: string, patch: Partial<FitaDeco> | null): Record<string, FitaDeco>;
+export function setDeco(deco: Record<string, FitaDeco> | undefined, id: string, patch: Partial<Omit<FitaDeco, 'stickers'>> & {stickers?: (FitaSticker | string)[]} | null): Record<string, FitaDeco>;
 export function cleanDecoMap(map: unknown): Record<string, FitaDeco>;

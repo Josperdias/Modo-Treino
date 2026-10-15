@@ -98,7 +98,7 @@ export default function MusicScreen() {
         <Kicker>Sua sonoplastia particular / 001</Kicker>
         <Text style={[T.h1, {marginTop: 4, marginBottom: 16, fontSize: 40, lineHeight: 38}]}>Suas fitas,{'\n'}seu ritmo.</Text>
         <Card color={C.yellow} offset={6} style={{alignItems: 'center', paddingTop: 22, paddingBottom: 18}} pattern={<Pattern kind="dots" opacity={0.13} size={16} />}>
-          <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={m.now?.title || 'Escolha uma fita'} /></View>
+          <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={m.now?.title || 'Escolha uma fita'} deco={m.now ? m.lib.deco[m.now.id] : undefined} /></View>
           <Text style={P.heroSub}>{m.library.length ? `${m.library.length} ${m.library.length === 1 ? 'fita' : 'fitas'} no seu celular` : 'Nenhuma fita ainda: traga as músicas do celular'}</Text>
         </Card>
       </Animated.View>

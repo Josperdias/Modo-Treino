@@ -461,15 +461,24 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   await page.getByLabel('Personalizar a fita Lose Yourself').click();
   await page.getByRole('heading', {name: 'Personalizar a fita'}).waitFor();
   await page.getByLabel('Cor 3 de 8').click();
-  await page.getByLabel('Figurinha 🔥').click();
-  await page.getByLabel('Figurinha ⭐').click();
-  for (const g of ['💪', '🎧', '❤️']) await page.getByLabel(`Figurinha ${g}`).click();   // o 5º não entra: o limite é 4
-  assert.equal(await page.getByLabel('Figurinha ❤️').getAttribute('aria-selected'), 'false', 'no máximo 4 figurinhas');
+  await page.getByLabel('Padrão Listras').click();
+  for (const g of ['🔥', '⭐', '💪', '🎧', '❤️', '⚡']) await page.getByLabel(`Colocar figurinha ${g}`).click();
+  assert.equal(await page.getByLabel('Colocar figurinha 🚀').isDisabled(), true, 'no máximo 6 figurinhas');
+  // arrasta a primeira figurinha (🔥) para outro lugar da fita
+  const fire = page.getByLabel(/^Figurinha 🔥/);
+  const box = await fire.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 120, box.y + box.height / 2 + 40, {steps: 6}); await page.mouse.up();
+  await page.getByLabel('Figurinha maior').click();
   await page.getByLabel('Anotação da fita').fill('Fazer 3 séries de supino\ndescanso de 45 s');
   await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 600);
   assert.match(await body(page), /📝 Fazer 3 séries de supino/, 'a anotação aparece na linha da fita');
   const saved = await store(page, MUSIC);
-  assert.deepEqual(saved.deco['dev:1'], {color: 2, stickers: ['🔥', '⭐', '💪', '🎧'], note: 'Fazer 3 séries de supino\ndescanso de 45 s'});
+  const d = saved.deco['dev:1'];
+  assert.equal(d.color, 2); assert.equal(d.pattern, 'stripes'); assert.equal(d.note, 'Fazer 3 séries de supino\ndescanso de 45 s');
+  assert.deepEqual(d.stickers.map((x) => x.e), ['🔥', '⭐', '💪', '🎧', '❤️', '⚡']);
+  assert.ok(d.stickers[0].x < 0.88 && d.stickers[0].y > 0.2, 'a figurinha arrastada mudou de lugar');
+  assert.equal(d.stickers[0].s, 1.2, 'o botão "maior" aumentou a figurinha');
   await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await settle(page, 600);
   await tab(page, 'Início');
   await page.getByRole('button', {name: /^Abrir músicas/}).click();

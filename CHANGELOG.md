@@ -18,8 +18,11 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Vers
 - Bolinha da barra de tempo não é mais cortada nas pontas.
 
 ### Fitas personalizáveis (parte 1)
-- **Mais opções ⋯ → PERSONALIZAR FITA**: cor da fita (8), até 4 figurinhas, imagem de capa (escolhida no celular e copiada para o app) e **anotação** de até 280 letras ("fita anotada": ex. "fazer 3 séries de supino ouvindo esta fita").
-- Na lista, a fita mostra a cor, as figurinhas, a capa e um bilhetinho amarelo; a linha mostra o começo da anotação. No "Tocando agora" aparecem as figurinhas e um cartão com a anotação.
+- **Mais opções ⋯ → PERSONALIZAR FITA**: a personalização aparece **na própria fita** (a lista, o cassete grande do player e o da aba Fitas). Tela com a fita em cima (fixa) e os controles rolando embaixo.
+- **Cor** (8) e **padrão no corpo da fita** (bolinhas, listras, xadrez, estrelas).
+- **Figurinhas arrastáveis**: até 6; arraste com o dedo para o lugar que quiser na fita, aumente, diminua ou tire.
+- **Imagem no rótulo**, atrás do nome da fita (escolhida no celular e copiada para o app).
+- **Anotação** de até 280 letras ("fita anotada"): bilhetinho amarelo na lista, começo da anotação na linha e cartão no "Tocando agora".
 - Tudo fica só neste celular. **VOLTAR AO PADRÃO** limpa a fita (e apaga a cópia da imagem).
 
 ## [1.4.4] — 2026-10-14

@@ -569,20 +569,33 @@
   }
 
 
-  /* ---------- personalização das fitas (cor, figurinhas, imagem e anotação) ---------- */
-  var DECO_COLORS = 8, DECO_MAX_STICKERS = 4, DECO_MAX_NOTE = 280;
+  /* ---------- personalização das fitas (cor, padrão, figurinhas arrastáveis, imagem no rótulo e anotação) ---------- */
+  var DECO_COLORS = 8, DECO_MAX_STICKERS = 6, DECO_MAX_NOTE = 280;
+  var DECO_PATTERNS = ['dots', 'stripes', 'check', 'stars'];
+  // Posições iniciais (fração da largura e da altura da fita) das figurinhas que chegam sem posição.
+  var DECO_SLOTS = [[0.88, 0.2], [0.12, 0.8], [0.88, 0.82], [0.12, 0.2], [0.5, 0.9], [0.5, 0.1]];
+  function clampN(v, lo, hi, dflt) { var n = Number(v); if (v === null || v === '' || v === undefined || !isFinite(n)) return dflt; return Math.max(lo, Math.min(hi, n)); }
+  function round2(n) { return Math.round(n * 100) / 100; }
   // Limpa o que veio do armazenamento ou do formulário: só guarda campos válidos e devolve null quando não sobra nada.
+  // Figurinha: {e: emoji, x, y (0 a 1 sobre a fita), s: tamanho 0.6 a 2.2}. Texto solto vira figurinha numa posição padrão.
   function cleanDeco(raw) {
     if (!raw || typeof raw !== 'object') return null;
     var out = {};
     var c = Number(raw.color);
     if (raw.color !== null && raw.color !== undefined && raw.color !== '' && Number.isInteger(c) && c >= 0 && c < DECO_COLORS) out.color = c;
+    if (typeof raw.pattern === 'string' && DECO_PATTERNS.indexOf(raw.pattern) >= 0) out.pattern = raw.pattern;
     if (Array.isArray(raw.stickers)) {
-      var seen = {}, list = [];
+      var list = [];
       raw.stickers.forEach(function (x) {
-        if (typeof x !== 'string') return;
-        var v = x.trim().slice(0, 8);
-        if (v && !seen[v] && list.length < DECO_MAX_STICKERS) { seen[v] = true; list.push(v); }
+        if (list.length >= DECO_MAX_STICKERS) return;
+        var slot = DECO_SLOTS[list.length % DECO_SLOTS.length];
+        if (typeof x === 'string') {
+          var e0 = x.trim().slice(0, 8);
+          if (e0) list.push({e: e0, x: slot[0], y: slot[1], s: 1});
+        } else if (x && typeof x === 'object' && typeof x.e === 'string') {
+          var e1 = x.e.trim().slice(0, 8);
+          if (e1) list.push({e: e1, x: round2(clampN(x.x, 0, 1, slot[0])), y: round2(clampN(x.y, 0, 1, slot[1])), s: round2(clampN(x.s, 0.6, 2.2, 1))});
+        }
       });
       if (list.length) out.stickers = list;
     }

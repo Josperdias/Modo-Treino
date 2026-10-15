@@ -34,12 +34,12 @@ export default function NowPlaying({visible, onClose, onTapes}: {visible: boolea
           <Card color={live ? '#17104A' : C.yellow} offset={5} style={{paddingTop: 14, paddingBottom: 12, alignItems: 'center'}} pattern={<Pattern kind="dots" color={live ? '#FFFFFF' : undefined} opacity={live ? 0.1 : 0.13} size={16} />}>
             {live
               ? <Image source={require('../../assets/notif/radio.png')} resizeMode="contain" style={{width: '100%', height: artH}} accessibilityLabel="Rádio do mundo" />
-              : <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={t.title} /></View>}
+              : <View style={{width: '100%'}}><LiveCassette playing={m.playing} label={t.title} deco={deco} /></View>}
           </Card>
 
           <View style={S.head}>
             <View style={{flex: 1}}>
-              <Text style={S.title} numberOfLines={2}>{live && m.radioTrack?.title ? m.radioTrack.title : t.title}{deco?.stickers?.length ? `  ${deco.stickers.join(' ')}` : ''}</Text>
+              <Text style={S.title} numberOfLines={2}>{live && m.radioTrack?.title ? m.radioTrack.title : t.title}</Text>
               <Text style={S.sub} numberOfLines={1}>{live && m.radioTrack?.title ? `${t.title} · ${flag(t.cc)} ${t.country || ''}` : sub}</Text>
             </View>
             {live && <View style={S.live}><View style={S.liveDot} /><Text style={S.liveText}>AO VIVO</Text></View>}
