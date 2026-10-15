@@ -47,15 +47,15 @@ function Hazard({h = 14, id}: {h?: number; id: string}) {
 }
 
 /** Divisa vermelha acima da barra de botões quando o exercício foi pulado: degradê que sobe de baixo e vários "x" que crescem até a barra. */
-const EDGE = 104;
+const EDGE = 180;
 function SkipEdge() {
   const {width} = useWindowDimensions();
   const d = React.useMemo(() => {
-    const gap = 20; const rows = Math.floor((EDGE - 8) / gap); const cols = Math.ceil(width / gap) + 1;
+    const gap = 28; const rows = Math.floor((EDGE - 10) / gap); const cols = Math.ceil(width / gap) + 1;
     let out = '';
     for (let i = 0; i < rows; i++) {
-      const r = 6.2 * Math.pow(1 - i / (rows + 0.6), 1.2);   // i = 0 é a fileira de baixo (a maior)
-      const y = EDGE - 14 - i * gap; const off = i % 2 ? gap / 2 : 0;
+      const r = 10 * Math.pow(1 - i / (rows + 0.6), 1.15);   // i = 0 é a fileira de baixo (a maior)
+      const y = EDGE - 20 - i * gap; const off = i % 2 ? gap / 2 : 0;
       for (let c = 0; c < cols; c++) { const x = c * gap + off - gap / 2; out += `M${x - r} ${y - r}L${x + r} ${y + r}M${x + r} ${y - r}L${x - r} ${y + r}`; }
     }
     return out;
@@ -66,13 +66,13 @@ function SkipEdge() {
         <Defs>
           <LinearGradient id="skipEdgeG" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#E63950" stopOpacity="0" />
-            <Stop offset="0.6" stopColor="#E63950" stopOpacity="0.2" />
-            <Stop offset="1" stopColor="#E63950" stopOpacity="0.5" />
+            <Stop offset="0.55" stopColor="#E63950" stopOpacity="0.24" />
+            <Stop offset="1" stopColor="#E63950" stopOpacity="0.62" />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={width} height={EDGE} fill="url(#skipEdgeG)" />
-        <Path d={d} stroke="#B8243C" strokeOpacity={0.5} strokeWidth={2.4} strokeLinecap="round" fill="none" />
-        <Rect x={0} y={EDGE - 5} width={width} height={5} fill="#E63950" />
+        <Path d={d} stroke="#B8243C" strokeOpacity={0.55} strokeWidth={3.4} strokeLinecap="round" fill="none" />
+        <Rect x={0} y={EDGE - 8} width={width} height={8} fill="#E63950" />
       </Svg>
     </Animated.View>
   );
