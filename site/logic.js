@@ -572,6 +572,7 @@
   /* ---------- personalização das fitas (cor, padrão, figurinhas arrastáveis, imagem no rótulo e anotação) ---------- */
   var DECO_COLORS = 14, DECO_MAX_STICKERS = 6, DECO_MAX_NOTE = 280;
   var DECO_PATTERNS = ['dots', 'stripes', 'check', 'stars'];
+  var DECO_EDGES = ['check', 'hazard', 'candy'];
   // Posições iniciais (fração da largura e da altura da fita) das figurinhas que chegam sem posição.
   var DECO_SLOTS = [[0.88, 0.2], [0.12, 0.8], [0.88, 0.82], [0.12, 0.2], [0.5, 0.9], [0.5, 0.1]];
   function clampN(v, lo, hi, dflt) { var n = Number(v); if (v === null || v === '' || v === undefined || !isFinite(n)) return dflt; return Math.max(lo, Math.min(hi, n)); }
@@ -584,6 +585,7 @@
     var c = Number(raw.color);
     if (raw.color !== null && raw.color !== undefined && raw.color !== '' && Number.isInteger(c) && c >= 0 && c < DECO_COLORS) out.color = c;
     if (typeof raw.pattern === 'string' && DECO_PATTERNS.indexOf(raw.pattern) >= 0) out.pattern = raw.pattern;
+    if (typeof raw.edge === 'string' && DECO_EDGES.indexOf(raw.edge) >= 0) out.edge = raw.edge;
     if (Array.isArray(raw.stickers)) {
       var list = [];
       raw.stickers.forEach(function (x) {

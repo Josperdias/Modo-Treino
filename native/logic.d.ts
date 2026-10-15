@@ -62,8 +62,10 @@ export function releaseNotes(body: string | null | undefined, max?: number): str
 /** Figurinha sobre a fita: emoji, posição (0 a 1 da largura e da altura) e tamanho (0,6 a 2,2). */
 export type FitaSticker = {e: string; x: number; y: number; s: number};
 export type FitaPattern = 'dots' | 'stripes' | 'check' | 'stars';
+/** Borda da fita: xadrez preto e branco, listras de obra (amarelo e preto) ou listras de docinho (rosa e branco). */
+export type FitaEdge = 'check' | 'hazard' | 'candy';
 /** Personalização de uma fita: cor (0 a 13: 0 a 7 lisas, 8 a 13 xadrez de duas cores), padrão, até 6 figurinhas arrastáveis, imagem no rótulo (caminho do arquivo) e anotação (até 280 letras). */
-export type FitaDeco = {color?: number; pattern?: FitaPattern; stickers?: FitaSticker[]; note?: string; image?: string};
+export type FitaDeco = {color?: number; pattern?: FitaPattern; edge?: FitaEdge; stickers?: FitaSticker[]; note?: string; image?: string};
 export function cleanDeco(raw: unknown): FitaDeco | null;
 export function setDeco(deco: Record<string, FitaDeco> | undefined, id: string, patch: Partial<Omit<FitaDeco, 'stickers'>> & {stickers?: (FitaSticker | string)[]} | null): Record<string, FitaDeco>;
 export function cleanDecoMap(map: unknown): Record<string, FitaDeco>;

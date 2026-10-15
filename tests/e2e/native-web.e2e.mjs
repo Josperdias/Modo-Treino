@@ -462,6 +462,7 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   await page.getByRole('heading', {name: 'Personalizar a fita'}).waitFor();
   await page.getByLabel('Cor 9 de 14, xadrez').click();
   await page.getByLabel('Padrão Listras').click();
+  await page.getByLabel('Borda Listras de obra').click();
   for (const g of ['🔥', '⭐', '💪', '🎧', '❤️', '⚡']) await page.getByLabel(`Colocar figurinha ${g}`).click();
   assert.equal(await page.getByLabel('Colocar figurinha 🚀').isDisabled(), true, 'no máximo 6 figurinhas');
   // arrasta a primeira figurinha (🔥) para outro lugar da fita
@@ -475,7 +476,7 @@ test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "T
   assert.match(await body(page), /📝 Fazer 3 séries de supino/, 'a anotação aparece na linha da fita');
   const saved = await store(page, MUSIC);
   const d = saved.deco['dev:1'];
-  assert.equal(d.color, 8); assert.equal(d.pattern, 'stripes'); assert.equal(d.note, 'Fazer 3 séries de supino\ndescanso de 45 s');
+  assert.equal(d.color, 8); assert.equal(d.pattern, 'stripes'); assert.equal(d.edge, 'hazard'); assert.equal(d.note, 'Fazer 3 séries de supino\ndescanso de 45 s');
   assert.deepEqual(d.stickers.map((x) => x.e), ['🔥', '⭐', '💪', '🎧', '❤️', '⚡']);
   assert.ok(d.stickers[0].x < 0.88 && d.stickers[0].y > 0.2, 'a figurinha arrastada mudou de lugar');
   assert.equal(d.stickers[0].s, 1.2, 'o botão "maior" aumentou a figurinha');

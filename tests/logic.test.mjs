@@ -410,6 +410,8 @@ test('cleanDeco: só guarda campos válidos e devolve null quando não sobra nad
   assert.equal(L.cleanDeco(null), null);
   assert.equal(L.cleanDeco({}), null);
   assert.equal(L.cleanDeco({color: 14, pattern: 'xadrez', note: '   ', stickers: [1, '', {e: ''}]}), null);
+  assert.equal(L.cleanDeco({edge: 'serrilhada'}), null, 'borda desconhecida é descartada');
+  assert.deepEqual(L.cleanDeco({edge: 'hazard'}), {edge: 'hazard'});
   assert.deepEqual(L.cleanDeco({color: '3', pattern: 'dots', note: 'supino 3x10  ', stickers: ['⭐'], image: 'file:///capa.png', lixo: 1}),
     {color: 3, pattern: 'dots', stickers: [{e: '⭐', x: 0.88, y: 0.2, s: 1}], note: 'supino 3x10', image: 'file:///capa.png'});
 });

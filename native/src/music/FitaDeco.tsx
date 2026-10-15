@@ -7,8 +7,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {Btn, Icon, Pattern, Press, Sheet} from '../ui';
 import {C, R, T} from '../theme';
-import type {FitaPattern, FitaSticker} from '../../logic';
-import Cassette, {PATTERNS, TAPES} from './Cassette';
+import type {FitaEdge, FitaPattern, FitaSticker} from '../../logic';
+import Cassette, {EDGES, PATTERNS, TAPES} from './Cassette';
 import {tapeIndex} from './tapeIndex';
 import {Track, useMusic} from './MusicProvider';
 
@@ -23,6 +23,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
   const m = useMusic();
   const [color, setColor] = useState<number | undefined>();
   const [pattern, setPattern] = useState<FitaPattern | undefined>();
+  const [edge, setEdge] = useState<FitaEdge | undefined>();
   const [stickers, setStickers] = useState<FitaSticker[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [note, setNote] = useState('');
@@ -32,7 +33,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
   useEffect(() => {
     if (!track || !open) return;
     const d = m.deco(track.id);
-    setColor(d?.color); setPattern(d?.pattern); setStickers(d?.stickers || []); setSel(null); setNote(d?.note || ''); setImage(d?.image); setOldImage(d?.image); setErr('');
+    setColor(d?.color); setPattern(d?.pattern); setEdge(d?.edge); setStickers(d?.stickers || []); setSel(null); setNote(d?.note || ''); setImage(d?.image); setOldImage(d?.image); setErr('');
   }, [track?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!track) return null;
@@ -65,7 +66,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
     } catch { setErr('Não consegui abrir essa imagem. Tente outra.'); }
   };
   const save = () => {
-    m.setDeco(track.id, {color: color ?? null, pattern: pattern ?? null, stickers, note, image: image ?? null} as never);
+    m.setDeco(track.id, {color: color ?? null, pattern: pattern ?? null, edge: edge ?? null, stickers, note, image: image ?? null} as never);
     if (oldImage && oldImage !== image) drop(oldImage);
     onClose();
   };
@@ -75,7 +76,7 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
     onClose();
   };
   const cancel = () => { if (image && image !== oldImage) drop(image); onClose(); };
-  const draft = {color, pattern, stickers, image};
+  const draft = {color, pattern, edge, stickers, image};
   const tone = TAPES[color ?? tapeIndex(track.id)];
 
   return (
@@ -128,6 +129,16 @@ export default function FitaDecoSheet({track, open, onClose}: {track: Track | nu
           {PATTERNS.map((p) => (
             <Press key={p.key} accessibilityRole="button" accessibilityLabel={`Padrão ${p.name}`} accessibilityState={{selected: pattern === p.key}} onPress={() => setPattern(p.key)} quiet style={[S.chip, pattern === p.key && S.chipOn]}>
               <Text style={S.chipText}>{p.name.toUpperCase()}</Text>
+            </Press>
+          ))}
+        </View>
+
+        <Text style={T.kicker}>BORDA DA FITA</Text>
+        <View style={S.row}>
+          <Press accessibilityRole="button" accessibilityLabel="Borda normal" accessibilityState={{selected: !edge}} onPress={() => setEdge(undefined)} quiet style={[S.chip, !edge && S.chipOn]}><Text style={S.chipText}>NORMAL</Text></Press>
+          {EDGES.map((e) => (
+            <Press key={e.key} accessibilityRole="button" accessibilityLabel={`Borda ${e.name}`} accessibilityState={{selected: edge === e.key}} onPress={() => setEdge(e.key)} quiet style={[S.chip, edge === e.key && S.chipOn]}>
+              <Text style={S.chipText}>{e.name.toUpperCase()}</Text>
             </Press>
           ))}
         </View>

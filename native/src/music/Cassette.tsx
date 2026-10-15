@@ -4,7 +4,7 @@ import {Text} from '../text';
 import Animated, {useReducedMotion, cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import Svg, {Circle, Defs, G, Line, Path, Pattern as SvgPattern, Rect} from 'react-native-svg';
 import {C} from '../theme';
-import type {FitaDeco, FitaPattern, FitaSticker} from '../../logic';
+import type {FitaDeco, FitaEdge, FitaPattern, FitaSticker} from '../../logic';
 import {tapeIndex} from './tapeIndex';
 
 const W = 320, H = 200;
@@ -28,6 +28,8 @@ function Hub({size}: {size: number}) {
 
 /** Padrões que a pessoa pode pôr no corpo da fita (desenhados por cima da cor, bem de leve). */
 export const PATTERNS: {key: FitaPattern; name: string}[] = [{key: 'dots', name: 'Bolinhas'}, {key: 'stripes', name: 'Listras'}, {key: 'check', name: 'Xadrez'}, {key: 'stars', name: 'Estrelas'}];
+/** Bordas que a pessoa pode pôr no contorno da fita. */
+export const EDGES: {key: FitaEdge; name: string}[] = [{key: 'check', name: 'Xadrez'}, {key: 'hazard', name: 'Listras de obra'}, {key: 'candy', name: 'Docinho'}];
 function PatternDefs() {
   const star = 'M10 2l2.4 5 5.4.7-4 3.8 1 5.4-4.8-2.7-4.8 2.7 1-5.4-4-3.8 5.4-.7z';
   return (
@@ -40,6 +42,9 @@ function PatternDefs() {
           <Rect x={0} y={0} width={40} height={40} fill={t.body} /><Rect x={20} y={0} width={20} height={20} fill={t.alt} /><Rect x={0} y={20} width={20} height={20} fill={t.alt} />
         </SvgPattern>
       ) : null))}
+      <SvgPattern id="ed-check" patternUnits="userSpaceOnUse" width={16} height={16}><Rect x={0} y={0} width={16} height={16} fill="#FFFFFF" /><Rect x={0} y={0} width={8} height={8} fill="#0B1033" /><Rect x={8} y={8} width={8} height={8} fill="#0B1033" /></SvgPattern>
+      <SvgPattern id="ed-hazard" patternUnits="userSpaceOnUse" width={18} height={18} patternTransform="rotate(45)"><Rect x={0} y={0} width={18} height={18} fill="#FFC93C" /><Rect x={0} y={0} width={9} height={18} fill="#0B1033" /></SvgPattern>
+      <SvgPattern id="ed-candy" patternUnits="userSpaceOnUse" width={18} height={18} patternTransform="rotate(45)"><Rect x={0} y={0} width={18} height={18} fill="#FFFFFF" /><Rect x={0} y={0} width={9} height={18} fill="#F0568A" /></SvgPattern>
       <SvgPattern id="pt-stars" patternUnits="userSpaceOnUse" width={30} height={30}><Path d={star} fill="#FFFFFF" opacity={0.24} transform="translate(5 5)" /></SvgPattern>
     </Defs>
   );
@@ -101,6 +106,13 @@ export default function Cassette({playing, label, side = 'LADO A', progress = 0,
         <PatternDefs />
         <Rect x={4} y={4} width={W - 8} height={H - 8} rx={20} fill={shell} stroke="#0B1033" strokeWidth={5} />
         {deco?.pattern ? <Rect x={6} y={6} width={W - 12} height={H - 12} rx={18} fill={`url(#pt-${deco.pattern})`} /> : null}
+        {deco?.edge ? (
+          <>
+            <Rect x={8} y={8} width={W - 16} height={H - 16} rx={17} fill="none" stroke={`url(#ed-${deco.edge})`} strokeWidth={10} />
+            <Rect x={3} y={3} width={W - 6} height={H - 6} rx={20.5} fill="none" stroke="#0B1033" strokeWidth={2.2} />
+            <Rect x={13.2} y={13.2} width={W - 26.4} height={H - 26.4} rx={12} fill="none" stroke="#0B1033" strokeWidth={1.6} />
+          </>
+        ) : null}
         <Rect x={22} y={18} width={W - 44} height={74} rx={10} fill={labelBg} stroke={tone ? '#0B1033' : '#EA9CC9'} strokeWidth={2} />
         {!hasImg && <Rect x={22} y={70} width={W - 44} height={22} rx={0} fill={band} opacity={tone ? 0.35 : 0.55} />}
         <Rect x={44} y={92} width={W - 88} height={66} rx={33} fill="#090D23" stroke="#53629D" strokeWidth={3} />
@@ -154,14 +166,23 @@ const BORDER = '#0B1033';
 
 /** Mini cassete de UMA música (uma fita), colorido por música. Estático e leve de propósito: listas com centenas de fitas.
  * Personalização opcional: `color` troca a cor, `stickers` coloca as figurinhas nos lugares escolhidos, `image` vira a capa no rótulo e `note` cola um bilhetinho amarelo. */
-export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stickers, image, note}: {id: string; size?: number; on?: boolean; color?: number; stickers?: FitaSticker[]; image?: string; note?: boolean}) {
+export const MiniTape = React.memo(function MiniTape({id, size = 76, color, stickers, image, note, edge}: {id: string; size?: number; on?: boolean; color?: number; stickers?: FitaSticker[]; image?: string; note?: boolean; edge?: FitaEdge}) {
   const t = TAPES[color ?? tapeIndex(id)] || TAPES[tapeIndex(id)];
   const h = size * 0.64, k = size / 100;
   return (
     <View style={{width: size, height: h}}>
       <Svg width={size} height={h} viewBox="0 0 100 64">
+        {edge ? (
+          <Defs>
+            {edge === 'check' ? <SvgPattern id="me" patternUnits="userSpaceOnUse" width={8} height={8}><Rect x={0} y={0} width={8} height={8} fill="#FFFFFF" /><Rect x={0} y={0} width={4} height={4} fill="#0B1033" /><Rect x={4} y={4} width={4} height={4} fill="#0B1033" /></SvgPattern> : null}
+            {edge === 'hazard' ? <SvgPattern id="me" patternUnits="userSpaceOnUse" width={9} height={9} patternTransform="rotate(45)"><Rect x={0} y={0} width={9} height={9} fill="#FFC93C" /><Rect x={0} y={0} width={4.5} height={9} fill="#0B1033" /></SvgPattern> : null}
+            {edge === 'candy' ? <SvgPattern id="me" patternUnits="userSpaceOnUse" width={9} height={9} patternTransform="rotate(45)"><Rect x={0} y={0} width={9} height={9} fill="#FFFFFF" /><Rect x={0} y={0} width={4.5} height={9} fill="#F0568A" /></SvgPattern> : null}
+          </Defs>
+        ) : null}
         {t.alt ? <Defs><SvgPattern id="mk" patternUnits="userSpaceOnUse" width={20} height={20}><Rect x={0} y={0} width={20} height={20} fill={t.body} /><Rect x={10} y={0} width={10} height={10} fill={t.alt} /><Rect x={0} y={10} width={10} height={10} fill={t.alt} /></SvgPattern></Defs> : null}
         <Rect x={2} y={2} width={96} height={60} rx={9} fill={t.alt ? 'url(#mk)' : t.body} stroke={BORDER} strokeWidth={3} />
+        {edge ? <Rect x={4.5} y={4.5} width={91} height={55} rx={7} fill="none" stroke="url(#me)" strokeWidth={5} /> : null}
+        {edge ? <Rect x={1.2} y={1.2} width={97.6} height={61.6} rx={9.4} fill="none" stroke={BORDER} strokeWidth={1.6} /> : null}
         <Rect x={9} y={7} width={82} height={24} rx={4} fill={t.label} stroke={BORDER} strokeWidth={1.5} />
         {!image && <Rect x={16} y={14} width={44} height={3} rx={1.5} fill={t.ink} opacity={0.75} />}
         {!image && <Rect x={16} y={20} width={28} height={3} rx={1.5} fill={t.ink} opacity={0.45} />}
