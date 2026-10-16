@@ -1,0 +1,34 @@
+[
+  {
+    "title": "Origami Skyline",
+    "file": "origami_skyline.ogg",
+    "midi": "origami_skyline.mid",
+    "seconds": 58.18,
+    "style": "future-funk",
+    "strong_chord_tones": "64/64"
+  },
+  {
+    "title": "Lanternas de Papel",
+    "file": "lanterns_of_paper.ogg",
+    "midi": "lanterns_of_paper.mid",
+    "seconds": 66.21,
+    "style": "dreamy chiptune",
+    "strong_chord_tones": "64/64"
+  },
+  {
+    "title": "Horizontes Dobráveis",
+    "file": "folded_horizons.ogg",
+    "midi": "folded_horizons.mid",
+    "seconds": 51.2,
+    "style": "8-bit adventure",
+    "strong_chord_tones": "64/64"
+  },
+  {
+    "title": "Carrossel de Papel",
+    "file": "cardboard_carousel.ogg",
+    "midi": "cardboard_carousel.mid",
+    "seconds": 60.95,
+    "style": "jazz-house",
+    "strong_chord_tones": "64/64"
+  }
+]

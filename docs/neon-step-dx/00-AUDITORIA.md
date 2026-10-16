@@ -28,7 +28,7 @@ Gravidade: **A** = bloqueia a versão nativa · **M** = corrigir no caminho · *
 ### Motor e física
 | # | G | Problema | Evidência |
 |---|---|---|---|
-| P-01 | A | **Passo de tempo variável** (`dt = min(Δ, 0,032)`). A altura do salto depende da taxa de quadros; abaixo de ~31 fps o jogo fica em câmera lenta | Ápice do 1º salto (exato = 198,75): 30 Hz → 187,0 · 60 Hz → 192,7 · 120 Hz → 195,5 · 240 Hz → 196,9 |
+| P-01 | A | **Passo de tempo variável** (`dt = min(Δ, 0,032)`). A altura do salto depende da taxa de quadros; abaixo de ~31 fps o jogo fica em câmera lenta | Ápice do 1º salto (exato = 198,375): 30 Hz → 187,0 · 60 Hz → 192,7 · 120 Hz → 195,5 · 240 Hz → 196,9 |
 | P-02 | A | **Sem semente aleatória** (`Math.random`): nenhuma partida é reproduzível, impossível regredir balanceamento | leitura do código; no baseline precisei injetar semente |
 | P-03 | A | **Estado global + DOM dentro do laço** (`updateHud` escreve 6 `textContent` por quadro; `setToast`/`worldPortalEnter` mexem em `document`). Só dá para testar rodando no navegador | leitura de `game.js:107-115`, `:48` |
 | P-04 | A | Não há **garantia de alcance** das plataformas: a regra é "intervalo ≤ 142" + um patamar seguro a cada 6, mas nada prova (com mundos, esteira, vento do Cristal, drift do Mecânico) que todo salto é possível | leitura; *não verificado por prova*, só por robô |
