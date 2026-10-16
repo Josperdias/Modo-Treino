@@ -229,18 +229,51 @@ test('doneCount: conta marcadas (mesmo não consecutivas) e ignora o que passa d
 const wp = (confs, dones, treino = 'A') => L.workoutProgress({exercises: EX, treino, getConf: (e) => confs[e.id], getDone: (e) => dones[e.id] || []});
 test('workoutProgress: totais, percentual e primeiro exercício incompleto', () => {
   const p = wp({a1: {series: 3}, a2: {series: 2}}, {a1: [true, true, true], a2: [true]});
-  assert.deepEqual(p.list, [{id: 'a1', total: 3, done: 3, complete: true}, {id: 'a2', total: 2, done: 1, complete: false}]);
+  assert.deepEqual(p.list, [{id: 'a1', total: 3, done: 3, complete: true, skipped: false}, {id: 'a2', total: 2, done: 1, complete: false, skipped: false}]);
   assert.equal(p.sets, 4); assert.equal(p.total, 5); assert.equal(p.percent, 80); assert.equal(p.firstIncomplete, 1);
   assert.equal(wp({a1: {series: 1}, a2: {series: 1}}, {a1: [true], a2: [true]}).firstIncomplete, -1);
   assert.equal(wp({a1: {series: 4}, a2: {series: 4}}, {}).percent, 0);
 });
 test('nextStep: mesma série, próximo exercício, volta ao pulado e fim', () => {
-  const item = (done, total = 2) => ({id: 'x', total, done, complete: done >= total});
+  const item = (done, total = 2, skipped = false) => ({id: 'x', total, done, complete: done >= total, skipped});
   assert.deepEqual(L.nextStep([item(1), item(0)], 0), {type: 'same', index: 0});
   assert.deepEqual(L.nextStep([item(2), item(0), item(0)], 0), {type: 'exercise', index: 1});
   assert.deepEqual(L.nextStep([item(0), item(2), item(2)], 2), {type: 'exercise', index: 0}); // volta ao exercício pulado
   assert.deepEqual(L.nextStep([item(2), item(2)], 1), {type: 'done', index: -1});
   assert.deepEqual(L.nextStep([], 0), {type: 'done', index: -1});
+});
+
+/* ---------- "não vou fazer este exercício" ---------- */
+test('exercício pulado conta como resolvido: o treino pode terminar, mas não soma séries nem percentual', () => {
+  const pw = (skipIds) => L.workoutProgress({exercises: EX, treino: 'A', getConf: (e) => ({a1: {series: 3}, a2: {series: 2}})[e.id], getDone: (e) => ({a1: [true, true, true]})[e.id] || [], getSkipped: (e) => skipIds.includes(e.id)});
+  const p = pw(['a2']);
+  assert.equal(p.list[1].skipped, true); assert.equal(p.firstIncomplete, -1); assert.equal(p.skippedCount, 1);
+  assert.equal(p.sets, 3); assert.equal(p.percent, 60, 'o percentual NÃO sobe por pular');
+  assert.equal(pw([]).firstIncomplete, 1); assert.equal(pw([]).skippedCount, 0);
+  // um exercício já completo nunca conta como "pulado"
+  assert.equal(pw(['a1']).skippedCount, 0);
+});
+test('nextStep: pula os exercícios pulados e termina quando só sobram pulados', () => {
+  const item = (done, total = 2, skipped = false) => ({id: 'x', total, done, complete: done >= total, skipped});
+  assert.deepEqual(L.nextStep([item(2), item(0, 2, true), item(0)], 0), {type: 'exercise', index: 2});
+  assert.deepEqual(L.nextStep([item(2), item(0, 2, true)], 0), {type: 'done', index: -1});
+  assert.deepEqual(L.nextStep([item(0, 2, true), item(2)], 0), {type: 'done', index: -1});
+});
+test('setSkipped: marca e desmarca sem repetir e sem alterar o vetor original', () => {
+  const base = ['a'];
+  assert.deepEqual(L.setSkipped(base, 'b', true), ['a', 'b']);
+  assert.deepEqual(L.setSkipped(['a', 'b'], 'b', true), ['a', 'b']);
+  assert.deepEqual(L.setSkipped(['a', 'b'], 'a', false), ['b']);
+  assert.deepEqual(L.setSkipped(undefined, 'x', true), ['x']);
+  assert.deepEqual(base, ['a']);
+});
+test('snapshotSession e backup guardam os exercícios que a pessoa disse que não ia fazer', () => {
+  const sn = L.snapshotSession({exercises: EX, treino: 'A', date: '2026-10-14', time: '07:30', getConf: (e) => ({series: 2, reps: 5, peso: 10}), getDone: (e) => (e.id === 'a1' ? [true, true] : []), getSkipped: (e) => e.id === 'a2'});
+  assert.deepEqual(sn.skipped, [{id: 'a2', nome: EX.find((x) => x.id === 'a2').nome}]);
+  const sem = L.snapshotSession({exercises: EX, treino: 'A', date: '2026-10-14', getConf: () => ({series: 2, reps: 5, peso: 10}), getDone: () => []});
+  assert.ok(!('skipped' in sem), 'sem pulados o campo nem aparece (sessões antigas ficam iguais)');
+  const b = L.validateBackup({sessions: [{...sn, skipped: [...sn.skipped, {id: '../x'}, 7]}], sets: {}, override: {}});
+  assert.deepEqual(b.sessions[0].skipped, sn.skipped, 'backup descarta ids inválidos');
 });
 
 /* ---------- descanso ---------- */
@@ -370,4 +403,52 @@ test('releaseNotes: pega só o trecho antes do "---", sem markdown, limitado', (
   assert.deepEqual(L.releaseNotes('---\nsó instalação'), []);
   const longo = L.releaseNotes('- ' + 'a'.repeat(50) + '\n- ' + 'b'.repeat(50), 60);
   assert.equal(longo.length, 2); assert.ok(longo[1].endsWith('…') && longo[1].length <= 12);
+});
+
+/* ---------- personalização das fitas ---------- */
+test('cleanDeco: só guarda campos válidos e devolve null quando não sobra nada', () => {
+  assert.equal(L.cleanDeco(null), null);
+  assert.equal(L.cleanDeco({}), null);
+  assert.equal(L.cleanDeco({color: 14, pattern: 'xadrez', note: '   ', stickers: [1, '', {e: ''}]}), null);
+  assert.equal(L.cleanDeco({edge: 'serrilhada'}), null, 'borda desconhecida é descartada');
+  assert.deepEqual(L.cleanDeco({edge: 'hazard'}), {edge: 'hazard'});
+  assert.deepEqual(L.cleanDeco({color: '3', pattern: 'dots', note: 'supino 3x10  ', stickers: ['⭐'], image: 'file:///capa.png', lixo: 1}),
+    {color: 3, pattern: 'dots', stickers: [{e: '⭐', x: 0.88, y: 0.2, s: 1, r: 0}], note: 'supino 3x10', image: 'file:///capa.png'});
+});
+test('cleanDeco: figurinhas guardam posição e tamanho dentro dos limites; no máximo 6; anotação até 280; cor 0 vale', () => {
+  const d = L.cleanDeco({color: 0, stickers: [{e: '🔥', x: 2, y: -1, s: 9}, {e: '💪', x: 0.5, y: 0.5}, '1', '2', '3', '4', '5'], note: 'x'.repeat(500)});
+  assert.equal(d.color, 0);
+  assert.equal(d.stickers.length, 6);
+  assert.deepEqual(d.stickers[0], {e: '🔥', x: 1, y: 0, s: 2.2, r: 0});
+  assert.deepEqual(d.stickers[1], {e: '💪', x: 0.5, y: 0.5, s: 1, r: 0});
+  assert.equal(L.cleanDeco({stickers: [{e: '⭐', r: 500.6}]}).stickers[0].r, 180, 'o giro fica entre -180 e 180');
+  assert.equal(L.cleanDeco({stickers: [{e: '⭐', r: -45.4}]}).stickers[0].r, -45);
+  assert.equal(d.note.length, 280);
+});
+test('setDeco: junta campos, apaga com null e some quando fica vazia', () => {
+  let m = L.setDeco({}, 'dev:1', {color: 2});
+  m = L.setDeco(m, 'dev:1', {note: 'fazer 5 séries'});
+  assert.deepEqual(m['dev:1'], {color: 2, note: 'fazer 5 séries'});
+  const before = m;
+  m = L.setDeco(m, 'dev:2', {stickers: [{e: '🔥', x: 0.3, y: 0.4, s: 1.2}]});
+  assert.deepEqual(before, {'dev:1': {color: 2, note: 'fazer 5 séries'}}, 'não altera o mapa antigo');
+  m = L.setDeco(m, 'dev:1', {color: null, note: ''});
+  assert.equal(m['dev:1'], undefined, 'sem nada, a fita volta ao padrão');
+  assert.deepEqual(Object.keys(L.setDeco(m, 'dev:2', null)), []);
+});
+test('cleanDecoMap: limpa o mapa carregado do armazenamento', () => {
+  assert.deepEqual(L.cleanDecoMap('x'), {});
+  assert.deepEqual(L.cleanDecoMap({a: {color: 1}, b: {color: 99}, c: null, d: {color: 13}}), {a: {color: 1}, d: {color: 13}});
+});
+
+test('cleanDeco: enquadramento da imagem só vale com imagem, fica nos limites e some quando é o padrão', () => {
+  assert.equal(L.cleanDeco({imgFit: {z: 2, x: 0.5, y: 0}}), null, 'sem imagem não há enquadramento');
+  assert.deepEqual(L.cleanDeco({image: 'file:///a.jpg', imgFit: {z: 9, x: -5, y: 0.333}}), {image: 'file:///a.jpg', imgFit: {m: 'cover', z: 3, x: -1, y: 0.33}});
+  assert.deepEqual(L.cleanDeco({image: 'file:///a.jpg', imgFit: {z: 1, x: 0, y: 0}}), {image: 'file:///a.jpg'});
+});
+
+test('cleanDeco: imagem menor que a área (zoom abaixo de 1) e modos inteira/esticar são guardados', () => {
+  assert.deepEqual(L.cleanDeco({image: 'file:///a.jpg', imgFit: {m: 'contain', z: 0.1}}), {image: 'file:///a.jpg', imgFit: {m: 'contain', z: 0.25, x: 0, y: 0}});
+  assert.deepEqual(L.cleanDeco({image: 'file:///a.jpg', imgFit: {m: 'stretch'}}), {image: 'file:///a.jpg', imgFit: {m: 'stretch', z: 1, x: 0, y: 0}});
+  assert.deepEqual(L.cleanDeco({image: 'file:///a.jpg', imgFit: {m: 'qualquer', z: 1}}), {image: 'file:///a.jpg'}, 'modo desconhecido vira preencher e some');
 });

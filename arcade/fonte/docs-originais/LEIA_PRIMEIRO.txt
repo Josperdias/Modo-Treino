@@ -1,0 +1,8 @@
+ENTREGA DE TRANSFERÊNCIA — NEON STEP DX -> CLAUDE
+
+1) Abra CLAUDE_INICIO_AQUI.md (é o briefing principal com objetivos, limites e roteiro nativo).
+2) Entregue a pasta/projeto ZIP no Claude. Peça inicialmente auditoria e decisão fundamentada de engine/stack, não uma reescrita total em uma chamada.
+3) Execute a base em projeto_web/ servindo por HTTP, ou use o HTML offline fornecido separadamente.
+4) Sprites permitidos no runtime: os 16 PNGs de Josperd e Camila e os recursos de UI. A pasta de artes descartadas não pode ser importada automaticamente.
+5) A coleção tem 53 temas referenciados no catálogo e 30 SFX. Há 88 MIDI extraídos de várias versões para revisão e comparação; alguns são históricos e não idênticos ao áudio jogável.
+6) Não foram feitos uploads diretos nem migração nativa nesta etapa. Entrega é o protótipo limpo + especificação + material editável.

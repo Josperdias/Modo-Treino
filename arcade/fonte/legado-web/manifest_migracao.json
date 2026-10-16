@@ -1,0 +1,20 @@
+{
+  "base": "V1.3 corrigida",
+  "changed": "remove experimental sprite assets from runtime; canvas fallbacks",
+  "player_sprite_count": 16,
+  "removed_fx_sets": [
+    "drone",
+    "paperclip",
+    "paperPortal",
+    "checkpoint"
+  ],
+  "preserved": [
+    "gameplay",
+    "auto portals",
+    "checkpoint on fall and fatal hit",
+    "53-track collection",
+    "sound effects",
+    "original Camila and Josperd sprites"
+  ],
+  "runtime_folder": "projeto_web"
+}

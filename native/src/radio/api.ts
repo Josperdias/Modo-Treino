@@ -100,5 +100,12 @@ export const GENRES: {tag: string; label: string}[] = [
   {tag: 'dance', label: 'Dance'}, {tag: 'news', label: 'Notícias'}, {tag: 'talk', label: 'Conversa'}, {tag: 'sports', label: 'Esportes'},
 ];
 
+/** Os mesmos estilos, organizados em grupos (o painel "Estilos" da Rádio mostra um grupo por bloco). */
+export const GENRE_GROUPS: {label: string; tags: string[]}[] = [
+  {label: 'Música', tags: ['pop', 'rock', 'hip hop', 'electronic', 'dance', 'metal', 'blues', 'jazz', 'classical', 'reggae']},
+  {label: 'Brasil e Latina', tags: ['sertanejo', 'samba', 'mpb', 'funk', 'gospel', 'latin', 'country']},
+  {label: 'Para ouvir e conversar', tags: ['news', 'talk', 'sports']},
+];
+
 /** ids de todas as estações de um estilo (para o globo mostrar só elas). */
 export const idsDoEstilo = (stations: Station[], tag: string): string[] => stations.filter((s) => s.tg.toLowerCase().split(',').includes(tag)).map((s) => s.i);

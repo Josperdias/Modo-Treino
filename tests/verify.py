@@ -21,7 +21,9 @@ assert 'a ruivinha' in (ROOT/'site/app.js').read_text()
 assert 'MiniPlayer' in (ROOT/'native/App.tsx').read_text()
 assert 'crossfade' in (ROOT/'site/music.js').read_text()
 assert json.loads((ROOT/'native/app.json').read_text())['expo']['name']=='Modo Treino'
+# Exceção: Cassette.tsx usa cover só na foto que a pessoa põe no rótulo da fita (não é arte de exercício).
 for f in [ROOT/'native/App.tsx', *(ROOT/'native/src').rglob('*.tsx')]:
+    if f.name == 'Cassette.tsx': continue
     assert 'resizeMode="cover"' not in f.read_text(),f'{f}: arte de exercício nunca com cover (CLAUDE.md)'
 print('OK: 14 exercícios, arquivos de imagem, cópia nativa, Modo Música e identidade.')
 

@@ -26,6 +26,7 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
 - Native: `cd native && npm ci && npx expo start`
 - Testes rápidos: `npm test` (estrutura + lógica) — `python3 tests/verify.py`, `node --test "tests/*.test.mjs"`
 - Site no Chromium: `npm ci && npx playwright install chromium && npm run test:e2e`
+- Arcade no navegador (Skia real): `cd native && npx expo export --platform web --output-dir /tmp/web && NATIVE_WEB_DIR=/tmp/web node --test ../tests/e2e/arcade-web.e2e.mjs` (capturas: `ARCADE_SHOTS=<pasta>`)
 - App (typecheck + bundle): `cd native && npx tsc --noEmit && npx expo export --platform android`
 - Prints reais das telas: `node scripts/capturar-prints.mjs screenshots/<versao> --native <pasta do expo export --platform web>`
 
@@ -60,6 +61,18 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
 - Regressões importantes: música de usuário não deve parar ao tocar um efeito; ausência de permissão de áudio nunca impede salvar uma série.
 - Testar com aparelho Android real: áudio em primeiro e segundo plano, troca de personagem, upload de MP3/M4A, retomada do player e cronômetro.
 - O aplicativo apresenta sugestões/avisos ao **abrir/retomar** com internet; notificações push remotas em tempo real exigem backend dedicado e ainda NÃO estão implementadas.
+
+## Arcade — NEON STEP DX (easter egg, `native/src/arcade/`)
+
+- **Desbloqueio**: 7 toques seguidos no número da versão (Ajustes), `unlock.ts`. Salvo em `arcade.v1` (AsyncStorage). O jogo é carregado sob demanda (`React.lazy`); nada dele pesa na abertura do app.
+- **Camadas**: `core/` é TypeScript **puro** (sem React, Skia nem `Math.random`): passo fixo 120 Hz, física exata (Verlet), PRNG semeado, mundo por padrões (`worldgen.ts`) e validador de alcance (`validate.ts`). `data/neon.ts` guarda os parâmetros: rebalancear = mexer ali. `session.ts`, `fx.ts`, `perf.ts`, `save.ts`, `unlock.ts` também são puros. `render/` (Skia), `GameCanvas.tsx` e `ArcadeScreen.tsx` são a parte de tela.
+- **Testes do motor rodam no Node** (`tests/arcade-core.test.mjs`, `tests/arcade-app.test.mjs`): o Node 22 executa `.ts` direto, por isso os imports relativos de arquivos testados **terminam em `.ts`** (o `tsconfig` tem `allowImportingTsExtensions`; o Metro aceita). Sem enum nem parameter properties nesses arquivos.
+- **Física**: nunca mude `PHYS` (g 1200, salto 690, mola 930, impulso 835) sem rodar a paridade (ápice = v²/2g = 198,375 em qualquer taxa). Todo gerador novo precisa passar em `validate()` e nos testes de alcance e de robôs.
+- **Sprites**: os 16 PNG de `native/assets/arcade/sprites/` são **cópias byte a byte** de `arcade/fonte/legado-web/assets/sprites/`. Nunca recortar, redesenhar nem editar; correções de pivô/alinhamento só em `data/sprites.json` (`python3 scripts/gerar-atlas-arcade.py`). Sprites experimentais de inimigos/portais/checkpoint **não podem voltar** sem aprovação visual do dono.
+- **Toque**: tratar `onResponderStart/Move/End/Release` (não só Grant/Move/Release), senão soltar um dedo com o outro ainda na tela não atualiza o controle.
+- **Skia na web (testes)**: o `.wasm` precisa ser o de `canvaskit-wasm/bin/full/` (a versão "leve" derruba a página com `Uncaught Infinity`). O e2e `tests/e2e/arcade-web.e2e.mjs` já serve o certo. Os quadros viram `Picture`; os antigos são liberados com `dispose()` com 2 quadros de atraso.
+- **Som/vibração**: tudo **desligado por padrão**; o jogo não toca áudio ainda (M3: módulo Kotlin próprio, sem derrubar o Media3). Direitos de música: ver `docs/neon-step-dx/00-AUDITORIA.md` §4.
+- Documentos: `docs/neon-step-dx/` (auditoria, arquitetura, plano, baseline, medições do M1 e `CHANGELOG-ARCADE.md` com o histórico detalhado; o `CHANGELOG.md` público só traz uma dica, o jogo é um segredo).
 
 ## APK de teste
 

@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus} from 'expo-audio';
-import {forgetTrack, nextTrackId, resolveTape, tapeAdd, tapeInsert, tapeMove, tapeRemove} from '../../logic';
+import {cleanDecoMap, FitaDeco, forgetTrack, nextTrackId, resolveTape, setDeco, tapeAdd, tapeInsert, tapeMove, tapeRemove} from '../../logic';
 import {flag} from '../data';
 import {tapeIndex} from './tapeIndex';
 import {clampFadeSeconds, shouldHandleFinish} from './playbackSafety';
@@ -31,7 +31,7 @@ import {askPermission, DeviceTrack, Permission, pickMusicFolder, readPermission,
 export type Track = {id: string; title: string; artist?: string; uri: string; duration?: number; source: 'device' | 'file' | 'radio'; cc?: string; country?: string};
 /** Bag (playlist). `ids` são fitas (faixas) e rádios. */
 export type Tape = {id: string; name: string; ids: string[]};
-type Library = {tracks: Track[]; tapes: Tape[]; selected: string; fade: number; shuffle: boolean; repeat: boolean; folders: string[]; volume: number; rate: number};
+type Library = {tracks: Track[]; tapes: Tape[]; deco: Record<string, FitaDeco>; selected: string; fade: number; shuffle: boolean; repeat: boolean; folders: string[]; volume: number; rate: number};
 
 export type MusicAPI = {
   lib: Library;
@@ -81,6 +81,10 @@ export type MusicAPI = {
   playTape: (shuffle: boolean, tapeId?: string) => void;
   /** Coração do player: guarda/tira a fita (ou rádio) na bag "Favoritas" (criada se não existir). */
   isFav: (id: string) => boolean;
+  /** Personalização da fita (cor, figurinhas, imagem, anotação). Fica guardada só neste celular. */
+  deco: (id: string) => FitaDeco | undefined;
+  /** `null` apaga tudo daquela fita; um objeto troca só os campos informados (campo vazio apaga o campo). */
+  setDeco: (id: string, patch: Partial<FitaDeco> | null) => void;
   toggleFav: (track: Track) => void;
   /** Rádio tocando: nome da faixa lido dos metadados do stream (quando a rádio os publica). */
   radioTrack: {id: string; title: string | null; state: 'buscando' | 'ok' | 'sem'} | null;
@@ -92,6 +96,7 @@ export type MusicAPI = {
 const KEY = 'modotreino-native-music-v1';
 const createDefault = (): Library => ({
   tracks: [],
+  deco: {},
   tapes: [{id: 'a', name: 'Treino A', ids: []}, {id: 'b', name: 'Treino B', ids: []}, {id: 'fav', name: 'Favoritas', ids: []}],
   selected: 'a', fade: 3, shuffle: false, repeat: false, folders: [], volume: 1, rate: 1,
 });
@@ -223,7 +228,7 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       try {
         const d = JSON.parse(raw);
         if (Array.isArray(d.tapes) && Array.isArray(d.tracks) && d.tapes.length) {
-          setLib({...createDefault(), ...d, folders: Array.isArray(d.folders) ? d.folders : [], volume: typeof d.volume === 'number' ? d.volume : 1, rate: typeof d.rate === 'number' ? d.rate : 1, tracks: d.tracks.map((t: Track) => ({...t, source: t.source === 'device' ? 'device' : t.source === 'radio' ? 'radio' : 'file'}))});
+          setLib({...createDefault(), ...d, deco: cleanDecoMap(d.deco), folders: Array.isArray(d.folders) ? d.folders : [], volume: typeof d.volume === 'number' ? d.volume : 1, rate: typeof d.rate === 'number' ? d.rate : 1, tracks: d.tracks.map((t: Track) => ({...t, source: t.source === 'device' ? 'device' : t.source === 'radio' ? 'radio' : 'file'}))});
         }
       } catch { /* biblioteca antiga ilegível: começa vazia */ }
     }).finally(() => setLoaded(true));
@@ -630,6 +635,8 @@ export function MusicProvider({children}: {children: React.ReactNode}) {
       void playById(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], false);
     },
     isFav: (id) => !!lib.tapes.find((t) => t.id === 'fav')?.ids.includes(id),
+    deco: (id) => lib.deco[id],
+    setDeco: (id, patch) => setLib((v) => ({...v, deco: setDeco(v.deco, id, patch)})),
     toggleFav: (track) => setLib((v) => {
       const tapes = v.tapes.some((t) => t.id === 'fav') ? v.tapes : [...v.tapes, {id: 'fav', name: 'Favoritas', ids: []}];
       const had = tapes.find((t) => t.id === 'fav')!.ids.includes(track.id);

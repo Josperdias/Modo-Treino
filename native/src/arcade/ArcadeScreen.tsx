@@ -1,0 +1,311 @@
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {AppState, BackHandler, Image, Platform, StyleSheet, useWindowDimensions, View} from 'react-native';
+import Animated, {FadeIn, FadeOut} from 'react-native-reanimated';
+import {activateKeepAwakeAsync, deactivateKeepAwake} from 'expo-keep-awake';
+import * as Haptics from 'expo-haptics';
+import {Text} from '../text';
+import {C, R} from '../theme';
+import {Btn, Card, Chips, Float, Icon, Pattern, Press, Switch, Twinkle} from '../ui';
+import {Flower, Star} from '../glyphs';
+import {useArcade, updateArcade} from './arcadeStore';
+import GameHost from './GameHost';
+import {Session, type Hud} from './session.ts';
+import {step as simStep} from './core/sim.ts';
+import {recordRun, type Hero} from './save';
+import type {SimEvent} from './core/types.ts';
+
+const NEON = {pink: '#ff4dac', cyan: '#49e6ff', bg: '#140a24', bg2: '#251438', glass: 'rgba(16,9,31,.72)'};
+const HEROES: {id: Hero; name: string; tag: string; color: string; art: number}[] = [
+  {id: 'josperd', name: 'JOSPERD', tag: 'NEON / BREAKBEAT', color: NEON.pink, art: require('../../assets/arcade/ui/ui_1.png')},
+  {id: 'camila', name: 'CAMILA', tag: 'CITRUS / FUTURE FUNK', color: NEON.cyan, art: require('../../assets/arcade/ui/ui_2.png')},
+];
+const LOGO = require('../../assets/arcade/ui/ui_0.webp');
+
+type Phase = 'select' | 'play' | 'pause' | 'over';
+
+function newSeed(): number {
+  const forced = (globalThis as any).__MODO_ARCADE_SEED__;
+  if (typeof forced === 'number') return forced >>> 0;
+  return ((Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0) || 1;
+}
+
+const pad = (n: number, w = 4) => String(Math.max(0, Math.floor(n))).padStart(w, '0');
+
+export default function ArcadeScreen({onClose}: {onClose: () => void}) {
+  const {save, loaded} = useArcade();
+  const win = useWindowDimensions();
+  const logoH = Math.min((win.width - 48) * 0.75, win.height * 0.27);
+  const [phase, setPhase] = useState<Phase>('select');
+  const [hud, setHud] = useState<Hud | null>(null);
+  const [banner, setBanner] = useState('');
+  const [hint, setHint] = useState(true);
+  const [newRecord, setNewRecord] = useState(false);
+  const [perf, setPerf] = useState('');
+  const session = useRef<Session | null>(null);
+  const hero = save.settings.hero;
+  const set = (patch: Partial<typeof save.settings>) => updateArcade((s) => ({...s, settings: {...s.settings, ...patch}}));
+
+  const start = useCallback(() => {
+    const s = new Session(newSeed(), 690, save.best[hero]);
+    session.current = s;
+    // Gancho só para testes de interface (ativo quando o teste fixa a semente).
+    if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') {
+      (globalThis as any).__MODO_ARCADE_SESSION__ = s;
+      (globalThis as any).__MODO_ARCADE_STEP__ = (axis: number) => simStep(s.sim, {axis});
+    }
+    setHud(s.hud());
+    setBanner('');
+    setHint(true);
+    setNewRecord(false);
+    setPhase('play');
+  }, [hero, save.best]);
+
+  const pause = useCallback(() => {
+    if (session.current && !session.current.over) { session.current.pause(); setPhase('pause'); }
+  }, []);
+  const resume = useCallback(() => { session.current?.resume(); setPhase('play'); }, []);
+
+  // Voltar do Android: jogando → pausa; pausa/fim → seleção; seleção → sai.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (phase === 'play') pause();
+      else if (phase === 'pause' || phase === 'over') setPhase('select');
+      else onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [phase, pause, onClose]);
+
+  // Saiu do app ou bloqueou a tela: pausa sozinho.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => { if (st !== 'active') pause(); });
+    return () => sub.remove();
+  }, [pause]);
+
+  useEffect(() => {
+    if (phase !== 'play') return;
+    activateKeepAwakeAsync('modo-arcade').catch(() => {});
+    return () => { deactivateKeepAwake('modo-arcade').catch(() => {}); };
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'play') return;
+    const t = setTimeout(() => setHint(false), 3800);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  useEffect(() => {
+    if (!save.settings.perf || (phase !== 'play' && phase !== 'pause')) { setPerf(''); return; }
+    const id = setInterval(() => {
+      const p = session.current?.perfSummary();
+      if (p && p.samples) setPerf(`${p.fps} fps · quadro p50 ${p.p50} p95 ${p.p95} p99 ${p.p99} ms · lentos ${p.slow}/${p.samples} · passo ${p.stepMs} ms · desenho ${p.drawMs} ms`);
+    }, 500);
+    return () => clearInterval(id);
+  }, [save.settings.perf, phase]);
+
+  const onEvents = useCallback((events: SimEvent[]) => {
+    for (const e of events) {
+      if (e.t === 'level') {
+        const s = session.current;
+        if (s) { setBanner(`NÍVEL ${String(e.level).padStart(2, '0')}`); setTimeout(() => setBanner(''), 2200); }
+      }
+      if (!save.settings.haptics || Platform.OS === 'web') continue;
+      if (e.t === 'collect') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      else if (e.t === 'over') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    }
+  }, [save.settings.haptics]);
+
+  const onOver = useCallback(() => {
+    const s = session.current;
+    if (!s) return;
+    const r = recordRun(save, {hero, score: s.sim.score, meters: Math.floor((s.sim.maxY - 90) / 10)});
+    updateArcade(() => r.save);
+    setNewRecord(r.record);
+    setPhase('over');
+  }, [save, hero]);
+
+  const info = HEROES.find((h) => h.id === hero)!;
+  const playing = phase === 'play' || phase === 'pause' || phase === 'over'; // no fim, o último quadro fica atrás do cartão
+
+  return (
+    <View style={S.root} testID="arcade-root">
+      <Pattern kind="grid" color="#FFFFFF" opacity={0.05} size={28} />
+      {!playing && <Pattern kind="dots" color={NEON.pink} opacity={0.16} size={20} />}
+      {playing && session.current && (
+        <GameHost
+          session={session.current}
+          hero={hero}
+          running={phase === 'play'}
+          control={save.settings.control}
+          tiltInvert={save.settings.tiltInvert}
+          onHud={setHud}
+          onEvents={onEvents}
+          onOver={onOver}
+          onPauseKey={() => (phase === 'play' ? pause() : resume())}
+        />
+      )}
+
+      {phase === 'play' && hud && (
+        <View pointerEvents="box-none" style={S.hudWrap}>
+          <View style={S.hudTop} pointerEvents="box-none">
+            <View style={S.scoreWrap} pointerEvents="none">
+              <View style={S.scoreShadow} />
+              <View style={S.score}>
+                <Pattern kind="dots" color={NEON.pink} opacity={0.35} size={12} />
+                <View style={S.scoreRow}>
+                  <View style={S.badge}>{hero === 'josperd' ? <Star size={22} fill={C.yellow} /> : <Flower size={24} petal={NEON.cyan} />}</View>
+                  <View>
+                    <Text style={S.kick}>PONTOS</Text>
+                    <Text style={S.scoreN} testID="arcade-score">{pad(hud.score)}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            <View style={S.side} pointerEvents="none">
+              <Pattern kind="stripes" color="#FFFFFF" opacity={0.08} size={14} />
+              <Text style={S.kick}>RECORDE <Text style={S.sideN}>{pad(hud.best)}</Text></Text>
+              <Text style={S.kick}>FITAS <Text style={S.sideN}>{pad(hud.tapes, 2)}</Text>  ·  <Text style={S.sideN}>{hud.meters} m</Text></Text>
+            </View>
+            <Press accessibilityRole="button" accessibilityLabel="Pausar" onPress={pause} haptic={false} quiet style={S.pauseBtn} testID="arcade-pause">
+              <Icon name="pause" size={20} color={C.white} />
+            </Press>
+          </View>
+          <View style={S.strip} pointerEvents="none">
+            <View style={S.pill}><Text style={[S.stripT, {color: NEON.cyan}]}>NEON</Text></View>
+            <View style={S.pill}><Text style={S.stripT}>LV {String(hud.level).padStart(2, '0')} · {hud.levelName}</Text></View>
+            {hud.combo > 1 && <View style={[S.pill, {backgroundColor: C.yellow, borderColor: C.ink}]}><Text style={[S.stripT, {color: C.ink, textShadowRadius: 0}]}>COMBO x{hud.combo}</Text></View>}
+          </View>
+          {!!banner && <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(300)} style={S.banner} pointerEvents="none"><Text style={S.bannerT}>{banner}</Text></Animated.View>}
+          {hint && (
+            <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(400)} style={S.hint} pointerEvents="none">
+              <Icon name="chevron-back" size={22} color={C.white} />
+              <Text style={S.hintT}>{save.settings.control === 'tilt' ? 'INCLINE O CELULAR' : 'SEGURE OS LADOS DA TELA'}</Text>
+              <Icon name="chevron-forward" size={22} color={C.white} />
+            </Animated.View>
+          )}
+        </View>
+      )}
+      {!!perf && <View style={S.perf} pointerEvents="none"><Text style={S.perfT}>{perf}</Text></View>}
+
+      {phase === 'select' && (
+        <Animated.View entering={FadeIn.duration(220)} style={S.panel}>
+          <View style={S.topBar}>
+            <Press accessibilityRole="button" accessibilityLabel="Fechar o fliperama" onPress={onClose} style={S.close} testID="arcade-close"><Icon name="close" size={22} color={C.white} /></Press>
+            <Text style={S.kick2}>FLIPERAMA · NEON_STEP_DX</Text>
+            <View style={{width: 44}} />
+          </View>
+          <Twinkle size={20} color={C.yellow} delay={0} style={{left: 8, top: 52}} />
+          <Twinkle size={14} color={NEON.cyan} delay={400} style={{right: 14, top: 70}} />
+          <Card color={NEON.bg2} outer={{alignSelf: 'center', width: '100%'}} style={{padding: 0}} shadowColor={NEON.pink} pattern={<Pattern kind="stripes" color={C.yellow} opacity={0.18} size={14} />}>
+            <View style={{width: '100%', height: logoH, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center'}}>
+              <Image source={LOGO} resizeMode="contain" style={{width: logoH * (960 / 720), height: logoH, resizeMode: 'contain'}} accessibilityLabel="NEON STEP DX com Josperd e Camila" />
+            </View>
+          </Card>
+          <Text style={S.pick}>ESCOLHA SEU PERSONAGEM</Text>
+          <View style={S.cards} accessibilityRole="radiogroup">
+            {HEROES.map((h) => {
+              const on = h.id === hero;
+              return (
+                <Press key={h.id} accessibilityRole="radio" accessibilityState={{selected: on}} accessibilityLabel={`${h.name}. Recorde ${save.best[h.id]} pontos`} onPress={() => set({hero: h.id})} style={[S.hero, on && {borderColor: h.color, backgroundColor: '#2c1a4d'}]} testID={`arcade-hero-${h.id}`}>
+                  <Pattern kind="dots" color={h.color} opacity={on ? 0.4 : 0.18} size={12} />
+                  <View style={S.glyph}>{h.id === 'josperd' ? <Star size={22} fill={C.yellow} /> : <Flower size={24} petal={NEON.cyan} />}</View>
+                  <Float amplitude={on ? 5 : 2} duration={on ? 1500 : 2800}><Image source={h.art} resizeMode="contain" style={S.heroArt} /></Float>
+                  <Text style={[S.heroName, {color: on ? h.color : C.white}]}>{h.name}</Text>
+                  <Text style={S.heroTag}>{h.tag}</Text>
+                  <Text style={S.heroBest}>RECORDE {pad(save.best[h.id])}</Text>
+                  <Text style={[S.heroFlag, on && {color: h.color}]}>{on ? '✓ SELECIONADO' : 'ESCOLHER'}</Text>
+                </Press>
+              );
+            })}
+          </View>
+          <View style={{alignSelf: 'stretch', marginTop: 12}}>
+            <Chips options={['touch', 'tilt'] as const} value={save.settings.control} onChange={(v) => set({control: v})} format={(v) => (v === 'touch' ? 'TOQUE NOS LADOS' : 'INCLINAR')} label={(v) => (v === 'touch' ? 'Controle por toque' : 'Controle por inclinação')} />
+          </View>
+          <Btn text={loaded ? `COMEÇAR COM ${info.name}` : 'CARREGANDO…'} icon="play" disabled={!loaded} onPress={start} style={{marginTop: 16}} />
+        </Animated.View>
+      )}
+
+      {phase === 'pause' && (
+        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={S.modal}>
+          <Card color={NEON.bg2} shadowColor={NEON.pink} outer={{width: '100%', maxWidth: 420}} pattern={<Pattern kind="dots" color={NEON.pink} opacity={0.14} size={14} />}>
+            <Text style={S.modalT}>PAUSA</Text>
+            <Text style={S.modalS}>Seu recorde está esperando.</Text>
+            <Btn text="CONTINUAR" icon="play" onPress={resume} style={{marginTop: 12}} />
+            <View style={S.settings}>
+              <Chips options={['touch', 'tilt'] as const} value={save.settings.control} onChange={(v) => set({control: v})} format={(v) => (v === 'touch' ? 'TOQUE' : 'INCLINAR')} label={(v) => (v === 'touch' ? 'Controle por toque' : 'Controle por inclinação')} />
+              {save.settings.control === 'tilt' && <Switch value={save.settings.tiltInvert} onChange={(v) => set({tiltInvert: v})} title="Inverter a inclinação" desc="Use se o personagem andar para o lado contrário." />}
+              <Switch value={save.settings.haptics} onChange={(v) => set({haptics: v})} title="Vibração leve" desc="Desligada por padrão." />
+              <Switch value={save.settings.perf} onChange={(v) => set({perf: v})} title="Medidor de desempenho" desc="Mostra FPS e tempo de quadro na tela." />
+            </View>
+            <View style={{gap: 8, marginTop: 10}}>
+              <Btn kind="ghost" small icon="refresh" text="RECOMEÇAR" onPress={start} />
+              <Btn kind="ghost" small icon="people" text="TROCAR PERSONAGEM" onPress={() => setPhase('select')} />
+              <Btn kind="danger" small icon="exit-outline" text="SAIR DO FLIPERAMA" onPress={onClose} />
+            </View>
+          </Card>
+        </Animated.View>
+      )}
+
+      {phase === 'over' && hud && (
+        <Animated.View entering={FadeIn.duration(220)} style={S.modal}>
+          <Card color={NEON.bg2} shadowColor={NEON.pink} outer={{width: '100%', maxWidth: 420}} pattern={<Pattern kind="dots" color={NEON.pink} opacity={0.14} size={14} />}>
+            <Text style={S.modalT}>FIM DE JOGO</Text>
+            {newRecord && <Text style={[S.modalS, {color: C.yellow, marginTop: 2}]}>★ NOVO RECORDE ★</Text>}
+            <Text style={S.final} testID="arcade-final">{pad(hud.score)}</Text>
+            <Text style={S.modalS}>pontos · {hud.meters} m · {hud.tapes} fitas</Text>
+            <Text style={[S.modalS, {marginTop: 2}]}>Recorde de {info.name}: {pad(save.best[hero])}</Text>
+            <Btn text="JOGAR DE NOVO" icon="refresh" onPress={start} style={{marginTop: 16}} />
+            <View style={{gap: 8, marginTop: 10}}>
+              <Btn kind="ghost" small icon="people" text="TROCAR PERSONAGEM" onPress={() => setPhase('select')} />
+              <Btn kind="danger" small icon="exit-outline" text="SAIR DO FLIPERAMA" onPress={onClose} />
+            </View>
+          </Card>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
+const S = StyleSheet.create({
+  root: {...StyleSheet.absoluteFillObject, backgroundColor: NEON.bg, zIndex: 50},
+  panel: {...StyleSheet.absoluteFillObject, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 18, justifyContent: 'center'},
+  topBar: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12},
+  close: {width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#4A5580', alignItems: 'center', justifyContent: 'center'},
+  kick2: {fontSize: 11, fontWeight: '900', letterSpacing: 2.2, color: '#B7C1E3'},
+  pick: {fontSize: 12, fontWeight: '900', letterSpacing: 2, color: '#B7C1E3', textAlign: 'center', marginTop: 16},
+  cards: {flexDirection: 'row', gap: 12, marginTop: 10},
+  hero: {overflow: 'hidden', flex: 1, alignItems: 'center', borderRadius: R.lg, borderWidth: 2, borderColor: '#3a2a66', backgroundColor: '#1c1236', paddingVertical: 12, paddingHorizontal: 6},
+  heroArt: {width: 84, height: 96},
+  heroName: {fontSize: 20, fontWeight: '900', letterSpacing: 0.6, marginTop: 6},
+  heroTag: {fontSize: 9, fontWeight: '800', letterSpacing: 1.1, color: '#8F9BC8', marginTop: 2},
+  heroBest: {fontSize: 10, fontWeight: '800', letterSpacing: 1, color: C.yellow, marginTop: 6},
+  heroFlag: {fontSize: 10, fontWeight: '900', letterSpacing: 1.2, color: '#6F7BA8', marginTop: 6},
+  hudWrap: {...StyleSheet.absoluteFillObject},
+  hudTop: {flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 8, gap: 8},
+  scoreWrap: {marginRight: 4, marginBottom: 4},
+  scoreShadow: {position: 'absolute', left: 4, top: 4, right: -4, bottom: -4, borderRadius: R.md, backgroundColor: NEON.pink},
+  score: {backgroundColor: '#1a0f33', borderRadius: R.md, borderWidth: 2, borderColor: '#10091f', paddingHorizontal: 10, paddingVertical: 4, minWidth: 120, overflow: 'hidden'},
+  scoreRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  badge: {width: 32, height: 32, borderRadius: 16, backgroundColor: '#10091f', borderWidth: 2, borderColor: NEON.pink, alignItems: 'center', justifyContent: 'center'},
+  pill: {backgroundColor: NEON.glass, borderRadius: R.pill, borderWidth: 2, borderColor: '#4A5580', paddingHorizontal: 10, paddingVertical: 3},
+  glyph: {position: 'absolute', top: 8, right: 8},
+  scoreN: {fontSize: 30, fontWeight: '900', color: C.white, letterSpacing: 1, lineHeight: 32},
+  kick: {fontSize: 10, fontWeight: '900', letterSpacing: 1.4, color: '#B7C1E3'},
+  side: {overflow: 'hidden', flex: 1, backgroundColor: NEON.glass, borderRadius: R.md, borderWidth: 2, borderColor: '#4A5580', paddingHorizontal: 10, paddingVertical: 6, gap: 2},
+  sideN: {color: C.white, fontWeight: '900'},
+  pauseBtn: {width: 44, height: 44, borderRadius: 22, backgroundColor: NEON.glass, borderWidth: 2, borderColor: '#4A5580', alignItems: 'center', justifyContent: 'center'},
+  strip: {flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 16, paddingTop: 8},
+  stripT: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: '#D9DEF5', textShadowColor: '#000', textShadowRadius: 4},
+  banner: {position: 'absolute', top: '24%', alignSelf: 'center', backgroundColor: NEON.glass, borderColor: NEON.cyan, borderWidth: 2, borderRadius: R.pill, paddingHorizontal: 22, paddingVertical: 8},
+  bannerT: {fontSize: 22, fontWeight: '900', letterSpacing: 2, color: NEON.cyan},
+  hint: {position: 'absolute', bottom: 28, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: NEON.glass, borderRadius: R.pill, paddingHorizontal: 16, paddingVertical: 10},
+  hintT: {fontSize: 12, fontWeight: '900', letterSpacing: 1.4, color: C.white},
+  perf: {position: 'absolute', left: 8, right: 8, bottom: 6, backgroundColor: 'rgba(0,0,0,.7)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4},
+  perfT: {fontSize: 10, color: '#9DFFB0', fontWeight: '700'},
+  modal: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,5,22,.82)', alignItems: 'center', justifyContent: 'center', padding: 20},
+  settings: {marginTop: 14, backgroundColor: C.paper, borderRadius: R.md, borderWidth: 2, borderColor: C.ink, padding: 12},
+  modalT: {fontSize: 34, fontWeight: '900', color: C.white, letterSpacing: 1, textAlign: 'center'},
+  modalS: {fontSize: 13, fontWeight: '800', letterSpacing: 0.8, color: '#B7C1E3', textAlign: 'center'},
+  final: {fontSize: 56, fontWeight: '900', color: C.yellow, textAlign: 'center', letterSpacing: 2, lineHeight: 60},
+});
+

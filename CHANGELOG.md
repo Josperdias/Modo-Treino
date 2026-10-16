@@ -2,6 +2,37 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.5] — 2026-10-16
+
+### Um segredo novo 🕹️
+- Tem um **jogo escondido** no app. A pista: ele mora onde o app conta a própria versão. Funciona offline, com Josperd e Camila.
+
+
+### Treino: "não vou fazer" com dupla verificação
+- **Botão X vermelho** ao lado do "?" em cada exercício para desistir dele. Pede confirmação ao marcar e, de novo, ao finalizar o treino ("Confirmar o que ficou de fora?").
+- **Dá para se arrepender**: o aviso fica **na frente da ilustração**, com degradê circular vermelho, X grande, faixas amarelas e pretas e o botão **VOLTAR E FAZER ESTE**; tocar numa série também desfaz. Na barrinha de progresso o exercício pulado fica vermelho. O nome do exercício aparece riscado em vermelho, com o selo "FORA DO TREINO DE HOJE", e séries e carga ficam esmaecidas. Acima da barra de botões aparece uma divisa vermelha com degradê e "x" que crescem de baixo para cima. Cada exercício abre sempre no topo da tela.
+- O treino salvo no histórico guarda o que ficou de fora; o treino só fica "completo" quando tudo foi feito ou decidido.
+- **Progresso verde não se perde mais ao voltar**: abrir o player pelo mini rádio durante o treino não fecha mais o treino, e o app lembra em qual exercício você parou (por dia e treino).
+
+### Rádio e player
+- **Aba Rádio com o mundo atrás de tudo**: o globo ocupa a área inteira (inclusive atrás do título e da busca), com busca e botões (dado SURPREENDA-ME, PAÍSES, ESTILOS) por cima; a legenda fica embaixo da bandeira; estilos agrupados e recolhíveis; o cartão da estação virou uma faixa branca compacta (OUVIR, NA BAG, lista) que **recolhe** (seta ⌄) numa bolinha com a bandeira para o globo aparecer inteiro. Um **"i"** no canto superior direito do cartão abre "Sobre a rádio": estilos, qualidade, popularidade, onde fica, o que está tocando e o botão VER NO GLOBO.
+- **O mini rádio agora aparece na aba Rádio** e também durante o treino.
+- **"Tocando agora" não cobre mais a tela toda**: o painel rola, a capa se adapta à altura e o treino continua aparecendo no topo.
+- **Transição suave dos painéis**: o fundo escuro surge com fade (sem a quina dura) e a folha sobe com uma borda de degradê rosa com bolinhas que vão sumindo.
+- Bolinha da barra de tempo não é mais cortada nas pontas.
+
+### Notificação de música
+- **Bolinha na barra de tempo do cartão**: uma bolinha amarela com contorno marca a posição da faixa (a barra continua só de toque: tocar numa região pula para ela; arrastar é no estilo PLAYER).
+
+### Fitas personalizáveis (parte 1)
+- **Mais opções ⋯ → PERSONALIZAR FITA**: a personalização aparece **na própria fita** (a lista, o cassete grande do player e o da aba Fitas). Tela com a fita em cima (fixa) e os controles rolando embaixo.
+- **Cor**: 8 lisas e 6 em **xadrez de duas cores** (preto e branco, rosa e branco, amarelo e preto, azul e branco, vermelho e preto, roxo e rosa), mais **padrão no corpo da fita** (bolinhas, listras, xadrez, estrelas).
+- **Borda da fita**: xadrez preto e branco, listras de obra (amarelo e preto) ou docinho (rosa e branco).
+- **Figurinhas arrastáveis**: até 6; arraste com o dedo para o lugar que quiser na fita, **gire** e **aumente com os dedos** (pinça e giro com dois dedos, ou arrastando a bolinha do canto da figurinha selecionada; os botões de girar de 15 em 15° e de tamanho continuam), ou tire. Nas beiras a figurinha **passa por cima da borda e da moldura** em volta da fita e só é **cortada na beira da moldura amarela** (a prévia da tela de personalizar também tem a moldura, para ver igual ao player). O centro nunca sai da fita, então dá para pegar de volta.
+- **Imagem no rótulo**, atrás do nome da fita (escolhida no celular e copiada para o app). **USAR A CAPA DO ÁLBUM DA MÚSICA**: pega a capa que vem dentro do arquivo da música (a mesma que o app de música do celular mostra); se a música não tiver capa, o app avisa. **AJUSTAR A IMAGEM COM O DEDO**: arraste para escolher a região que aparece e use dois dedos para dar zoom (zoom de 0,25× a 3×); as setas e os botões de zoom continuam lá. Onde a imagem não cobre o rótulo fica o **azul padrão** (com bordinha azul clara), qualquer que seja a cor da fita. **Como a imagem encaixa**: PREENCHER (cobre toda a área), INTEIRA (aparece inteira e pode ficar menor, sem preencher tudo) ou ESTICAR (força o ajuste à área toda).
+- **Anotação** de até 280 letras ("fita anotada"): bilhetinho amarelo na lista, começo da anotação na linha e cartão no "Tocando agora".
+- Tudo fica só neste celular. **VOLTAR AO PADRÃO** limpa a fita (e apaga a cópia da imagem).
+
 ## [1.4.4] — 2026-10-14
 
 ### Ajustes a partir do seu teste da 1.4.3

@@ -110,7 +110,7 @@
           android:id="@+id/bar"
           style="@android:style/Widget.ProgressBar.Horizontal"
           android:layout_width="match_parent"
-          android:layout_height="11dp"
+          android:layout_height="24dp"
           android:layout_gravity="center_vertical"
           android:max="1000"
           android:progress="0"

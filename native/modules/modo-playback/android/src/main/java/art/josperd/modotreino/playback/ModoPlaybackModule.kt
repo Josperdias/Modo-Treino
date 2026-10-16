@@ -212,6 +212,27 @@ class ModoPlaybackModule : Module() {
       }
       value
     }
+    // Capa do álbum que vem DENTRO do arquivo de música (tag ID3/MP4): salva uma cópia no cache e devolve o caminho; null se a música não tem capa.
+    AsyncFunction("extractCover") { uri: String ->
+      val retriever = android.media.MediaMetadataRetriever()
+      try {
+        val parsed = android.net.Uri.parse(uri)
+        if (parsed.scheme == null || parsed.scheme == "file") retriever.setDataSource(parsed.path ?: uri) else retriever.setDataSource(context, parsed)
+        val bytes = retriever.embeddedPicture
+        if (bytes == null || bytes.isEmpty()) {
+          null
+        } else {
+          val dir = java.io.File(context.cacheDir, "capas-extraidas").apply { mkdirs() }
+          val file = java.io.File(dir, Integer.toHexString(uri.hashCode()) + "-" + bytes.size + ".img")
+          if (!file.exists()) file.writeBytes(bytes)
+          "file://" + file.absolutePath
+        }
+      } catch (e: Exception) {
+        null
+      } finally {
+        try { retriever.release() } catch (e: Exception) { /* já liberado */ }
+      }
+    }
     AsyncFunction("getNotificationStyle") {
       context.getSharedPreferences(TapePlaybackService.PREFS, android.content.Context.MODE_PRIVATE).getString(TapePlaybackService.KEY_STYLE, "card") ?: "card"
     }

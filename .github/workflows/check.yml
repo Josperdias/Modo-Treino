@@ -90,3 +90,7 @@ jobs:
         run: node --test tests/e2e/native-web.e2e.mjs
         env:
           NATIVE_WEB_DIR: dist-web
+      - name: NEON STEP DX no navegador (Skia/CanvasKit + react-native-web)
+        run: node --test tests/e2e/arcade-web.e2e.mjs
+        env:
+          NATIVE_WEB_DIR: dist-web
