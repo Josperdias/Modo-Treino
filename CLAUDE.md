@@ -72,7 +72,7 @@ Projeto proprietário/pessoal de Josperd. Preservar o universo dos personagens, 
 - **Toque**: tratar `onResponderStart/Move/End/Release` (não só Grant/Move/Release), senão soltar um dedo com o outro ainda na tela não atualiza o controle.
 - **Skia na web (testes)**: o `.wasm` precisa ser o de `canvaskit-wasm/bin/full/` (a versão "leve" derruba a página com `Uncaught Infinity`). O e2e `tests/e2e/arcade-web.e2e.mjs` já serve o certo. Os quadros viram `Picture`; os antigos são liberados com `dispose()` com 2 quadros de atraso.
 - **Som/vibração**: tudo **desligado por padrão**; o jogo não toca áudio ainda (M3: módulo Kotlin próprio, sem derrubar o Media3). Direitos de música: ver `docs/neon-step-dx/00-AUDITORIA.md` §4.
-- Documentos: `docs/neon-step-dx/` (auditoria, arquitetura, plano, baseline e medições do M1).
+- Documentos: `docs/neon-step-dx/` (auditoria, arquitetura, plano, baseline, medições do M1 e `CHANGELOG-ARCADE.md` com o histórico detalhado; o `CHANGELOG.md` público só traz uma dica, o jogo é um segredo).
 
 ## APK de teste
 
