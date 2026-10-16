@@ -71,10 +71,10 @@ export const LEVELS = [
  * - Alcance: nenhum degrau passa de `GAP_MAX_FRAC` do ápice do salto normal.
  */
 export const GEN = {
-  RAMP_M: 420,
+  RAMP_M: 300,
   CYCLE: 5000,
   /** Fração do ciclo (0..1) em que a intensidade cai para o respiro. */
-  CALM_FLOOR: 0.38,
+  CALM_FLOOR: 0.55,
   MARGIN_X: 52,
   GAP_MIN: 82,
   GAP_MIN_HARD: 102,
@@ -102,11 +102,11 @@ export const PATTERN_WEIGHTS = {
   tower: [2.2, 1],
   wide: [1.2, 0.6],
   scatter: [1.4, 1.6],
-  fork: [0, 1.5],
-  movers: [0, 2.2],
-  zigzag: [0, 1.8],
-  springPad: [0, 1.1],
-  breakables: [0, 1.7],
+  fork: [0.4, 1.5],
+  movers: [0.5, 2.2],
+  zigzag: [0.3, 1.8],
+  springPad: [0.35, 1.1],
+  breakables: [0.35, 1.7],
 } as const;
 
 /** Ao entrar em cada padrão, a partir de qual intensidade ele é permitido. */
@@ -114,10 +114,22 @@ export const PATTERN_MIN_INTENSITY = {
   stairs: 0,
   tower: 0,
   wide: 0,
-  scatter: 0.12,
-  fork: 0.2,
-  movers: 0.3,
-  zigzag: 0.38,
-  springPad: 0.34,
-  breakables: 0.45,
+  scatter: 0.08,
+  fork: 0.13,
+  movers: 0.16,
+  zigzag: 0.22,
+  springPad: 0.2,
+  breakables: 0.26,
 } as const;
+
+/**
+ * Apresentação de novidades: cada padrão novo é FORÇADO uma vez nesta altitude (metros), para o jogador
+ * conhecer plataformas móveis, quebráveis e mola cedo, em vez de esperar o sorteio.
+ */
+export const INTRO = [
+  {pattern: 'fork', m: 28},
+  {pattern: 'movers', m: 52},
+  {pattern: 'breakables', m: 82},
+  {pattern: 'springPad', m: 112},
+  {pattern: 'zigzag', m: 150},
+] as const;

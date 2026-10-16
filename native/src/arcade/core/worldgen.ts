@@ -1,4 +1,4 @@
-import {FIELD_W, GEN, PATTERN_MIN_INTENSITY, PATTERN_WEIGHTS, PHYS, PICKUP} from '../data/neon.ts';
+import {FIELD_W, GEN, INTRO, PATTERN_MIN_INTENSITY, PATTERN_WEIGHTS, PHYS, PICKUP} from '../data/neon.ts';
 import {chance, int, makeRng, next, range, weighted} from './rng.ts';
 import type {Gen, Item, PatternName, Platform, PlatformType} from './types.ts';
 
@@ -27,6 +27,7 @@ export function makeGen(seed: number): Gen {
     last: 'start',
     repeat: 0,
     sinceWide: 0,
+    intro: 0,
     nextId: 1,
   };
 }
@@ -160,13 +161,15 @@ const scatter: PatternFn = (g, d, out) => {
 
 const fork: PatternFn = (g, d, out) => {
   const y = g.y + gapFor(g, d);
-  let s = range(g.rng, 92, 122);
-  let xl = g.x - s;
-  let xr = g.x + s;
-  if (xl < GEN.MARGIN_X) { xr += GEN.MARGIN_X - xl; xl = GEN.MARGIN_X; }
-  if (xr > FIELD_W - GEN.MARGIN_X) { xl -= xr - (FIELD_W - GEN.MARGIN_X); xr = FIELD_W - GEN.MARGIN_X; }
-  xl = clampX(xl);
-  s = xr - xl;
+  const s = range(g.rng, 92, 122);
+  const R = 125; // nenhum dos dois lados fica além do alcance seguro a partir do ponto de partida
+  let xl = Math.max(clampX(g.x - s), g.x - R);
+  let xr = Math.min(clampX(g.x + s), g.x + R);
+  if (xr - xl < 112) {
+    // Perto da borda: abre o lado livre, sem passar do alcance nem da margem.
+    if (g.x < FIELD_W / 2) xr = Math.min(xl + 112, FIELD_W - GEN.MARGIN_X);
+    else xl = Math.max(xr - 112, GEN.MARGIN_X);
+  }
   const w = widthFor(g, GEN.WIDTH_NORMAL, d);
   const a = put(g, out, 'fork', xl, y, w, 'normal');
   const b = put(g, out, 'fork', xr, y, w, 'normal');
@@ -261,6 +264,8 @@ const NAMES = Object.keys(PATTERNS) as Exclude<PatternName, 'start'>[];
 function choosePattern(g: Gen, d: number): PatternName {
   const m = metersAt(g.y);
   if (m < GEN.WARMUP_M) return weighted(g.rng, [['stairs', 3], ['tower', 2], ['wide', 1]] as const);
+  // Novidade do momento (uma vez cada): apresenta o padrão antes de ele entrar no sorteio.
+  if (g.intro < INTRO.length && m >= INTRO[g.intro].m) return INTRO[g.intro++].pattern;
   // Respiro garantido: depois de vários padrões tensos, entra um pouso largo.
   if (g.sinceWide >= 6 && g.last !== 'wide') return 'wide';
   const calm = cycleAt(g.y) < 0.55;

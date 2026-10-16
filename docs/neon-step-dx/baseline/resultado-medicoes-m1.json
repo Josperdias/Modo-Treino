@@ -1,44 +1,44 @@
 {
  "node": "v22.22.0",
- "passo_us_por_passo": 2.03,
- "custo_por_quadro_60hz_us": 4.05,
+ "passo_us_por_passo": 1.55,
+ "custo_por_quadro_60hz_us": 3.09,
  "sessao_30min": {
   "fim": "playing",
-  "metros": 23463,
-  "heap_inicial_MB": 7.52,
+  "metros": 23385,
+  "heap_inicial_MB": 7.53,
   "marcas": {
    "5 min": {
-    "heapMB": 7.5,
-    "metros": 3982,
-    "plataformas": 15
+    "heapMB": 7.51,
+    "metros": 3944,
+    "plataformas": 11
    },
    "10 min": {
     "heapMB": 7.52,
-    "metros": 7959,
+    "metros": 7859,
     "plataformas": 15
    },
    "15 min": {
     "heapMB": 7.52,
-    "metros": 11904,
-    "plataformas": 11
+    "metros": 11695,
+    "plataformas": 13
    },
    "20 min": {
-    "heapMB": 7.52,
-    "metros": 15736,
-    "plataformas": 11
+    "heapMB": 7.53,
+    "metros": 15634,
+    "plataformas": 15
    },
    "25 min": {
-    "heapMB": 7.53,
-    "metros": 19620,
-    "plataformas": 16
+    "heapMB": 7.52,
+    "metros": 19547,
+    "plataformas": 15
    },
    "30 min": {
     "heapMB": 7.53,
-    "metros": 23463,
-    "plataformas": 15
+    "metros": 23385,
+    "plataformas": 14
    }
   },
-  "max_plataformas_vivas": 22,
-  "max_itens_vivos": 10
+  "max_plataformas_vivas": 20,
+  "max_itens_vivos": 9
  }
 }

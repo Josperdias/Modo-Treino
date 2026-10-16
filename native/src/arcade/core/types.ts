@@ -70,6 +70,8 @@ export type Gen = {
   repeat: number;
   /** Padrões desde o último "respiro" (wide/fork/springPad). */
   sinceWide: number;
+  /** Quantas apresentações de padrão novo (INTRO) já aconteceram. */
+  intro: number;
   nextId: number;
 };
 

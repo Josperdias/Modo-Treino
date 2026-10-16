@@ -276,6 +276,47 @@ test('desempenho: 6 s de jogo no Chromium (WebGL por software) — passo, desenh
   await context.close();
 });
 
+test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, quebráveis e mola (captura)', {skip}, async () => {
+  for (const who of ['josperd', 'camila']) {
+    const {context, page, errors} = await open({save: {v: 1, unlocked: true, settings: {hero: who}}});
+    await toArcade(page);
+    await startGame(page, who.toUpperCase());
+    // Robô simples dentro da página: mira a plataforma mais alta que o salto atual alcança.
+    const seen = await page.evaluate(() => {
+      const s = globalThis.__MODO_ARCADE_SESSION__, step = globalThis.__MODO_ARCADE_STEP__;
+      const types = new Set();
+      s.pause();
+      for (let i = 0; i < 120 * 90 && (s.sim.player.y - 90) / 10 < 260; i++) {
+        const p = s.sim.player, rise = p.vy > 0 ? p.vy * p.vy / 2400 : 0; let best = null;
+        for (const pl of s.sim.platforms) {
+          if (pl.broken || pl.y > p.y + rise - 6 || pl.y < p.y - 260) continue;
+          const px = pl.type === 'moving' ? pl.x + Math.sin(s.sim.time * pl.speed + pl.phase) * pl.shift : pl.x;
+          if (Math.abs(px - p.x) > 230) continue;
+          if (!best || pl.y > best.y) best = {y: pl.y, x: px};
+        }
+        const dx = best ? best.x - p.x : 0;
+        step(Math.abs(dx) < 6 ? 0 : Math.max(-1, Math.min(1, dx / 36)));
+        for (const pl of s.sim.platforms) types.add(pl.type);
+        // Para quando a tela mostra pelo menos dois tipos especiais ao mesmo tempo (bom para a captura).
+        if ((p.y - 90) / 10 > 120 && i % 20 === 0) {
+          const vis = new Set(s.sim.platforms.filter(pl => pl.y > s.sim.camera + 60 && pl.y < s.sim.camera + s.sim.viewH - 120 && pl.type !== 'normal').map(pl => pl.type));
+          if (vis.size >= 2) break;
+        }
+      }
+      s.resume();
+      return {types: [...types].sort(), meters: Math.floor((s.sim.player.y - 90) / 10), mode: s.sim.mode};
+    });
+    assert.equal(seen.mode, 'playing');
+    for (const t of ['moving', 'fragile', 'normal']) assert.ok(seen.types.includes(t), `faltou ${t}: ${seen.types}`);
+    await page.waitForTimeout(500);
+    const p = await paintStats(page);
+    assert.ok(p.colors > 60);
+    await shot(page, `02b-mundo-avancado-${who}`);
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+});
+
 test('layout: cabe em celular estreito (360×640) e em tela grande sem cortar o jogo', {skip}, async () => {
   for (const viewport of [{width: 360, height: 640}, {width: 412, height: 915}]) {
     const {context, page, errors} = await open({save: {v: 1, unlocked: true}, viewport});

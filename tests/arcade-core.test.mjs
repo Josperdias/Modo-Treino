@@ -221,11 +221,26 @@ test('mundo: variedade — vários padrões, sem repetir o mesmo padrão em sequ
   assert.ok(maxSinceWide <= 8, `${maxSinceWide} padrões tensos sem respiro`);
 });
 
+test('mundo: apresentação — cada novidade aparece cedo e em ordem (fork, móveis, quebráveis, mola, zigue-zague)', () => {
+  const first = {};
+  for (let seed = 1; seed <= 40; seed++) {
+    const w = worldOf(seed, 400);
+    const seen = {};
+    for (const p of w.platforms) if (!seen[p.pattern]) seen[p.pattern] = (p.y - 90) / 10;
+    for (const [pat, limit] of [['fork', 90], ['movers', 125], ['breakables', 170], ['springPad', 215], ['zigzag', 255]]) {
+      assert.ok(seen[pat] !== undefined && seen[pat] <= limit, `semente ${seed}: ${pat} só aos ${seen[pat]} m`);
+      first[pat] = Math.max(first[pat] || 0, seen[pat]);
+    }
+    const typeAt = t => w.platforms.find(p => p.type === t);
+    assert.ok((typeAt('moving').y - 90) / 10 <= 125 && (typeAt('fragile').y - 90) / 10 <= 180 && (typeAt('spring').y - 90) / 10 <= 225);
+  }
+});
+
 test('mundo: ritmo — a intensidade oscila (tensão/respiro) e cresce com a altitude', () => {
   assert.ok(rampAt(90) === 0 && rampAt(90 + 5000) > 0.9);
   const samples = [];
   for (let y = 90 + 5000; y < 90 + 5000 + GEN.CYCLE; y += 100) samples.push(intensityAt(y));
-  assert.ok(Math.max(...samples) > 0.9 && Math.min(...samples) < 0.45);
+  assert.ok(Math.max(...samples) > 0.9 && Math.min(...samples) < 0.6);
   assert.ok(cycleAt(90) < cycleAt(90 + GEN.CYCLE / 2));
 });
 

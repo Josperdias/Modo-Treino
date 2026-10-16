@@ -5,10 +5,12 @@ import {activateKeepAwakeAsync, deactivateKeepAwake} from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
 import {Text} from '../text';
 import {C, R} from '../theme';
-import {Btn, Card, Chips, Icon, Pattern, Press, Switch} from '../ui';
+import {Btn, Card, Chips, Float, Icon, Pattern, Press, Switch, Twinkle} from '../ui';
+import {Flower, Star} from '../glyphs';
 import {useArcade, updateArcade} from './arcadeStore';
 import GameHost from './GameHost';
 import {Session, type Hud} from './session.ts';
+import {step as simStep} from './core/sim.ts';
 import {recordRun, type Hero} from './save';
 import type {SimEvent} from './core/types.ts';
 
@@ -47,7 +49,10 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
     const s = new Session(newSeed(), 690, save.best[hero]);
     session.current = s;
     // Gancho só para testes de interface (ativo quando o teste fixa a semente).
-    if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') (globalThis as any).__MODO_ARCADE_SESSION__ = s;
+    if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') {
+      (globalThis as any).__MODO_ARCADE_SESSION__ = s;
+      (globalThis as any).__MODO_ARCADE_STEP__ = (axis: number) => simStep(s.sim, {axis});
+    }
     setHud(s.hud());
     setBanner('');
     setHint(true);
@@ -125,6 +130,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   return (
     <View style={S.root} testID="arcade-root">
       <Pattern kind="grid" color="#FFFFFF" opacity={0.05} size={28} />
+      {!playing && <Pattern kind="dots" color={NEON.pink} opacity={0.16} size={20} />}
       {playing && session.current && (
         <GameHost
           session={session.current}
@@ -142,11 +148,21 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
       {phase === 'play' && hud && (
         <View pointerEvents="box-none" style={S.hudWrap}>
           <View style={S.hudTop} pointerEvents="box-none">
-            <View style={S.score} pointerEvents="none">
-              <Text style={S.kick}>PONTOS</Text>
-              <Text style={S.scoreN} testID="arcade-score">{pad(hud.score)}</Text>
+            <View style={S.scoreWrap} pointerEvents="none">
+              <View style={S.scoreShadow} />
+              <View style={S.score}>
+                <Pattern kind="dots" color={NEON.pink} opacity={0.35} size={12} />
+                <View style={S.scoreRow}>
+                  <View style={S.badge}>{hero === 'josperd' ? <Star size={22} fill={C.yellow} /> : <Flower size={24} petal={NEON.cyan} />}</View>
+                  <View>
+                    <Text style={S.kick}>PONTOS</Text>
+                    <Text style={S.scoreN} testID="arcade-score">{pad(hud.score)}</Text>
+                  </View>
+                </View>
+              </View>
             </View>
             <View style={S.side} pointerEvents="none">
+              <Pattern kind="stripes" color="#FFFFFF" opacity={0.08} size={14} />
               <Text style={S.kick}>RECORDE <Text style={S.sideN}>{pad(hud.best)}</Text></Text>
               <Text style={S.kick}>FITAS <Text style={S.sideN}>{pad(hud.tapes, 2)}</Text>  ·  <Text style={S.sideN}>{hud.meters} m</Text></Text>
             </View>
@@ -155,9 +171,9 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
             </Press>
           </View>
           <View style={S.strip} pointerEvents="none">
-            <Text style={[S.stripT, {color: NEON.cyan}]}>NEON</Text>
-            <Text style={S.stripT}>LV {String(hud.level).padStart(2, '0')} · {hud.levelName}</Text>
-            {hud.combo > 1 && <Text style={[S.stripT, {color: C.yellow}]}>x{hud.combo}</Text>}
+            <View style={S.pill}><Text style={[S.stripT, {color: NEON.cyan}]}>NEON</Text></View>
+            <View style={S.pill}><Text style={S.stripT}>LV {String(hud.level).padStart(2, '0')} · {hud.levelName}</Text></View>
+            {hud.combo > 1 && <View style={[S.pill, {backgroundColor: C.yellow, borderColor: C.ink}]}><Text style={[S.stripT, {color: C.ink, textShadowRadius: 0}]}>COMBO x{hud.combo}</Text></View>}
           </View>
           {!!banner && <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(300)} style={S.banner} pointerEvents="none"><Text style={S.bannerT}>{banner}</Text></Animated.View>}
           {hint && (
@@ -178,9 +194,11 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
             <Text style={S.kick2}>FLIPERAMA · NEON_STEP_DX</Text>
             <View style={{width: 44}} />
           </View>
-          <Card color={NEON.bg2} outer={{alignSelf: 'center', width: '100%'}} style={{padding: 0}} shadowColor={NEON.pink}>
-            <View style={{width: '100%', height: logoH, backgroundColor: '#000'}}>
-              <Image source={LOGO} resizeMode="contain" style={[StyleSheet.absoluteFill, {resizeMode: 'contain'}]} accessibilityLabel="NEON STEP DX com Josperd e Camila" />
+          <Twinkle size={20} color={C.yellow} delay={0} style={{left: 8, top: 52}} />
+          <Twinkle size={14} color={NEON.cyan} delay={400} style={{right: 14, top: 70}} />
+          <Card color={NEON.bg2} outer={{alignSelf: 'center', width: '100%'}} style={{padding: 0}} shadowColor={NEON.pink} pattern={<Pattern kind="stripes" color={C.yellow} opacity={0.18} size={14} />}>
+            <View style={{width: '100%', height: logoH, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center'}}>
+              <Image source={LOGO} resizeMode="contain" style={{width: logoH * (960 / 720), height: logoH, resizeMode: 'contain'}} accessibilityLabel="NEON STEP DX com Josperd e Camila" />
             </View>
           </Card>
           <Text style={S.pick}>ESCOLHA SEU PERSONAGEM</Text>
@@ -189,7 +207,9 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
               const on = h.id === hero;
               return (
                 <Press key={h.id} accessibilityRole="radio" accessibilityState={{selected: on}} accessibilityLabel={`${h.name}. Recorde ${save.best[h.id]} pontos`} onPress={() => set({hero: h.id})} style={[S.hero, on && {borderColor: h.color, backgroundColor: '#2c1a4d'}]} testID={`arcade-hero-${h.id}`}>
-                  <Image source={h.art} resizeMode="contain" style={S.heroArt} />
+                  <Pattern kind="dots" color={h.color} opacity={on ? 0.4 : 0.18} size={12} />
+                  <View style={S.glyph}>{h.id === 'josperd' ? <Star size={22} fill={C.yellow} /> : <Flower size={24} petal={NEON.cyan} />}</View>
+                  <Float amplitude={on ? 5 : 2} duration={on ? 1500 : 2800}><Image source={h.art} resizeMode="contain" style={S.heroArt} /></Float>
                   <Text style={[S.heroName, {color: on ? h.color : C.white}]}>{h.name}</Text>
                   <Text style={S.heroTag}>{h.tag}</Text>
                   <Text style={S.heroBest}>RECORDE {pad(save.best[h.id])}</Text>
@@ -207,7 +227,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
 
       {phase === 'pause' && (
         <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={S.modal}>
-          <Card color={NEON.bg2} shadowColor={NEON.pink} outer={{width: '100%', maxWidth: 420}}>
+          <Card color={NEON.bg2} shadowColor={NEON.pink} outer={{width: '100%', maxWidth: 420}} pattern={<Pattern kind="dots" color={NEON.pink} opacity={0.14} size={14} />}>
             <Text style={S.modalT}>PAUSA</Text>
             <Text style={S.modalS}>Seu recorde está esperando.</Text>
             <Btn text="CONTINUAR" icon="play" onPress={resume} style={{marginTop: 12}} />
@@ -228,7 +248,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
 
       {phase === 'over' && hud && (
         <Animated.View entering={FadeIn.duration(220)} style={S.modal}>
-          <Card color={NEON.bg2} shadowColor={NEON.pink} outer={{width: '100%', maxWidth: 420}}>
+          <Card color={NEON.bg2} shadowColor={NEON.pink} outer={{width: '100%', maxWidth: 420}} pattern={<Pattern kind="dots" color={NEON.pink} opacity={0.14} size={14} />}>
             <Text style={S.modalT}>FIM DE JOGO</Text>
             {newRecord && <Text style={[S.modalS, {color: C.yellow, marginTop: 2}]}>★ NOVO RECORDE ★</Text>}
             <Text style={S.final} testID="arcade-final">{pad(hud.score)}</Text>
@@ -254,7 +274,7 @@ const S = StyleSheet.create({
   kick2: {fontSize: 11, fontWeight: '900', letterSpacing: 2.2, color: '#B7C1E3'},
   pick: {fontSize: 12, fontWeight: '900', letterSpacing: 2, color: '#B7C1E3', textAlign: 'center', marginTop: 16},
   cards: {flexDirection: 'row', gap: 12, marginTop: 10},
-  hero: {flex: 1, alignItems: 'center', borderRadius: R.lg, borderWidth: 2, borderColor: '#3a2a66', backgroundColor: '#1c1236', paddingVertical: 12, paddingHorizontal: 6},
+  hero: {overflow: 'hidden', flex: 1, alignItems: 'center', borderRadius: R.lg, borderWidth: 2, borderColor: '#3a2a66', backgroundColor: '#1c1236', paddingVertical: 12, paddingHorizontal: 6},
   heroArt: {width: 84, height: 96},
   heroName: {fontSize: 20, fontWeight: '900', letterSpacing: 0.6, marginTop: 6},
   heroTag: {fontSize: 9, fontWeight: '800', letterSpacing: 1.1, color: '#8F9BC8', marginTop: 2},
@@ -262,10 +282,16 @@ const S = StyleSheet.create({
   heroFlag: {fontSize: 10, fontWeight: '900', letterSpacing: 1.2, color: '#6F7BA8', marginTop: 6},
   hudWrap: {...StyleSheet.absoluteFillObject},
   hudTop: {flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 8, gap: 8},
-  score: {backgroundColor: NEON.glass, borderRadius: R.md, borderWidth: 2, borderColor: NEON.pink, paddingHorizontal: 12, paddingVertical: 4, minWidth: 104},
+  scoreWrap: {marginRight: 4, marginBottom: 4},
+  scoreShadow: {position: 'absolute', left: 4, top: 4, right: -4, bottom: -4, borderRadius: R.md, backgroundColor: NEON.pink},
+  score: {backgroundColor: '#1a0f33', borderRadius: R.md, borderWidth: 2, borderColor: '#10091f', paddingHorizontal: 10, paddingVertical: 4, minWidth: 120, overflow: 'hidden'},
+  scoreRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  badge: {width: 32, height: 32, borderRadius: 16, backgroundColor: '#10091f', borderWidth: 2, borderColor: NEON.pink, alignItems: 'center', justifyContent: 'center'},
+  pill: {backgroundColor: NEON.glass, borderRadius: R.pill, borderWidth: 2, borderColor: '#4A5580', paddingHorizontal: 10, paddingVertical: 3},
+  glyph: {position: 'absolute', top: 8, right: 8},
   scoreN: {fontSize: 30, fontWeight: '900', color: C.white, letterSpacing: 1, lineHeight: 32},
   kick: {fontSize: 10, fontWeight: '900', letterSpacing: 1.4, color: '#B7C1E3'},
-  side: {flex: 1, backgroundColor: NEON.glass, borderRadius: R.md, borderWidth: 2, borderColor: '#4A5580', paddingHorizontal: 10, paddingVertical: 6, gap: 2},
+  side: {overflow: 'hidden', flex: 1, backgroundColor: NEON.glass, borderRadius: R.md, borderWidth: 2, borderColor: '#4A5580', paddingHorizontal: 10, paddingVertical: 6, gap: 2},
   sideN: {color: C.white, fontWeight: '900'},
   pauseBtn: {width: 44, height: 44, borderRadius: 22, backgroundColor: NEON.glass, borderWidth: 2, borderColor: '#4A5580', alignItems: 'center', justifyContent: 'center'},
   strip: {flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 16, paddingTop: 8},

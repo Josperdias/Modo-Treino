@@ -38,16 +38,17 @@ Protótipo: cada plataforma sorteada sozinha (lateral aleatória, largura quase 
 
 | Altitude (m) | Degrau (un.) | Desvio lateral (un.) | Laterais > 120 | Seq. média p/ o mesmo lado | Seq. ≥ 3 | Largura (un.) | Plataformas especiais |
 |---|---|---|---|---|---|---|---|
-| 0-70 | 96.6 ± 7.7 | 40.4 ± 23.5 | 0 % | 2.18 | 36.1 % | 102.9 (mín. 93) | 0 % |
-| 70-145 | 98.9 ± 8.5 | 43 ± 25 | 0 % | 1.92 | 25.7 % | 98.2 (mín. 87) | 0 % |
-| 145-245 | 105.7 ± 14.6 | 47.4 ± 34.5 | 4.5 % | 1.81 | 25 % | 90.2 (mín. 70) | 6.8 % |
-| 245-360 | 113.6 ± 21.8 | 54.4 ± 40.8 | 9.9 % | 1.82 | 22.8 % | 81.9 (mín. 65) | 17 % |
-| 360-∞ | 115.1 ± 21.9 | 60 ± 42.4 | 12.4 % | 1.93 | 25.5 % | 79.8 (mín. 57) | 13.8 % |
+| 0-70 | 96.9 ± 7.7 | 53.2 ± 34.7 | 1.1 % | 2.04 | 30 % | 105.4 (mín. 77) | 3.5 % |
+| 70-145 | 96.4 ± 8.6 | 41.6 ± 31 | 0.7 % | 1.7 | 18.9 % | 89.1 (mín. 74) | 55.2 % |
+| 145-245 | 122.8 ± 48.6 | 84.8 ± 56 | 45.4 % | 1.35 | 6.2 % | 88.3 (mín. 65) | 17.7 % |
+| 245-360 | 118.8 ± 17.2 | 63.7 ± 42.2 | 11.7 % | 1.65 | 15.9 % | 71.9 (mín. 59) | 18.2 % |
+| 360-∞ | 117.7 ± 23.6 | 61.4 ± 43.6 | 13.7 % | 1.88 | 23.8 % | 77 (mín. 57) | 18.1 % |
 
 Leitura:
-- A **estrutura** está nas sequências: no nativo 23–36 % das plataformas formam sequências de 3 ou mais para o mesmo lado (escadas legíveis) contra 10–18 % no protótipo, e há zigue-zagues deliberados, bifurcações com escolha e respiros garantidos (a regra força um respiro depois de 6 padrões tensos; o teste tolera até 8).
-- **Largura** das plataformas varia com a altitude (103 → 80 un.), em vez de quase fixa; **desvios laterais** maiores (até 160) só aparecem em zigue-zague, com degrau menor.
-- Degraus de 225–268 un. nas faixas altas são o **lançamento da mola** (ápice 360), sempre com plataforma larga no destino e fitas no caminho.
+- **Variedade cedo.** No protótipo só 16,5 % das plataformas entre 70 e 145 m eram especiais (móvel/quebrável/mola) e a mola quase nunca aparecia. No nativo cada novidade é **apresentada uma vez, em ordem e cedo**: bifurcação (≤ 90 m), móveis (primeira aos 80–110 m), quebráveis (115–150 m), mola (165–200 m) e zigue-zague (≤ 255 m), e depois entra no sorteio por intensidade. A faixa 70–145 m (55 % de especiais) é, de propósito, a de "apresentação" e provavelmente será suavizada no balanceamento.
+- **Estrutura legível.** Nos primeiros 70 m, 30 % das plataformas formam escadas de 3 ou mais para o mesmo lado (protótipo: 11 %). Em 145–245 m a sequência média cai porque o **zigue-zague** (alternar de lado) é um padrão deliberado, e os desvios laterais grandes (45 % > 120 un.) vêm dele e do lançamento da mola — o protótipo nunca passava de 4 %.
+- **Largura** das plataformas varia com a altitude (105 → 77 un.), em vez de quase fixa; degrau médio sobe de 97 a 123 un.
+- Degraus de 225–268 un. são o **lançamento da mola** (ápice 360), sempre com plataforma larga no destino e fitas no caminho.
 - Ainda não há esteira nem plataforma estreita (virão com os mundos, M2).
 
 ## 3. Jogabilidade provada por robôs (testes automáticos, 100 % reprodutíveis)
@@ -64,12 +65,12 @@ Leitura:
 
 | Medida | Protótipo (desktop) | Nativo M1 |
 |---|---|---|
-| Custo da simulação | ≈ 0,007 ms/quadro (Chromium) | **2.03 µs por passo** (≈ 4.05 µs por quadro a 60 Hz, Node) |
-| Custo de desenho (lado JS) | ≈ 1,3 ms/quadro (canvas 2D, Chromium) | ≈ 1.24 ms/quadro (gravar o `Picture`, Chromium + SwiftShader) |
-| Memória em sessão longa | não medido | **estável**: heap 7.52 → 7.53 MB em 30 min simulados (23463 m); ≤ 22 plataformas e ≤ 10 itens vivos |
+| Custo da simulação | ≈ 0,007 ms/quadro (Chromium) | **1.55 µs por passo** (≈ 3.09 µs por quadro a 60 Hz, Node) |
+| Custo de desenho (lado JS) | ≈ 1,3 ms/quadro (canvas 2D, Chromium) | ≈ 2.09 ms/quadro (gravar o `Picture`, Chromium + SwiftShader) |
+| Memória em sessão longa | não medido | **estável**: heap 7.53 → 7.53 MB em 30 min simulados (23385 m); ≤ 20 plataformas e ≤ 9 itens vivos |
 | FPS em celular | não medido | **NÃO MEDIDO** — o APK traz o medidor (Pausa → Medidor de desempenho); preciso do número do seu aparelho |
 
-O FPS do Chromium sem GPU (≈ 34.3 fps, p95 83.4 ms) é limitado pelo WebGL por **software** do ambiente de teste e **não representa um celular**. Também não verifiquei em aparelho: inclinação, toque multi-dedo real, vibração e o consumo de memória nativa do Skia (por isso os `Picture` antigos são liberados com `dispose()`).
+O FPS do Chromium sem GPU (≈ 26 fps, p95 150 ms) é limitado pelo WebGL por **software** do ambiente de teste e **não representa um celular**. Também não verifiquei em aparelho: inclinação, toque multi-dedo real, vibração e o consumo de memória nativa do Skia (por isso os `Picture` antigos são liberados com `dispose()`).
 
 ## 5. Telas cobertas por teste de interface (12 testes no Chromium, Skia/CanvasKit real)
 
@@ -77,7 +78,7 @@ Desbloqueio (6 toques não bastam; dica só a partir do 4º; pausa > 1,5 s zera;
 
 ## 6. Capturas
 
-`screenshots/m1-neon-step/`: `00-ajustes-fliperama`, `01-selecao`, `01b-selecao-camila`, `02-jogando`, `03-pausa`, `04-medidor`, `05-fim`, `06-layout-*`, `comparacao-prototipo-vs-nativo`.
+`screenshots/m1-neon-step/`: `00-ajustes-fliperama`, `01-selecao`, `01b-selecao-camila`, `02-jogando`, `02b-mundo-avancado-josperd`, `02b-mundo-avancado-camila`, `03-pausa`, `04-medidor`, `05-fim`, `06-layout-*`, `comparacao-prototipo-vs-nativo`.
 
 ## 7. O que ficou de fora de propósito (M2 em diante)
 
