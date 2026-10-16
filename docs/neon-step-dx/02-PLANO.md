@@ -1,5 +1,19 @@
 # NEON STEP DX — Plano de implementação por etapas
 
+> **Status (2026-10-16):** M0 concluído · **M1 entregue** (ver `M1-comparacao.md`; APK jogável pelo CI do PR #17, sem publicar) · M2 em diante aguardam o teste do M1 no aparelho.
+
+## Decisões aprovadas pelo dono (valem para todos os marcos)
+
+1. **Checkpoint também na Cidade Neon**, sem aparecer em excesso e sem facilitar o jogo (M2).
+2. **Papel**: os dois personagens participam de verdade — itens, obstáculos, colisões e portais respeitam o espelhamento, **sem duplicar recompensas** (M2).
+3. **Troca de personagem entre universos vira mecânica intencional, com regras próprias de cada mundo** (não some). Portais por contato, sem confirmação; evitar = não encostar (M2).
+4. **Combate**: só tiro para cima por enquanto; armas e ataques novos em marcos futuros.
+5. **Áudio**: orçamento inicial de 12 MB, **preservando o catálogo original de 57 músicas** (o restante poderá virar pacotes de trilhas instaláveis offline); preservar a identidade musical de cada personagem e universo (M3/M4).
+6. **Desbloqueio**: 7 toques no número da versão em Ajustes (feito no M1).
+7. **Física**: referência v²/2g = 198,375; testes de paridade seguem o modelo adotado (feito no M1).
+8. **Sprites**: Josperd e Camila originais; pivôs/alinhamento só por metadados e renderização (feito no M1).
+9. Liberdade total de arquitetura/jogo concedida ao Claude, desde que a identidade visual e a estabilidade sejam preservadas. As músicas foram geradas por pedido do dono (via GPT); um prompt de continuidade do dono para a Fase 3 está a caminho.
+
 Cada marco termina num **APK jogável** (artefato do CI no PR), com testes, prints, changelog e comparação com o protótipo web. **Nada é publicado como release sem você mandar** (e, quando mandar, sai publicado, nunca rascunho). Nenhuma arte nova é ligada e nenhuma música existente é substituída sem sua aprovação.
 
 Regra de entrada em cada marco: o anterior está verde no CI e a lista de verificação do briefing (§5) do que ele toca passou.

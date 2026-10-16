@@ -30,6 +30,8 @@ import {useBackup} from './src/backup';
 import {limparTreino, pedirNotificacoes} from './src/notify';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {C, R, useNarrow} from './src/theme';
+// O fliperama (Skia) só é carregado quando o jogador o abre: nada disso pesa na abertura do app.
+const ArcadeScreen = React.lazy(() => import('./src/arcade/ArcadeScreen'));
 
 const APP_VERSION='1.4.5';
 
@@ -93,6 +95,7 @@ function Shell() {
   const [zoom, setZoom] = useState<{source: ImageSourcePropType; label: string} | null>(null);
   const [settings, setSettings] = useState(false);
   const [gallery, setGallery] = useState(false);
+  const [arcade, setArcade] = useState(false);
   const [nowOpen, setNowOpen] = useState(false);
   const updates = useUpdates(APP_VERSION, state.notifyUpdates, app.loaded);
   const backup = useBackup(state, APP_VERSION, app.loaded, (b) => app.update((s) => ({...s, ...b})));
@@ -171,9 +174,10 @@ function Shell() {
           onOpenMusic={() => setNowOpen(true)} onZoom={openZoom} onEdit={setEditing} />
       )}
       <EditSheet exercise={editing} onClose={() => setEditing(null)} onZoom={openZoom} />
-      <SettingsSheet visible={settings} onClose={() => setSettings(false)} version={APP_VERSION} status={updates.status} onCheck={() => { void updates.check(true); }} onGallery={() => setGallery(true)} backup={backup} />
+      <SettingsSheet visible={settings} onClose={() => setSettings(false)} version={APP_VERSION} status={updates.status} onCheck={() => { void updates.check(true); }} onGallery={() => setGallery(true)} onPlayArcade={() => setArcade(true)} backup={backup} />
       <NowPlaying visible={nowOpen} onClose={() => setNowOpen(false)} onTapes={() => { setWorkout(null); setTab('music'); }} />
       <GallerySheet visible={gallery} onClose={() => setGallery(false)} onZoom={openZoom} />
+      {arcade && <React.Suspense fallback={null}><ArcadeScreen onClose={() => setArcade(false)} /></React.Suspense>}
       {zoom && <ZoomView source={zoom.source} label={zoom.label} onClose={() => setZoom(null)} />}
     </SafeAreaView>
   );

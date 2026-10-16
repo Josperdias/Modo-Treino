@@ -66,6 +66,14 @@ export function createSim(seed: number, viewH = 690): Sim {
   return sim;
 }
 
+/** Ajusta a altura visível ANTES da primeira jogada (a tela só é medida depois de criada a partida). */
+export function setViewH(sim: Sim, viewH: number) {
+  if (sim.tick !== 0 || viewH === sim.viewH || !Number.isFinite(viewH) || viewH < 300 || viewH > 3000) return;
+  sim.viewH = viewH;
+  sim.camera = sim.prevCamera = PHYS.START_Y - START_SCREEN_FRAC * viewH;
+  ensureWorld(sim);
+}
+
 function ensureWorld(sim: Sim) {
   const out: Out = {platforms: sim.platforms, items: sim.items};
   generateUntil(sim.gen, out, sim.camera + sim.viewH + GEN.LOOKAHEAD);

@@ -1,0 +1,44 @@
+{
+ "node": "v22.22.0",
+ "passo_us_por_passo": 2.03,
+ "custo_por_quadro_60hz_us": 4.05,
+ "sessao_30min": {
+  "fim": "playing",
+  "metros": 23463,
+  "heap_inicial_MB": 7.52,
+  "marcas": {
+   "5 min": {
+    "heapMB": 7.5,
+    "metros": 3982,
+    "plataformas": 15
+   },
+   "10 min": {
+    "heapMB": 7.52,
+    "metros": 7959,
+    "plataformas": 15
+   },
+   "15 min": {
+    "heapMB": 7.52,
+    "metros": 11904,
+    "plataformas": 11
+   },
+   "20 min": {
+    "heapMB": 7.52,
+    "metros": 15736,
+    "plataformas": 11
+   },
+   "25 min": {
+    "heapMB": 7.53,
+    "metros": 19620,
+    "plataformas": 16
+   },
+   "30 min": {
+    "heapMB": 7.53,
+    "metros": 23463,
+    "plataformas": 15
+   }
+  },
+  "max_plataformas_vivas": 22,
+  "max_itens_vivos": 10
+ }
+}
