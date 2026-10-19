@@ -44,7 +44,7 @@ function routeBlocked(sim: Sim, x0: number, y0: number, x1: number, y1: number, 
   for (const e of sim.enemies) {
     if (!e.alive || e.y < y0 - 20 || e.y > y1 + 40) continue;
     const f = y1 > y0 ? Math.min(1, Math.max(0, (e.y - y0) / (y1 - y0))) : 1;
-    const at = enemyAt(e, sim.time + tEnd * f);
+    const at = enemyAt(e, sim.etime + tEnd * f * (sim.slow > 0 ? 0.35 : 1));
     const px = x0 + (x1 - x0) * f;
     if (Math.abs(at.x - px) < e.size + 30) return true;
   }

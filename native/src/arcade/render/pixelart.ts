@@ -219,6 +219,47 @@ const ufoRows = (lights: [string, string]) => [
 /** Disco voador (Cosmos): cúpula azul, casco metálico e luzes que alternam (2 quadros). */
 export const UFO: PixelSprite[] = [{pal: UFO_PAL, sym: true, rows: ufoRows(['y', 'm'])}, {pal: UFO_PAL, sym: true, rows: ufoRows(['m', 'y'])}];
 
+const JELLY_PAL = {k: INK, p: '#ff7ad9', P: '#ffc4ef', d: '#b03a9a', w: '#ffffff', e: '#4fe9f2'};
+const jellyRows = (wave: number) => [
+  '.....kkkkkkk',
+  '...kkkPPPPPP',
+  '..kPPPPPPPPP',
+  '.kPPwwPPPPPP',
+  '.kPPwPPPPPpp',
+  'kPPPPPPPPppp',
+  'kPPPPkkPPppp',
+  'kPPPPkePpppp',
+  'kpppPPPpppdd',
+  'kppppppppddd',
+  '.kkpppppdddd',
+  '..kkkkkkkkkk',
+  ...(wave ? ['..kpk.kpk.kp', '...kpk.kpk.k', '..kpk.kpk.kp', '...kpk.kpk.k'] : ['...kpk.kpk.k', '..kpk.kpk.kp', '...kpk.kpk.k', '..kpk.kpk.kp']),
+];
+/** Água-viva (Fundo do Mar): cúpula rosa com brilho, olhos azuis e tentáculos que ondulam (2 quadros). */
+export const JELLY: PixelSprite[] = [{pal: JELLY_PAL, sym: true, rows: jellyRows(0)}, {pal: JELLY_PAL, sym: true, rows: jellyRows(1)}];
+
+const EMBER_PAL = {k: INK, Y: '#fff3a0', o: '#ffb347', r: '#ff5a2a', R: '#c4221a', w: '#ffffff'};
+const emberRows = (flick: number) => [
+  flick ? '......kk' : '.......k',
+  flick ? '.....krr' : '......kr',
+  '.....krr',
+  '....kroo',
+  '...krooY',
+  '..kroooY',
+  '.kroooYY',
+  '.krooYYY',
+  'krooYYYw',
+  'krooYYYY',
+  'krooYYYY',
+  'kroooYYY',
+  '.krooooY',
+  '.kRrrooo',
+  '..kRRrro',
+  '...kkkkk',
+];
+/** Fagulha de lava (Vulcão): gota de fogo que salta do chão (2 quadros). */
+export const EMBER: PixelSprite[] = [{pal: EMBER_PAL, sym: true, rows: emberRows(0)}, {pal: EMBER_PAL, sym: true, rows: emberRows(1)}];
+
 const ROCK_PAL = {k: INK, C: '#e0cdb3', c: '#b09a82', b: '#76655a', n: '#4a3f3d', v: '#2d2522', w: '#fff3d6'};
 /** Meteoro: rocha com crateras (a cauda de fogo é desenhada por cima). */
 const rockRows = (() => {
@@ -437,4 +478,4 @@ export const ARROW_UP: PixelSprite = {
   rows: ['...k', '..kC', '.kCc', 'kCcc', 'kkCc', '.kCc', '.kCc', '.kkk'].map((r) => r.padEnd(4, '.')),
 };
 
-export const ENEMY_SPRITES = {drone: DRONE, zigzag: ZIGZAG, turret: TURRET, orb: ORB, guardian: GUARDIAN, ufo: UFO, meteor: [METEOR_SPRITE, METEOR_SPRITE]} as const;
+export const ENEMY_SPRITES = {drone: DRONE, zigzag: ZIGZAG, turret: TURRET, orb: ORB, guardian: GUARDIAN, ufo: UFO, meteor: [METEOR_SPRITE, METEOR_SPRITE], jelly: JELLY, ember: EMBER} as const;

@@ -26,7 +26,7 @@ export type Platform = {
 export type ItemKind = 'tape' | 'shield' | 'boost' | 'jet' | 'heart' | 'flag' | 'portal' | 'magnet' | 'star';
 
 /** Portais: mundo seguinte, Papel (heróis espelhados + troca), bônus (chuva de fitas) e atalho (sobe voando). `back` = volta do Papel. */
-export type PortalVariant = 'world' | 'paper' | 'bonus' | 'warp' | 'back';
+export type PortalVariant = 'world' | 'paper' | 'bonus' | 'warp' | 'back' | 'time' | 'leap';
 
 export type Item = {
   id: number;
@@ -40,7 +40,7 @@ export type Item = {
   variant?: PortalVariant;
 };
 
-export type EnemyKind = 'drone' | 'zigzag' | 'turret' | 'orb' | 'guardian' | 'ufo' | 'meteor' | 'blackhole' | 'clip';
+export type EnemyKind = 'drone' | 'zigzag' | 'turret' | 'orb' | 'guardian' | 'ufo' | 'meteor' | 'blackhole' | 'clip' | 'jelly' | 'ember';
 
 export type Enemy = {
   id: number;
@@ -164,6 +164,11 @@ export type Sim = {
   portals: number;
   /** Pontos extras (abates, bandeiras, portais). */
   bonus: number;
+  /** Cronos: segundos restantes de câmera lenta; `etime` é o relógio dos inimigos (anda mais devagar com a câmera lenta). */
+  slow: number;
+  etime: number;
+  /** Vulcão: altura (y) da lava; 0 = sem lava. */
+  lava: number;
   /** Ímã de fitas (s restantes). */
   magnet: number;
   /** Velocidade do voo atual (hélice ou atalho). */

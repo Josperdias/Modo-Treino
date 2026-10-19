@@ -13,6 +13,8 @@ export function enemyAt(e: Pick<Enemy, 'kind' | 'x0' | 'y0' | 'phase' | 'speed' 
     case 'orb': return {x: e.x0 + Math.cos(u) * e.range, y: e.y0 + Math.sin(u) * e.range * 0.8};
     case 'guardian': return {x: e.x0 + Math.sin(u) * e.range, y: e.y0 + Math.sin(t * 1.2 + e.phase) * 5};
     case 'ufo': return {x: e.x0 + Math.sin(u) * e.range, y: e.y0 + Math.sin(t * 2.3 + e.phase) * 9};
+    case 'jelly': return {x: e.x0 + Math.sin(u * 0.6) * e.range * 0.5, y: e.y0 + Math.sin(t * 1.4 + e.phase) * 26};
+    case 'ember': return {x: e.x0 + Math.sin(u * 0.5) * 10, y: e.y0 + Math.abs(Math.sin(u)) * e.range - e.range * 0.35};
     case 'clip': return {x: e.x0 + Math.sin(u * 0.7) * 6, y: e.y0 + Math.sin(u) * e.range};
     case 'meteor': {
       // cai em laço: some embaixo e volta por cima, em diagonal suave

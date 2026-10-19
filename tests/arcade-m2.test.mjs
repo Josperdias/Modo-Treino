@@ -8,8 +8,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const C = p => import(join(ROOT, 'native/src/arcade/core', p));
 const {createSim, step, metersOf, windAt, ghostSolid} = await C('sim.ts');
 const {enemyAt, tri} = await C('enemies.ts');
-const {makeGen, generateUntil} = await C('worldgen.ts');
-const {PHYS, LIFE, COMBAT, POWER, PORTAL, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP, PAPER, BLACKHOLE, METEOR} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
+const {makeGen, generateUntil, nextWorld} = await C('worldgen.ts');
+const {makeBot, botInput, IDEAL} = await C('bot.ts');
+const {PHYS, LIFE, COMBAT, POWER, PORTAL, LAVA, WORLD_ORDER, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP, PAPER, BLACKHOLE, METEOR} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
 
 const plat = (o = {}) => ({id: 1, x: 210, y: 300, w: 100, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'stairs', dir: 0, ...o});
 const enemy = (o = {}) => ({id: 900 + Math.floor(Math.random() * 1e6), kind: 'drone', x0: 210, y0: 400, x: 210, y: 400, phase: 0, speed: 0, range: 0, size: ENEMIES.drone.size, hp: 1, maxHp: 1, cooldown: 99, warn: false, alive: true, ...o});
@@ -253,7 +254,7 @@ test('portal: bem longe (700–1000 m), um por vez, com apoio ao lado; primeiro 
     const p = portals[0];
     const m = (p.y - 90) / 10;
     assert.ok(m >= PORTAL.FIRST_M[0] - 5 && m <= PORTAL.FIRST_M[1] + 120, `primeiro portal aos ${m} m`);
-    assert.ok(['world', 'bonus', 'warp'].includes(p.variant), `primeiro portal não é do Papel: ${p.variant}`);
+    assert.ok(['world', 'bonus', 'warp', 'time'].includes(p.variant), `primeiro portal não é do Papel: ${p.variant}`);
     kinds[p.variant] = (kinds[p.variant] || 0) + 1;
     if (p.variant === 'world') assert.equal(p.target, 'crystal');
     const pad = out.platforms.find(q => q.pattern === 'portalPad');
@@ -344,7 +345,7 @@ test('geração: inimigos só depois de 38 m, fora das plataformas, com poderes 
 });
 
 test('geração: tipos por mundo (neon: drone/zigue-zague/torre; cristal: orbe e zigue-zague; mecânico: torre)', () => {
-  for (const [world, expect] of [['neon', ['drone', 'zigzag', 'turret', 'blackhole']], ['crystal', ['zigzag', 'orb', 'drone', 'blackhole']], ['clock', ['turret', 'drone', 'orb', 'blackhole']], ['cosmos', ['meteor', 'ufo', 'orb', 'blackhole', 'drone']]]) {
+  for (const [world, expect] of [['neon', ['drone', 'zigzag', 'turret', 'blackhole']], ['crystal', ['zigzag', 'orb', 'drone', 'blackhole']], ['clock', ['turret', 'drone', 'orb', 'blackhole']], ['cosmos', ['meteor', 'ufo', 'orb', 'blackhole', 'drone']], ['ocean', ['jelly', 'zigzag', 'orb', 'blackhole']], ['volcano', ['ember', 'turret', 'drone']]]) {
     const seen = new Set();
     for (let seed = 1; seed <= 30; seed++) {
       const g = makeGen(seed); g.world = world; g.worldY0 = 90;
@@ -561,4 +562,107 @@ test('Papel e Cosmos: inimigos do mundo (clipe no Papel; meteoro/disco no Cosmos
     for (const p of out.platforms) assert.ok(p.x >= PAPER.LANE_MIN - 1 && p.x <= PAPER.LANE_MAX + 1, `plat ${p.x}`);
   }
   assert.ok(kindsPaper.has('clip'));
+});
+
+test('mais lugares: Cosmos → Fundo do Mar → Vulcão → volta ao começo; correnteza do mar alterna', () => {
+  assert.deepEqual(WORLD_ORDER, ['neon', 'crystal', 'clock', 'cosmos', 'ocean', 'volcano']);
+  assert.equal(nextWorld('cosmos'), 'ocean');
+  assert.equal(nextWorld('ocean'), 'volcano');
+  assert.equal(nextWorld('volcano'), 'neon');
+  const w = [0, 1.15, 2.3, 3.45].map(t => windAt('ocean', t));
+  assert.ok(w[1] > 50 && w[3] < -50, `correnteza ${w}`);
+  assert.equal(windAt('volcano', 1), 0);
+});
+
+test('água-viva balança e fagulha de lava salta em arco (funções puras do tempo)', () => {
+  const j = {kind: 'jelly', x0: 200, y0: 500, phase: 0, speed: 1, range: 80};
+  const ys = [0, 0.5, 1, 1.5, 2, 2.5].map(t => enemyAt(j, t).y);
+  assert.ok(Math.max(...ys) - Math.min(...ys) > 30 && Math.max(...ys) - Math.min(...ys) <= 52);
+  const e = {kind: 'ember', x0: 200, y0: 300, phase: 0, speed: 1.5, range: 90};
+  const eys = Array.from({length: 40}, (_, i) => enemyAt(e, i * 0.1).y);
+  assert.ok(Math.min(...eys) >= 300 - 90 * 0.35 - 1 && Math.max(...eys) <= 300 + 90 * 0.65 + 1);
+  assert.deepEqual(enemyAt(e, 2.2), enemyAt(e, 2.2));
+});
+
+test('portal Cronos: câmera lenta nos inimigos e tiros por 8 s, sem limpar nada; depois volta ao normal', () => {
+  const e = enemy({kind: 'drone', x0: 210, y0: 900, x: 210, y: 900, speed: 1, range: 100});
+  const s = bare({platforms: [plat({y: 100, w: 600})], enemies: [e]});
+  put(s, 210, 600, 300);
+  portalAt(s, 'time', 'neon');
+  steps(s, 1);
+  assert.ok(s.slow > PORTAL.TIME_SECONDS - 0.05);
+  assert.equal(s.world, 'neon');
+  assert.ok(s.enemies.includes(e), 'nada foi limpo');
+  const e0 = s.etime;
+  steps(s, 120);
+  assert.ok(Math.abs((s.etime - e0) - 120 * PHYS.STEP * PORTAL.TIME_SCALE) < 1e-6, 'relógio dos inimigos em 35 %');
+  s.slow = 0; s.invuln = 99; s.lives = 3; s.camera = s.prevCamera = 0; put(s, 210, 130, 0); const e1 = s.etime; assert.equal(s.mode, 'playing'); steps(s, 120);
+  assert.ok(Math.abs((s.etime - e1) - 120 * PHYS.STEP) < 1e-6, 'relógio normal de novo ');
+});
+
+test('portal Salto: pula um mundo (2 à frente) e só aparece depois do primeiro portal', () => {
+  const g = makeGen(5); g.world = 'neon';
+  const seen = new Set();
+  for (let i = 0; i < 400; i++) {
+    const gg = makeGen(i + 1); gg.world = 'neon'; gg.worldY0 = 90; gg.portalsMade = 1; gg.portalPlaced = false; gg.portalY = 0;
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(gg, out, 90 + 3000);
+    for (const it of out.items) if (it.kind === 'portal') { seen.add(it.variant); if (it.variant === 'leap') assert.equal(it.target, 'clock'); }
+  }
+  for (const v of ['world', 'paper', 'bonus', 'warp', 'time', 'leap']) assert.ok(seen.has(v), `portal ${v} nunca saiu`);
+  const first = new Set();
+  for (let i = 0; i < 200; i++) {
+    const gg = makeGen(i + 1); gg.portalPlaced = false; gg.portalY = 0;
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(gg, out, 90 + 3000);
+    for (const it of out.items) if (it.kind === 'portal') first.add(it.variant);
+  }
+  assert.ok(!first.has('leap') && !first.has('paper'), 'o 1º portal é comum');
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  put(s, 210, 600, 300);
+  portalAt(s, 'leap', 'clock');
+  steps(s, 1);
+  assert.equal(s.world, 'clock');
+});
+
+test('Vulcão: a lava sobe sozinha, nunca fica abaixo da tela, machuca e joga para cima; fora do vulcão não existe', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  put(s, 210, 600, 300);
+  portalAt(s, 'world', 'volcano');
+  steps(s, 1);
+  assert.equal(s.world, 'volcano');
+  assert.ok(s.lava > 0 && s.lava < s.player.y);
+  const l0 = s.lava;
+  s.gen.y = 1e9;
+  put(s, 210, s.player.y, 0);
+  Object.assign(s.platforms.find(p => p.w === 132) ?? {}, {broken: true});
+  steps(s, 30);
+  assert.ok(s.lava > l0 + LAVA.SPEED * 0.2, 'sobe com o tempo');
+  // Herói parado abaixo da lava: dano e quique.
+  s.lava = s.player.y + 20; s.invuln = 0; const lives = s.lives;
+  steps(s, 1);
+  assert.equal(s.lives, lives - 1);
+  assert.ok(s.player.vy >= 700, 'jogado para cima');
+  assert.ok(s.lava <= s.player.y - 100, 'a lava recua');
+  // Hélice ignora a lava.
+  const t = bare({platforms: [plat({y: 100, w: 600})]});
+  t.world = 'ocean'; steps(t, 5);
+  assert.equal(t.lava, 0);
+});
+
+test('robô ideal sobrevive ao Fundo do Mar e ao Vulcão (correnteza e lava) por 90 s', () => {
+  for (const world of ['ocean', 'volcano']) {
+    let overs = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const s = createSim(seed);
+      s.gen.portalPlaced = true; s.gen.portalY = 1e12;
+      put(s, s.player.x, s.player.y + 5, 300);
+      s.items.push({id: 99999, kind: 'portal', x: s.player.x, y: s.player.y + 55, phase: 0, hit: false, target: world, variant: 'world'});
+      step(s, {axis: 0});
+      const bot = makeBot(IDEAL, seed);
+      for (let i = 0; i < 90 * 120 && s.mode === 'playing' && s.world === world; i++) step(s, botInput(s, bot));
+      if (s.mode !== 'playing') overs++;
+    }
+    assert.ok(overs <= 1, `${world}: o robô ideal caiu em ${overs}/6 partidas`);
+  }
 });

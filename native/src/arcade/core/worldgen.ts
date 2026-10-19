@@ -278,9 +278,9 @@ const ladder: PatternFn = (g, d, out) => {
 /** Que portal vem agora: o de volta do Papel, ou um sorteado (o do Papel só depois do primeiro portal). */
 function pickPortal(g: Gen): {variant: PortalVariant; target: WorldId} {
   if (g.world === 'paper') return {variant: 'back', target: g.returnWorld ?? 'neon'};
-  const table = PORTAL.KINDS.map(([k, w]) => [k as PortalVariant, k === 'paper' && g.portalsMade < 1 ? 0 : w] as const);
+  const table = PORTAL.KINDS.map(([k, w]) => [k as PortalVariant, (k === 'paper' || k === 'leap') && g.portalsMade < 1 ? 0 : w] as const);
   const variant = weighted(g.rng, table);
-  return {variant, target: variant === 'world' ? nextWorld(g.world) : variant === 'paper' ? 'paper' : g.world};
+  return {variant, target: variant === 'world' ? nextWorld(g.world) : variant === 'leap' ? nextWorld(nextWorld(g.world)) : variant === 'paper' ? 'paper' : g.world};
 }
 
 const portalPad: PatternFn = (g, _d, out) => {
@@ -379,8 +379,10 @@ function placeEnemy(g: Gen, out: Out, from: number, d: number) {
   else if (kind === 'ufo') { range0 = range(g.rng, 60, 100); speed = range(g.rng, 0.5, 0.9); }
   else if (kind === 'meteor') { range0 = range(g.rng, 50, 110) * (chance(g.rng, 0.5) ? 1 : -1); speed = 1; }
   else if (kind === 'clip') { range0 = range(g.rng, 40, 70); speed = range(g.rng, 1.1, 2); }
+  else if (kind === 'jelly') { range0 = range(g.rng, 50, 100); speed = range(g.rng, 0.7, 1.2); }
+  else if (kind === 'ember') { range0 = range(g.rng, 60, 110); speed = range(g.rng, 1.2, 1.9); }
   const [laneLo, laneHi] = laneOf(g);
-  if (g.lane) range0 = Math.min(range0, kind === 'clip' ? range0 : 22);
+  if (g.lane) range0 = Math.min(range0, kind === 'clip' || kind === 'ember' ? range0 : 22);
   // Até 6 tentativas de achar um lugar onde o caminho do inimigo não atravessa uma plataforma.
   for (let k = 0; k < 6; k++) {
     // y: no vão entre duas plataformas do padrão (bloqueio) ou em qualquer ponto da faixa (ao lado).
@@ -390,10 +392,10 @@ function placeEnemy(g: Gen, out: Out, from: number, d: number) {
     const rx = routeX(list, y);
     const sideDir = rx < (laneLo + laneHi) / 2 ? 1 : -1;
     const off = block ? range(g.rng, -16, 16) : sideDir * range(g.rng, 100, 150);
-    const lim = (kind === 'meteor' ? 0 : kind === 'clip' ? 0 : Math.abs(range0)) + spec.size + (g.lane ? 4 : 22);
+    const lim = (kind === 'meteor' ? 0 : kind === 'clip' || kind === 'ember' ? 0 : Math.abs(range0)) + spec.size + (g.lane ? 4 : 22);
     const x0 = laneLo + lim > laneHi - lim ? (laneLo + laneHi) / 2 : clamp(rx + off, laneLo + lim, laneHi - lim);
     // meteoros caem por cima de tudo (sem checar plataforma); os demais não podem atravessar uma
-    if (kind !== 'meteor' && crossesPlatform(near, x0, y, kind === 'clip' ? 4 : Math.abs(range0), spec.size + (kind === 'clip' ? range0 : 0))) continue;
+    if (kind !== 'meteor' && crossesPlatform(near, x0, y, kind === 'clip' || kind === 'ember' ? 14 : kind === 'jelly' ? Math.abs(range0) * 0.5 + 4 : Math.abs(range0), spec.size + (kind === 'clip' || kind === 'ember' ? range0 : kind === 'jelly' ? 30 : 0))) continue;
     out.enemies.push({
       id: g.nextId++, kind, x0, y0: y, x: x0, y, phase: range(g.rng, 0, Math.PI * 2), speed, range: range0,
       size: spec.size, hp: spec.hp, maxHp: spec.hp,

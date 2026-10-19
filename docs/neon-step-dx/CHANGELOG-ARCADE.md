@@ -16,6 +16,11 @@ Pedido do dono: "muito mais aleatório, desorganizado e difícil; portais longe 
 - **Papel**: desvio com portal próprio. Faixa estreita (x 44–168) e o **outro herói é o espelho (W − x)**; tudo é desenhado espelhado na dobra do caderno. O portal **VOLTAR** devolve ao mundo de origem e **troca de personagem**.
 - **Bônus**: zona dourada de 90 m só de fitas, volta sozinho. **Atalho**: hélice turbo (2,6 s a 900 un./s).
 
+### Mais lugares e sistemas (pedido: "mais locais, mais portais e sistemas")
+- **Fundo do Mar** (correnteza que alterna e empurra de lado; águas-vivas que atiram bolhas) e **Vulcão** (a **lava sobe sozinha**: parar demais queima — dano, quique para cima e a lava recua; fagulhas que saltam do chão; aviso vermelho quando ela chega perto). Ciclo: Neon → Cristal → Mecânico → Cosmos → Mar → Vulcão → Neon.
+- **Portal Cronos**: câmera lenta (35 %) para inimigos e tiros por 8 s (relógio `sim.etime`). **Portal Salto**: pula um mundo inteiro (só depois do primeiro portal).
+- Visual: fundos, plataformas e portais de cada lugar; sprites novos (água-viva, fagulha); tom azul-gelo e barra no Cronos.
+
 ### Visual e desempenho
 - Fundos novos (Cosmos: nebulosas, planeta com anel, estrela cadente; Papel: caderno pautado com dobra, furos e rabiscos), plataformas por mundo, buraco negro procedural, clipe de papel, meteoro com cauda de fogo, ímã, estrela, marcos de 100 m, **linha dourada do recorde** e aviso "NOVO RECORDE" ao passar dele, riscos de velocidade no atalho, anéis/explosões por tipo de portal.
 - Camadas estáticas (estrelas, skyline) viram `Picture` uma vez e rolam com 1–2 comandos; caminhos e shaders reaproveitados (sem alocar por quadro).

@@ -51,9 +51,9 @@ function burst(fx: Fx, x: number, y: number, color: string, count: number, sprea
 const LAND_COLOR: Record<string, string> = {spring: '#ffdc7b', fragile: '#ff5b9e', moving: '#59dcd6'};
 
 const KIND_COLOR: Record<string, string> = {shield: '#51ecff', boost: '#ffe36c', jet: '#ff7a95', heart: '#ff3d6e', flag: '#ffe36c', tape: '#ffe48a', magnet: '#ff5a7a', star: '#ffe36c'};
-const ENEMY_COLOR: Record<string, string> = {drone: '#d889ff', zigzag: '#7aa0ff', turret: '#f5b15e', orb: '#28d8fd', guardian: '#ff4dac', ufo: '#7ff6ff', meteor: '#ff9d4a', clip: '#d5dcee', blackhole: '#8e3fff'};
+const ENEMY_COLOR: Record<string, string> = {drone: '#d889ff', zigzag: '#7aa0ff', turret: '#f5b15e', orb: '#28d8fd', guardian: '#ff4dac', ufo: '#7ff6ff', meteor: '#ff9d4a', clip: '#d5dcee', blackhole: '#8e3fff', jelly: '#ff7ad9', ember: '#ff7a3a'};
 
-const PORTAL_FX: Record<string, [string, string]> = {world: ['#88fffd', '#c58cff'], paper: ['#fff1c9', '#2d2a40'], bonus: ['#ffd369', '#fff3b0'], warp: ['#ff4fd8', '#ffd0f7'], back: ['#fff1c9', '#ff7ad9']};
+const PORTAL_FX: Record<string, [string, string]> = {world: ['#88fffd', '#c58cff'], paper: ['#fff1c9', '#2d2a40'], bonus: ['#ffd369', '#fff3b0'], warp: ['#ff4fd8', '#ffd0f7'], back: ['#fff1c9', '#ff7ad9'], time: ['#7fd8ff', '#effbff'], leap: ['#b6ff6b', '#f0ffd0']};
 
 function ring(fx: Fx, x: number, y: number, color: string, r = 70, max = 0.5) {
   if (fx.rings.length < MAX_RINGS) fx.rings.push({x, y, age: 0, max, color, r});

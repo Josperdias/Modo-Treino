@@ -176,6 +176,10 @@ export const ENEMIES = {
   blackhole: {size: 20, hp: 99, shoots: false},
   /** Papel: clipe de papel que sobe e desce. */
   clip: {size: 17, hp: 1, shoots: false},
+  /** Fundo do Mar: água-viva que sobe e desce balançando (2 vidas, atira bolhas). */
+  jelly: {size: 20, hp: 2, shoots: true},
+  /** Vulcão: fagulha de lava que salta do chão em arco. */
+  ember: {size: 16, hp: 1, shoots: false},
 } as const;
 
 /** Buraco negro: raio da atração e força (un./s² somadas ao empurrão lateral). */
@@ -206,13 +210,15 @@ export const ENEMY_TABLE = {
   clock: [['turret', 3, 0], ['drone', 2, 0], ['orb', 1.5, 30], ['blackhole', 0.6, 140]],
   cosmos: [['meteor', 3, 0], ['ufo', 2.4, 10], ['orb', 1.5, 0], ['blackhole', 1.4, 60], ['drone', 1, 30]],
   paper: [['clip', 3, 0], ['drone', 1.6, 10], ['zigzag', 2, 20]],
+  ocean: [['jelly', 3, 0], ['zigzag', 2.4, 0], ['orb', 1.6, 20], ['blackhole', 0.5, 120]],
+  volcano: [['ember', 3, 0], ['turret', 2, 10], ['drone', 1.6, 0], ['guardian', 0.4, 60]],
 } as const;
 
 export const POWER_TABLE = [['shield', 4], ['boost', 3], ['jet', 2], ['heart', 1.2], ['magnet', 2.4]] as const;
 
-export type WorldId = 'neon' | 'crystal' | 'clock' | 'cosmos' | 'paper';
+export type WorldId = 'neon' | 'crystal' | 'clock' | 'cosmos' | 'paper' | 'ocean' | 'volcano';
 /** Ordem dos portais comuns. O Papel é um desvio especial (portal próprio) e fica fora do ciclo. */
-export const WORLD_ORDER: readonly WorldId[] = ['neon', 'crystal', 'clock', 'cosmos'];
+export const WORLD_ORDER: readonly WorldId[] = ['neon', 'crystal', 'clock', 'cosmos', 'ocean', 'volcano'];
 
 export const WORLDS = {
   neon: {name: 'CIDADE NEON'},
@@ -220,6 +226,8 @@ export const WORLDS = {
   clock: {name: 'MUNDO MECÂNICO'},
   cosmos: {name: 'COSMOS'},
   paper: {name: 'UNIVERSO DE PAPEL'},
+  ocean: {name: 'FUNDO DO MAR'},
+  volcano: {name: 'VULCÃO'},
 } as const;
 
 /** Universo de Papel: faixa jogável (x) à esquerda da dobra; o outro herói é o espelho (W − x). */
@@ -239,12 +247,18 @@ export const PORTAL = {
   ABOVE: 74,
   SIDE: 82,
   /** Tipos de portal e peso (o do Papel só depois do primeiro portal e fora do próprio Papel). */
-  KINDS: [['world', 5], ['paper', 2.2], ['bonus', 1.6], ['warp', 1.6]],
+  KINDS: [['world', 5], ['paper', 2.2], ['bonus', 1.6], ['warp', 1.6], ['time', 1.5], ['leap', 1.1]],
   /** Fase bônus: comprimento (m) e atalho: segundos de voo e velocidade. */
   BONUS_M: 90,
   WARP_TIME: 2.6,
   WARP_SPEED: 900,
+  /** Cronos: segundos de câmera lenta (inimigos e tiros) e a fração da velocidade. */
+  TIME_SECONDS: 8,
+  TIME_SCALE: 0.35,
 } as const;
+
+/** Vulcão: a lava sobe sozinha; encostar nela machuca (e ela recua). */
+export const LAVA = {SPEED: 92, GAP: 130, RESET_GAP: 220} as const;
 
 /** Efeitos de mundo na horizontal. */
 export const WORLD_FX = {
@@ -255,4 +269,7 @@ export const WORLD_FX = {
   CLOCK_DRIFT: 150,
   CLOCK_DECAY: 1.5,
   CLOCK_CONVEYOR_CHANCE: 0.32,
+  /** Fundo do Mar: correnteza que alterna (un./s somadas ao alvo horizontal). */
+  OCEAN_CURRENT: 62,
+  OCEAN_PERIOD: 4.6,
 } as const;

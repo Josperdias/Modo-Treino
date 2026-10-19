@@ -335,14 +335,14 @@ test('vidas e inimigos: encostar tira um coração, acabar as vidas encerra e a 
   const hit = () => page.evaluate(() => {
     const s = globalThis.__MODO_ARCADE_SESSION__, sim = s.sim, p = sim.player;
     sim.invuln = 0; sim.shields = 0;
-    p.x = 210; p.vx = 0; p.drift = 0; // o empurrão do dano tira o herói da plataforma; recoloca
+    p.x = 210; p.vx = 0; p.drift = 0; p.y = p.py = sim.camera + 300; p.vy = 0; // o empurrão do dano tira o herói da plataforma; recoloca no ar, longe de qualquer queda
     sim.enemies.push({id: 777 + sim.enemies.length, kind: 'drone', x0: p.x, y0: p.y + 40, x: p.x, y: p.y + 40, phase: 0, speed: 0, range: 0, size: 20, hp: 1, maxHp: 1, cooldown: 99, warn: false, alive: true});
     return sim.lives;
   });
   assert.equal(await hit(), 2);
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.lives === 1);
   await shot(page, '07-dano-um-coracao');
-  await page.evaluate(() => { const p = globalThis.__MODO_ARCADE_SESSION__.sim.player; p.x = 210; p.vx = 0; p.drift = 0; });
+  await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim, p = sim.player; p.x = 210; p.vx = 0; p.drift = 0; p.y = p.py = sim.camera + 300; p.vy = 0; });
   await hit(); // hit() zera a invencibilidade (sem esperar 1,8 s, que deixava o teste instável)
   await page.getByTestId('arcade-final').waitFor({timeout: 10000});
   assert.equal(await page.getByTestId('arcade-cause').textContent(), 'Acabaram as vidas.');
@@ -403,6 +403,23 @@ test('portais novos: Papel espelha os dois personagens e a volta troca de herói
   await page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__.sim; s.world = 'cosmos'; s.gen.world = 'cosmos'; s.invuln = 99; });
   await page.waitForTimeout(1200);
   await shot(page, '11-cosmos');
+  // Cronos: câmera lenta.
+  await throughPortal(page, 'time');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.slow > 0);
+  await page.waitForTimeout(500);
+  await shot(page, '13-cronos');
+  // Fundo do Mar e Vulcão (lava sobe).
+  await throughPortal(page, 'world', 'ocean');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'ocean');
+  await page.waitForTimeout(1000);
+  await shot(page, '14-fundo-do-mar');
+  await throughPortal(page, 'world', 'volcano');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'volcano');
+  await page.waitForTimeout(1000);
+  assert.ok((await page.evaluate(() => globalThis.__MODO_ARCADE_SESSION__.sim.lava)) > 0, 'a lava existe no Vulcão');
+  await shot(page, '15-vulcao');
+  await throughPortal(page, 'leap', 'clock');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'clock');
   // Bônus: zona dourada.
   await throughPortal(page, 'bonus');
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.bonusY1 > 0);
@@ -503,10 +520,11 @@ test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, que
         for (const pl of s.sim.platforms) {
           if (pl.broken || pl.y > p.y + rise - 6 || pl.y < p.y - 260) continue;
           const px = pl.type === 'moving' ? pl.x + Math.sin(s.sim.time * pl.speed + pl.phase) * pl.shift : pl.x;
-          if (Math.abs(px - p.x) > 230) continue;
+          if (Math.abs(((px - p.x + 750) % 500) - 250) > 235) continue; // o mundo dá a volta pela lateral (500 un.)
           if (!best || pl.y > best.y) best = {y: pl.y, x: px};
         }
-        const dx = best ? best.x - p.x : 0;
+        const dx = best ? ((best.x - p.x + 750) % 500) - 250 : 0;
+        s.sim.invuln = 99; // este teste olha as plataformas, não o combate
         step(Math.abs(dx) < 6 ? 0 : Math.max(-1, Math.min(1, dx / 36)));
         for (const pl of s.sim.platforms) types.add(pl.type);
         // Para quando a tela mostra pelo menos dois tipos especiais ao mesmo tempo (bom para a captura).

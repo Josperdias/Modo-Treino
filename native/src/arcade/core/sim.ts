@@ -1,4 +1,4 @@
-import {BLACKHOLE, COMBAT, ENEMIES, GEN, LEVELS, LIFE, PAPER, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
+import {BLACKHOLE, COMBAT, ENEMIES, GEN, LAVA, LEVELS, LIFE, PAPER, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
 import {enemyAt} from './enemies.ts';
 import {jumpSpeed, landHalfWidth, platformX, vxMax, wrapX} from './physics.ts';
 import {makeRng, range} from './rng.ts';
@@ -75,6 +75,9 @@ export function createSim(seed: number, viewH = 690): Sim {
     portals: 0,
     bonus: 0,
     magnet: 0,
+    slow: 0,
+    etime: 0,
+    lava: 0,
     jetSpeed: POWER.JET_SPEED,
     swapped: false,
     bonusY0: 0,
@@ -136,7 +139,9 @@ function compact(sim: Sim) {
 
 /** Vento do mundo (somado ao alvo horizontal). */
 export function windAt(world: Sim['world'], time: number): number {
-  return world === 'crystal' ? Math.sin((time * Math.PI * 2) / WORLD_FX.CRYSTAL_PERIOD) * WORLD_FX.CRYSTAL_WIND : 0;
+  if (world === 'crystal') return Math.sin((time * Math.PI * 2) / WORLD_FX.CRYSTAL_PERIOD) * WORLD_FX.CRYSTAL_WIND;
+  if (world === 'ocean') return Math.sin((time * Math.PI * 2) / WORLD_FX.OCEAN_PERIOD) * WORLD_FX.OCEAN_CURRENT;
+  return 0;
 }
 
 /* ---------- dano, abates, recuperação ---------- */
@@ -242,7 +247,7 @@ function takePortal(sim: Sim, portal: Item) {
   sim.portals++;
   g.portalsMade++;
   sim.bonus += SCORE_M2.PORTAL;
-  const world: WorldId = variant === 'back' ? (g.returnWorld ?? 'neon') : variant === 'paper' ? 'paper' : variant === 'world' ? target : sim.world;
+  const world: WorldId = variant === 'back' ? (g.returnWorld ?? 'neon') : variant === 'paper' ? 'paper' : variant === 'world' || variant === 'leap' ? target : sim.world;
   sim.events.push({t: 'portal', world, variant, x: portal.x, y: portal.y});
 
   if (variant === 'warp') {
@@ -252,6 +257,14 @@ function takePortal(sim: Sim, portal: Item) {
     sim.jetSpeed = PORTAL.WARP_SPEED;
     sim.invuln = Math.max(sim.invuln, PORTAL.WARP_TIME + 1);
     scheduleNextPortal(sim, p.y + PORTAL.WARP_SPEED * PORTAL.WARP_TIME);
+    return;
+  }
+
+  if (variant === 'time') {
+    // Cronos: câmera lenta (inimigos e tiros) por alguns segundos. Não limpa nada.
+    portal.hit = true;
+    sim.slow = PORTAL.TIME_SECONDS;
+    scheduleNextPortal(sim, p.y);
     return;
   }
 
@@ -299,6 +312,7 @@ function takePortal(sim: Sim, portal: Item) {
     sim.world = world;
     g.world = world;
     g.worldY0 = safe.y;
+    sim.lava = world === 'volcano' ? safe.y - LAVA.GAP : 0;
     scheduleNextPortal(sim, safe.y);
   }
   ensureWorld(sim);
@@ -341,12 +355,13 @@ function combat(sim: Sim, input: Input, dt: number) {
     sim.events.push({t: 'shoot', own: true, x: p.x, y: p.y + 72});
   }
 
+  const ts = sim.slow > 0 ? PORTAL.TIME_SCALE : 1;
   let enemyBullets = 0;
   for (const b of sim.bullets) if (b.alive && !b.own) enemyBullets++;
 
   for (const e of sim.enemies) {
     if (!e.alive) continue;
-    const pos = enemyAt(e, sim.time);
+    const pos = enemyAt(e, sim.etime);
     e.x = pos.x;
     e.y = pos.y;
     const spec = ENEMIES[e.kind];
@@ -362,7 +377,7 @@ function combat(sim: Sim, input: Input, dt: number) {
     }
     const visible = onScreen(sim, e.y);
     if (spec.shoots && visible && meters >= COMBAT.SHOOT_FROM_M) {
-      e.cooldown -= dt;
+      e.cooldown -= dt * ts;
       const warn = e.cooldown < COMBAT.TELEGRAPH;
       if (warn && !e.warn) sim.events.push({t: 'warn', x: e.x, y: e.y});
       e.warn = warn;
@@ -400,8 +415,8 @@ function combat(sim: Sim, input: Input, dt: number) {
   const bottom = sim.camera - 90;
   for (const b of sim.bullets) {
     if (!b.alive) continue;
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
+    b.x += b.vx * dt * ts;
+    b.y += b.vy * dt * ts;
     if (b.y < bottom || b.y > top || b.x < -30 || b.x > 450) { b.alive = false; continue; }
     if (b.own) {
       for (const e of sim.enemies) {
@@ -442,6 +457,8 @@ export function step(sim: Sim, input: Input): void {
   sim.fireCd = Math.max(0, sim.fireCd - dt);
   sim.boost = Math.max(0, sim.boost - dt);
   sim.magnet = Math.max(0, sim.magnet - dt);
+  sim.etime += dt * (sim.slow > 0 ? PORTAL.TIME_SCALE : 1);
+  sim.slow = Math.max(0, sim.slow - dt);
   if (sim.jet > 0) {
     sim.jet = Math.max(0, sim.jet - dt);
     if (sim.jet === 0) { sim.invuln = Math.max(sim.invuln, 0.8); sim.jetSpeed = POWER.JET_SPEED; } // sai da hélice protegido por um instante
@@ -564,7 +581,24 @@ export function step(sim: Sim, input: Input): void {
   ensureWorld(sim);
   if (sim.tick % 30 === 0) compact(sim);
 
+  if (sim.world === 'volcano') lavaStep(sim, dt);
+  else sim.lava = 0;
+
   if (p.y < sim.camera - PHYS.FALL_MARGIN) fatal(sim, 'fall');
+}
+
+/** Vulcão: a lava sobe sozinha (nunca abaixo da base da tela); encostar machuca e joga o herói para cima. */
+function lavaStep(sim: Sim, dt: number) {
+  const p = sim.player;
+  if (sim.lava <= 0) sim.lava = sim.camera - 40;
+  sim.lava = Math.max(sim.lava + LAVA.SPEED * dt, sim.camera - 40);
+  if (sim.jet > 0) { sim.lava = Math.max(sim.camera - 40, Math.min(sim.lava, p.y - LAVA.GAP)); return; }
+  if (p.y < sim.lava) {
+    hurt(sim, p.x, sim.lava, p.x);
+    if (sim.mode !== 'playing') return;
+    p.vy = Math.max(p.vy, 760);
+    sim.lava = Math.max(sim.camera - 40, p.y - LAVA.RESET_GAP);
+  }
 }
 
 /** Metros alcançados (para HUD/recorde). */
@@ -598,6 +632,8 @@ export function hashSim(sim: Sim): string {
   mix(sim.portals);
   mix(sim.world.length + (sim.swapped ? 7 : 0));
   mix(sim.magnet);
+  mix(sim.etime);
+  mix(sim.lava);
   for (const pl of sim.platforms) { mix(pl.x); mix(pl.y); mix(pl.w); }
   for (const e of sim.enemies) { mix(e.x); mix(e.y); mix(e.hp); }
   return (h >>> 0).toString(16).padStart(8, '0');

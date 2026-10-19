@@ -1,5 +1,5 @@
 import {ClipOp, FilterMode, MipmapMode, Skia, TileMode, createPicture, type SkCanvas, type SkColor, type SkPaint, type SkPicture, type SkShader} from '@shopify/react-native-skia';
-import {BLACKHOLE, FIELD_W, PAPER, PHYS, POWER} from '../data/neon.ts';
+import {BLACKHOLE, FIELD_W, PAPER, PHYS, PORTAL, POWER} from '../data/neon.ts';
 import SPRITES from '../data/sprites.json';
 import {platformX} from '../core/physics.ts';
 import {enemyAt} from '../core/enemies.ts';
@@ -457,11 +457,122 @@ function drawPaperBackground(canvas: SkCanvas, cam: number, viewH: number, time:
   void time;
 }
 
+/** Fundo do Mar: água em degradê, raios de luz, bolhas subindo, cardume ao longe e algas. */
+function drawOceanBackground(canvas: SkCanvas, cam: number, viewH: number, time: number) {
+  const p = P();
+  p.setShader(grad('ocean', viewH, '#0e6aa8', '#031a3a'));
+  p.setAlphaf(1);
+  canvas.drawRect(Skia.XYWHRect(0, 0, FIELD_W, viewH), p);
+  p.setShader(null);
+  // Raios de luz do alto, balançando.
+  for (let i = 0; i < 4; i++) {
+    const x = 30 + i * 105 + Math.sin(time * 0.5 + i) * 18;
+    const path = beamPath();
+    path.rewind();
+    path.moveTo(x, 0); path.lineTo(x + 40, 0); path.lineTo(x + 130, viewH); path.lineTo(x + 40, viewH); path.close();
+    const q = P(); q.setShader(null); q.setColor(col('#bff4ff')); q.setAlphaf(0.05 + 0.025 * Math.sin(time * 0.8 + i * 2));
+    canvas.drawPath(path, q);
+  }
+  // Cardume de silhuetas passando (parallax).
+  for (let i = 0; i < 5; i++) {
+    const y = ((((i * 227) + cam * 0.14) % (viewH + 80)) + viewH + 80) % (viewH + 80) - 40;
+    const x = ((time * (14 + i * 4) + i * 90) % (FIELD_W + 80)) - 40;
+    for (let f = 0; f < 3; f++) {
+      rect(canvas, '#042a52', x - f * 16, y + (f % 2) * 7, 10, 5, 0.55);
+      rect(canvas, '#042a52', x - f * 16 - 5, y + (f % 2) * 7 + 1, 4, 3, 0.55);
+    }
+  }
+  // Bolhas subindo (duas camadas estáticas rolando para baixo = sobem na tela).
+  for (let g = 0; g < 3; g++) {
+    const pic = layerPic('ocean-bub' + g, viewH, 0, viewH, (c) => {
+      for (let i = g; i < 30; i += 3) {
+        const x = (i * 59 + 13) % FIELD_W;
+        const y = (i * 131) % viewH;
+        const r = 2 + (i % 3) * 1.5;
+        rect(c, '#bff4ff', x - r, y - r, r * 2, r * 2, 0.35);
+        rect(c, '#ffffff', x - r + 1, y - r + 1, 2, 2, 0.7);
+      }
+    });
+    drawScrolling(canvas, pic, viewH, cam * (0.1 + g * 0.07) - time * (6 + g * 5));
+  }
+  // Algas nas laterais.
+  for (const sx of [0, FIELD_W - 18]) {
+    for (let i = 0; i < 10; i++) {
+      const y = (((((i * 96) + cam * 0.5) % (viewH + 96)) + viewH + 96) % (viewH + 96)) - 48;
+      const sway = Math.sin(time * 1.6 + i + sx) * 4;
+      rect(canvas, '#0b7f6a', sx + (sx ? 4 : 0) + sway, y, 14, 8, 0.7);
+      rect(canvas, '#14b58a', sx + (sx ? 8 : 4) + sway, y - 8, 8, 10, 0.7);
+    }
+  }
+}
+
+/** Vulcão: céu de cinzas, vulcões ao longe com brilho, brasas subindo e fumaça. */
+function drawVolcanoBackground(canvas: SkCanvas, cam: number, viewH: number, time: number) {
+  const p = P();
+  p.setShader(grad('volcano', viewH, '#3a0d16', '#120408'));
+  p.setAlphaf(1);
+  canvas.drawRect(Skia.XYWHRect(0, 0, FIELD_W, viewH), p);
+  p.setShader(null);
+  // Silhuetas de vulcões com cratera brilhando (parallax lento).
+  for (let i = 0; i < 3; i++) {
+    const base = viewH + cam * 0.1 + 20 - i * 6;
+    const x = 40 + i * 150;
+    const w = 150 + i * 20;
+    rect(canvas, '#1c0a10', x - w / 2, base - 120 - i * 14, w, 400, 1);
+    for (let k = 0; k < 8; k++) rect(canvas, '#1c0a10', x - w / 2 + k * 6 - 30 + k * 2, base - 120 - i * 14 - k * 5, w - k * 12 + 60 - k * 4, 6, 1);
+    drawGlow(canvas, '#ff5a2a', 70, x, base - 126 - i * 14, 0.28 + 0.1 * Math.sin(time * 2 + i));
+  }
+  // Brasas e cinzas subindo (três camadas estáticas).
+  for (let g = 0; g < 3; g++) {
+    const pic = layerPic('volc-ash' + g, viewH, 0, viewH, (c) => {
+      for (let i = g; i < 36; i += 3) {
+        const x = (i * 61 + 7) % FIELD_W;
+        const y = (i * 157) % viewH;
+        rect(c, i % 3 === 0 ? '#ff7a3a' : i % 3 === 1 ? '#ffd36b' : '#6a4a4a', x, y, 2 + (i % 2), 2 + (i % 2), 0.7);
+      }
+    });
+    drawScrolling(canvas, pic, viewH, cam * (0.12 + g * 0.06) - time * (22 + g * 12));
+  }
+  // Fumaça grossa nas bordas.
+  for (let i = 0; i < 6; i++) {
+    const t = (time * 0.12 + i * 0.17) % 1;
+    rect(canvas, '#4a2a2e', (i % 2 ? FIELD_W - 50 : 0) + Math.sin(i + time) * 8, viewH - t * viewH, 50, 40 + t * 40, 0.16 * (1 - t));
+  }
+  // Rachaduras de lava nos cantos.
+  for (let y = ((cam * 0.4) % 60) - 60; y < viewH; y += 60) { rect(canvas, '#ff6a2a', 0, y, 6, 3, 0.55); rect(canvas, '#ff6a2a', FIELD_W - 6, y + 28, 6, 3, 0.55); }
+}
+
+/** A lava: superfície ondulada com brilho, bolhas e uma faixa de calor acima. */
+function drawLava(canvas: SkCanvas, sim: Sim, sy: (y: number) => number, viewH: number, time: number) {
+  if (sim.world !== 'volcano' || sim.lava <= 0) return;
+  const top = sy(sim.lava);
+  if (top > viewH + 30) return;
+  const t0 = Math.max(-20, top);
+  drawGlow(canvas, '#ff5a2a', 160, FIELD_W / 2, t0 + 10, 0.32);
+  rect(canvas, '#d92a14', 0, t0, FIELD_W, viewH - t0 + 20, 1);
+  rect(canvas, '#ff7a22', 0, t0 + 10, FIELD_W, viewH - t0, 0.9);
+  rect(canvas, '#ffcf4a', 0, t0 + 26, FIELD_W, viewH, 0.55);
+  // Crista ondulada.
+  for (let x = 0; x < FIELD_W; x += 14) {
+    const h = 6 + Math.sin(time * 3 + x * 0.09) * 5 + Math.sin(time * 1.7 + x * 0.21) * 3;
+    rect(canvas, '#ff4a1a', x, t0 - h, 14, h + 4, 1);
+    rect(canvas, '#ffb347', x, t0 - h, 14, 3, 1);
+  }
+  // Bolhas estourando.
+  for (let i = 0; i < 6; i++) {
+    const k = (time * 0.8 + i * 0.37) % 1;
+    const bx = (i * 83 + 20) % FIELD_W;
+    rect(canvas, '#ffe9a0', bx, t0 - k * 26 + 8, 5 - k * 3, 5 - k * 3, 1 - k);
+  }
+}
+
 function drawWorldBackground(canvas: SkCanvas, world: WorldId, cam: number, viewH: number, meters: number, time: number) {
   if (world === 'crystal') drawCrystalBackground(canvas, cam, viewH, time);
   else if (world === 'clock') drawClockBackground(canvas, cam, viewH, time);
   else if (world === 'cosmos') drawCosmosBackground(canvas, cam, viewH, time);
   else if (world === 'paper') drawPaperBackground(canvas, cam, viewH, time);
+  else if (world === 'ocean') drawOceanBackground(canvas, cam, viewH, time);
+  else if (world === 'volcano') drawVolcanoBackground(canvas, cam, viewH, time);
   else drawNeonBackground(canvas, cam, viewH, meters);
 }
 
@@ -496,6 +607,16 @@ const SKINS: Record<WorldId, Skin> = {
     top: {normal: '#8f9cff', moving: '#5ff0d8', fragile: '#ff6fb0', spring: '#ffd36b', start: '#b0b8ff', conveyor: '#8f9cff', ghost: '#e0d6ff'},
     accent: {normal: '#6f7cff', moving: '#5ff0d8', fragile: '#ff6fb0', spring: '#ffd36b', start: '#9aa4ff', conveyor: '#6f7cff', ghost: '#e0d6ff'},
     body: '#473a8c', bodyDark: '#2d2465', ink: '#080420', glint: '#e8e4ff', dots: '#b9c2ff', glass: false,
+  },
+  ocean: {
+    top: {normal: '#9ff0d4', moving: '#7be0ff', fragile: '#ff9ccb', spring: '#ffe08a', start: '#c0fff0', conveyor: '#9ff0d4', ghost: '#e6ffff'},
+    accent: {normal: '#2fd4a8', moving: '#49c8ff', fragile: '#ff9ccb', spring: '#ffe08a', start: '#6be0c4', conveyor: '#2fd4a8', ghost: '#e6ffff'},
+    body: '#1f7f86', bodyDark: '#14565e', ink: '#04202c', glint: '#e8fffa', dots: '#b9fff0', glass: true,
+  },
+  volcano: {
+    top: {normal: '#c96a4a', moving: '#ffb04a', fragile: '#ff6a6a', spring: '#ffd36b', start: '#e08a60', conveyor: '#c96a4a', ghost: '#ffd9c8'},
+    accent: {normal: '#ff7a3a', moving: '#ffb04a', fragile: '#ff6a6a', spring: '#ffd36b', start: '#ff7a3a', conveyor: '#ff7a3a', ghost: '#ffd9c8'},
+    body: '#4a2a2e', bodyDark: '#2e181c', ink: '#0e0508', glint: '#ffd9b0', dots: '#ff9a5a', glass: false,
   },
   paper: {
     top: {normal: '#fff4d6', moving: '#9fe0d4', fragile: '#ff9b9b', spring: '#ffd36b', start: '#fff9e6', conveyor: '#fff4d6', ghost: '#d9e6ff'},
@@ -658,7 +779,7 @@ function drawShadow(canvas: SkCanvas, S: SceneInput, x: number, py: number, time
 
 /* ---------- inimigos, itens, portais, balas ---------- */
 
-const ENEMY_GLOW: Record<Enemy['kind'], string> = {drone: '#c46bff', zigzag: '#5b8cff', turret: '#ffb35e', orb: '#28d8fd', guardian: '#ff4dac', ufo: '#7ff6ff', meteor: '#ff9d4a', blackhole: '#8e3fff', clip: '#9bb0d8'};
+const ENEMY_GLOW: Record<Enemy['kind'], string> = {drone: '#c46bff', zigzag: '#5b8cff', turret: '#ffb35e', orb: '#28d8fd', guardian: '#ff4dac', ufo: '#7ff6ff', meteor: '#ff9d4a', blackhole: '#8e3fff', clip: '#9bb0d8', jelly: '#ff7ad9', ember: '#ff7a3a'};
 
 /** Buraco negro: disco escuro, braços de pixels girando e anel da atração (tracejado). */
 function drawBlackhole(canvas: SkCanvas, x: number, y: number, time: number) {
@@ -720,7 +841,7 @@ function drawEnemy(canvas: SkCanvas, e: Enemy, time: number, sy: (y: number) => 
     return;
   }
   const frames = ENEMY_SPRITES[e.kind];
-  const fr = e.kind === 'turret' || e.kind === 'guardian' ? (warn ? 1 : 0) : Math.floor(time * (e.kind === 'orb' ? 4 : e.kind === 'ufo' ? 3 : 9)) % 2;
+  const fr = e.kind === 'turret' || e.kind === 'guardian' ? (warn ? 1 : 0) : Math.floor(time * (e.kind === 'orb' ? 4 : e.kind === 'ufo' || e.kind === 'jelly' ? 3 : 9)) % 2;
   const flip = e.kind === 'drone' || e.kind === 'zigzag' ? enemyAt(e, time + 0.05).x < pos.x : false;
   if (e.kind === 'meteor') {
     // Cauda de fogo contra o sentido do movimento.
@@ -737,6 +858,7 @@ function drawEnemy(canvas: SkCanvas, e: Enemy, time: number, sy: (y: number) => 
   }
   drawGlow(canvas, ENEMY_GLOW[e.kind], e.size * 2.2, x, y, 0.2 + (e.warn ? 0.2 : 0));
   drawPix(canvas, frames[fr], x, y, e.kind === 'guardian' ? 2.4 : 2, {flip});
+  if (e.kind === 'ember') for (let i = 1; i <= 4; i++) rect(canvas, i < 3 ? '#ffb347' : '#ff5a2a', x - 2 + Math.sin(time * 9 + i) * 2, y + 14 + i * 7, 4 - i * 0.6, 5, 0.6 - i * 0.12);
   if (e.maxHp > 1 && e.maxHp <= 5) {
     for (let i = 0; i < e.maxHp; i++) {
       const px = x - (e.maxHp * 9) / 2 + i * 9 + 1;
@@ -754,12 +876,16 @@ const WORLD_LOOK: Record<WorldId, PortalLook> = {
   clock: {c1: '#ffbf65', c2: '#fff0cc', core: '#3a2410', name: 'MECANICO'},
   cosmos: {c1: '#9b7bff', c2: '#e6dcff', core: '#0a0430', name: 'COSMOS'},
   paper: {c1: '#e8d9ae', c2: '#ffffff', core: '#fff1c9', name: 'PAPEL'},
+  ocean: {c1: '#49c8ff', c2: '#d4f6ff', core: '#04304f', name: 'MAR'},
+  volcano: {c1: '#ff7a3a', c2: '#ffe0b0', core: '#3a0c0c', name: 'VULCAO'},
 };
 function portalLook(it: Item): PortalLook {
   switch (it.variant) {
     case 'paper': return WORLD_LOOK.paper;
     case 'bonus': return {c1: '#ffd369', c2: '#fff3b0', core: '#4a3200', name: 'BONUS'};
     case 'warp': return {c1: '#ff4fd8', c2: '#ffd0f7', core: '#3a0a40', name: 'ATALHO'};
+    case 'time': return {c1: '#7fd8ff', c2: '#effbff', core: '#0a2a4a', name: 'CRONOS'};
+    case 'leap': return {c1: '#b6ff6b', c2: '#f0ffd0', core: '#133a10', name: 'SALTO ' + WORLD_LOOK[it.target ?? 'neon'].name};
     case 'back': return {...WORLD_LOOK[it.target ?? 'neon'], name: 'VOLTAR'};
     default: return WORLD_LOOK[it.target ?? 'neon'];
   }
@@ -785,6 +911,19 @@ function drawPortal(canvas: SkCanvas, it: Item, x: number, y: number, time: numb
       rect(canvas, '#ffffff', x, cy, 12, 4, 1 - Math.abs(t - 0.5));
       rect(canvas, c2, x - 18, cy + 4, 8, 4, 1 - Math.abs(t - 0.5));
       rect(canvas, c2, x + 10, cy + 4, 8, 4, 1 - Math.abs(t - 0.5));
+    }
+  } else if (variant === 'time') {
+    // Relógio: ponteiros girando (o rápido é rápido, o lento é lento) e marcas das horas.
+    for (let h = 0; h < 12; h++) { const a = (h / 12) * 6.283; rect(canvas, h % 3 === 0 ? '#ffffff' : c2, x + Math.cos(a) * rx * 0.72 - 1.5, y + Math.sin(a) * ry * 0.72 - 1.5, 3, 3, 0.9); }
+    const hand = (len: number, ang: number, w: number) => { for (let k = 1; k <= 6; k++) rect(canvas, '#ffffff', x + Math.cos(ang) * (len * rx * k) / 6 - w / 2, y + Math.sin(ang) * (len * ry * k) / 6 - w / 2, w, w, 1); };
+    hand(0.62, time * 5, 3); hand(0.4, time * 0.8, 4);
+    rect(canvas, c1, x - 2, y - 2, 4, 4, 1);
+  } else if (variant === 'leap') {
+    // Duas setas grandes para a frente: pula um mundo.
+    for (let j = 0; j < 2; j++) {
+      const t = (time * 1.4 + j / 2) % 1;
+      const cy = y + ry * 0.55 - t * ry * 1.1;
+      for (let k = 0; k < 4; k++) { rect(canvas, '#ffffff', x - 14 + k * 2, cy + k * 3, 4, 3, 1 - Math.abs(t - 0.5)); rect(canvas, '#ffffff', x + 10 - k * 2, cy + k * 3, 4, 3, 1 - Math.abs(t - 0.5)); }
     }
   } else if (variant === 'bonus') {
     // Fitas douradas girando para dentro.
@@ -884,6 +1023,7 @@ function drawStatus(canvas: SkCanvas, S: SceneInput, scale: number, time: number
   };
   if (sim.boost > 0) { drawPix(canvas, BOOST, x + 12, y0 + 8, 1.3); bar(Math.min(1, sim.boost / 9), '#ffe36c', x); x += 48; }
   if (sim.jet > 0 && sim.jetSpeed < 800) { drawPix(canvas, JET[Math.floor(time * 20) % 2], x + 18, y0 + 8, 1.5); bar(Math.min(1, sim.jet / 2.1), '#ff7a95', x); x += 48; }
+  if (sim.slow > 0) { drawPixelText(canvas, 'ZZ', x + 12, y0 + 8, 2, {top: '#ffffff', low: '#7fd8ff', shadow: '#0a2a4a'}); bar(Math.min(1, sim.slow / PORTAL.TIME_SECONDS), '#7fd8ff', x); x += 48; }
   if (sim.magnet > 0) { drawPix(canvas, MAGNET, x + 12, y0 + 8, 1.2); bar(Math.min(1, sim.magnet / POWER.MAGNET_TIME), '#ff5a7a', x); x += 48; }
 }
 
@@ -910,6 +1050,7 @@ function drawEntities(canvas: SkCanvas, S: SceneInput, sy: (y: number) => number
   const sim = S.session.sim;
   const fx = S.session.fx;
   drawBonusZone(canvas, sim, sy, viewH, time);
+  drawLava(canvas, sim, sy, viewH, time);
   drawMarkers(canvas, S, sy, viewH, time, text);
   for (const pl of sim.platforms) {
     if (pl.broken) continue;
@@ -1083,6 +1224,23 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   drawRingsAndPops(canvas, S, sy);
   canvas.restore(); // fim do tremor
 
+  if (sim.slow > 0) {
+    // Cronos: tom azul-gelo e riscos de relógio nas bordas.
+    const k = Math.min(1, sim.slow / 0.6);
+    rect(canvas, '#7fd8ff', 0, 0, FIELD_W, viewH, 0.1 * k);
+    rect(canvas, '#bfeaff', 0, 0, 6, viewH, 0.25 * k);
+    rect(canvas, '#bfeaff', FIELD_W - 6, 0, 6, viewH, 0.25 * k);
+  }
+  if (sim.world === 'volcano' && sim.lava > 0 && sim.mode === 'playing') {
+    // Aviso: a lava está perto do herói.
+    const close = clamp(1 - (sim.player.y - sim.lava) / 260, 0, 1);
+    if (close > 0) {
+      const g = grad('lavawarn', viewH, '#ff2a1a00', '#ff2a1a');
+      const pp = P(); pp.setShader(g); pp.setAlphaf(close * (0.35 + 0.15 * Math.sin(time * 14)));
+      canvas.drawRect(Skia.XYWHRect(0, viewH * 0.55, FIELD_W, viewH * 0.45), pp);
+      pp.setShader(null);
+    }
+  }
   if (fx.flash > 0) rect(canvas, fx.flashColor, 0, 0, FIELD_W, viewH, Math.min(0.3, fx.flash * 0.5));
   if (sim.mode === 'playing') drawStatus(canvas, S, scale, time);
   canvas.restore();
