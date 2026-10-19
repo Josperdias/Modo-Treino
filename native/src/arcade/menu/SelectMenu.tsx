@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {AppState, Image, PanResponder, Platform, Pressable, StyleSheet, useWindowDimensions, View} from 'react-native';
 import {Canvas, Picture, createPicture, type SkPicture} from '@shopify/react-native-skia';
-import Animated, {Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming} from 'react-native-reanimated';
+import Animated, {Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming} from 'react-native-reanimated';
 import {LinearGradient} from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {Text} from '../../text';
@@ -27,6 +27,7 @@ export type SelectMenuProps = {
 
 const LOAD_BG: Record<Choice, number> = {josperd: require('../../../assets/arcade/menu/bg_josperd.webp'), camila: require('../../../assets/arcade/menu/bg_camila.webp')};
 const LOAD_HERO: Record<Choice, number> = {josperd: require('../../../assets/arcade/menu/hero_josperd.webp'), camila: require('../../../assets/arcade/menu/hero_camila.webp')};
+const LUNGE_MS = 360; // o personagem avança para a tela antes do carregando
 const NAMES: Record<Choice, string> = {josperd: 'JOSPERD', camila: 'CAMILA'};
 const COLORS: Record<Choice, string> = {josperd: '#ff4dc4', camila: '#4fe6ff'};
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -51,6 +52,7 @@ export default function SelectMenu(p: SelectMenuProps) {
     drag: null as {t0: number; x0: number; y0: number; at: number} | null,
     opened: now(),
     glintAt: -1,
+    lungeAt: -1,
   });
 
   const blank = useMemo(() => createPicture(() => {}, {width: 1, height: 1}), []);
@@ -149,7 +151,7 @@ export default function SelectMenu(p: SelectMenuProps) {
       const intro = reduce ? 1 : clamp(sec / 0.9, 0, 1);
       const glint = s.glintAt < 0 || reduce ? -1 : (t0 - s.glintAt) / 670;
       publish(createPicture((canvas) => {
-        drawMenu(canvas, {t: s.t, time: reduce ? 0 : sec, intro: 1 - Math.pow(1 - intro, 3), glint, W: size.w, H: size.h, stage, images, still: !!reduce});
+        drawMenu(canvas, {t: s.t, time: reduce ? 0 : sec, intro: 1 - Math.pow(1 - intro, 3), glint, lunge: s.lungeAt < 0 ? 0 : (t0 - s.lungeAt) / LUNGE_MS, W: size.w, H: size.h, stage, images, still: !!reduce});
       }, rect));
     };
     raf = requestAnimationFrame(tick);
@@ -165,7 +167,11 @@ export default function SelectMenu(p: SelectMenuProps) {
   const pulse = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({opacity: flash.value}));
   const meterStyle = useAnimatedStyle(() => ({width: `${meter.value * 100}%`}));
-  const heroStyle = useAnimatedStyle(() => ({transform: [{translateY: (1 - Math.min(1, meter.value * 4)) * 90}], opacity: Math.min(1, meter.value * 4)}));
+  // No carregando o personagem entra vindo "de dentro" da tela e continua avançando devagar.
+  const heroStyle = useAnimatedStyle(() => {
+    const e = Math.min(1, meter.value * 5);
+    return {transform: [{translateY: (1 - e) * 60}, {scale: 0.86 + 0.14 * e + 0.07 * meter.value}], opacity: Math.min(1, e * 1.6)};
+  });
   const logoStyle = useAnimatedStyle(() => ({transform: [{scale: 0.97 + 0.07 * pulse.value}]}));
   const startedRef = useRef(false);
   const play = useCallback(() => {
@@ -174,7 +180,9 @@ export default function SelectMenu(p: SelectMenuProps) {
     startedRef.current = true;
     if (props.current.haptics && Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setPhase('flash');
-    flash.value = withSequence(withTiming(1, {duration: 120}), withTiming(0, {duration: 200}));
+    const lunge = reduce ? 0 : LUNGE_MS;
+    st.current.lungeAt = reduce ? -1 : now();
+    flash.value = withDelay(Math.max(0, lunge - 90), withSequence(withTiming(1, {duration: 110}), withTiming(0, {duration: 220})));
     const t0 = now();
     setTimeout(() => {
       setPhase('loading');
@@ -182,10 +190,10 @@ export default function SelectMenu(p: SelectMenuProps) {
       pulse.value = withRepeat(withTiming(1, {duration: 700, easing: Easing.inOut(Easing.sin)}), -1, true);
       // O "carregando" é de verdade: espera os sprites do jogo, e nunca menos que o tempo da animação.
       Promise.race([loadSprites(), new Promise((r) => setTimeout(r, 6000))]).catch(() => {}).then(() => {
-        setTimeout(() => props.current.onPlay(c), Math.max(0, MIN_LOADING_MS - (now() - t0 - 130)));
+        setTimeout(() => props.current.onPlay(c), Math.max(0, MIN_LOADING_MS - (now() - t0 - lunge - 60)));
       });
-    }, 130);
-  }, [flash, meter, pulse]);
+    }, lunge + 60);
+  }, [flash, meter, pulse, reduce]);
 
   // Teclado (web/desktop).
   useEffect(() => {

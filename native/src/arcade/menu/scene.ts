@@ -21,6 +21,8 @@ export type MenuFrame = {
   H: number;
   stage: Stage;
   images: MenuImages;
+  /** 0 → 1: o personagem escolhido avança para a tela ao apertar PRESS START (0 = parado). */
+  lunge?: number;
   /** Reduzir movimento: nada de respiração, deriva nem brilhos piscando. */
   still: boolean;
 };
@@ -273,17 +275,28 @@ export function drawMenu(canvas: SkCanvas, f: MenuFrame): void {
   // Retratos: o NÃO escolhido fica atrás do raio; o escolhido passa por cima dele.
   const bob = (ph: number) => (f.still ? 0 : -0.0065 * (0.5 + 0.5 * Math.sin(((time + ph) * Math.PI * 2) / 6.8)));
   const enter = 1 - f.intro;
+  // Avanço: quem foi escolhido cresce em direção a quem joga (saindo da faixa); o outro apaga.
+  const lg = clamp(f.lunge ?? 0, 0, 1);
+  const lungeE = lg * lg * lg;
+  const goLeft = f.t < 0;
   const hl: Look = {...p.heroL, dx: p.heroL.dx - enter * 28};
   const hr: Look = {...p.heroR, dx: p.heroR.dx + enter * 28};
+  if (lg > 0) {
+    const go = goLeft ? hl : hr, rest = goLeft ? hr : hl;
+    go.scale *= 1 + 0.32 * lungeE;
+    go.dy += 3 * lungeE;
+    go.dx += (goLeft ? 1 : -1) * 4 * lungeE;
+    rest.opacity *= 1 - lungeE;
+  }
   const drawHeroL = () => {
     canvas.save();
-    canvas.clipPath(lanePath('left', p.laneL.top, p.laneL.bottom, f), ClipOp.Intersect, true);
+    if (!(lg > 0 && goLeft)) canvas.clipPath(lanePath('left', p.laneL.top, p.laneL.bottom, f), ClipOp.Intersect, true);
     posed(canvas, im.heroL, bx.heroL, hl, a, 0, bob(0));
     canvas.restore();
   };
   const drawHeroR = () => {
     canvas.save();
-    canvas.clipPath(lanePath('right', p.laneR.top, p.laneR.bottom, f), ClipOp.Intersect, true);
+    if (!(lg > 0 && !goLeft)) canvas.clipPath(lanePath('right', p.laneR.top, p.laneR.bottom, f), ClipOp.Intersect, true);
     posed(canvas, im.heroR, bx.heroR, hr, a, 0, bob(3.4));
     canvas.restore();
   };
@@ -347,9 +360,17 @@ export function drawMenu(canvas: SkCanvas, f: MenuFrame): void {
   // Botão de setas no centro (acompanha o raio) e dica de deslizar.
   const sz = bx.swapSize;
   img(canvas, im.swap, s.x + (p.swapX / 100) * s.w - sz / 2, bx.swapY - sz / 2, sz, sz, a);
-  const hint = (1 - p.chosen) * a;
+  // Dica de deslizar: o dedo vai da direita para a esquerda, suave, e recomeça (ensina o gesto sem texto).
+  const hint = (1 - p.chosen) * a * (1 - lg);
   if (hint > 0.01) {
-    const sw = f.still ? 0 : Math.sin((time * Math.PI * 2) / 4.4) * 0.015 * s.w;
-    img(canvas, im.swipe, bx.swipe.x + sw, bx.swipe.y + p.chosen * 0.3 * bx.swipe.h, bx.swipe.w, bx.swipe.h, hint);
+    let off = 0, env = 1;
+    if (!f.still) {
+      const CYCLE = 2.8;
+      const u = (time % CYCLE) / CYCLE;
+      const mv = clamp((u - 0.1) / 0.6, 0, 1);
+      off = (0.5 - (mv < 0.5 ? 2 * mv * mv : 1 - Math.pow(-2 * mv + 2, 2) / 2)) * 0.34 * s.w; // easeInOutQuad: +17% → −17%
+      env = clamp(u / 0.1, 0, 1) * clamp((0.9 - u) / 0.12, 0, 1);
+    }
+    img(canvas, im.swipe, bx.swipe.x + off, bx.swipe.y + p.chosen * 0.3 * bx.swipe.h, bx.swipe.w, bx.swipe.h, hint * (f.still ? 1 : 0.25 + 0.75 * env));
   }
 }
