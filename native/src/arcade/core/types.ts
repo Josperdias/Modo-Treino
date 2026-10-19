@@ -103,7 +103,7 @@ export type SimEvent =
   | {t: 'press'; x: number; y: number}
   | {t: 'bonk'; x: number; y: number}
   | {t: 'revive'; x: number; y: number}
-  | {t: 'over'; cause: 'fall' | 'damage'};
+  | {t: 'over'; cause: 'fall' | 'damage' | 'crush'};
 
 export type Gen = {
   rng: Rng;

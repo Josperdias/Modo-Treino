@@ -1,5 +1,5 @@
 import {ClipOp, FilterMode, MipmapMode, Skia, TileMode, createPicture, type SkCanvas, type SkColor, type SkPaint, type SkPicture, type SkShader} from '@shopify/react-native-skia';
-import {BLACKHOLE, FIELD_W, PAPER, PHYS, PORTAL, POWER} from '../data/neon.ts';
+import {BLACKHOLE, DESC, FIELD_W, PAPER, PHYS, PORTAL, POWER} from '../data/neon.ts';
 import SPRITES from '../data/sprites.json';
 import {platformX} from '../core/physics.ts';
 import {enemyAt} from '../core/enemies.ts';
@@ -27,17 +27,7 @@ function col(hex: string): SkColor {
   return c;
 }
 
-/** Queda livre: o mundo é desenhado de cabeça para baixo; o texto desvira (espelha de volta em torno da própria linha). */
-let flipped = false;
-function drawPixelText(canvas: SkCanvas, text: string, x: number, y: number, k: number, o: Parameters<typeof drawPixelTextRaw>[5]) {
-  if (!flipped) { drawPixelTextRaw(canvas, text, x, y, k, o); return; }
-  canvas.save();
-  canvas.translate(0, y);
-  canvas.scale(1, -1);
-  canvas.translate(0, -y);
-  drawPixelTextRaw(canvas, text, x, y, k, o);
-  canvas.restore();
-}
+const drawPixelText = drawPixelTextRaw;
 
 let paint: SkPaint | null = null;
 function P(): SkPaint {
@@ -578,39 +568,57 @@ function drawLava(canvas: SkCanvas, sim: Sim, sy: (y: number) => number, viewH: 
   }
 }
 
-/** Queda livre: crepúsculo violeta com cortinas de aurora e pétalas (aparece de cabeça para baixo). */
+/** Queda livre: você despenca por um céu de nuvens (o fundo sobe na tela); embaixo o céu esquenta. */
 function drawInverseBackground(canvas: SkCanvas, cam: number, viewH: number, time: number) {
   const p = P();
-  p.setShader(grad('inverse', viewH, '#2a1066', '#0b2a55'));
+  p.setShader(grad('inverse', viewH, '#3b1d8f', '#ff9bb8'));
   p.setAlphaf(1);
   canvas.drawRect(Skia.XYWHRect(0, 0, FIELD_W, viewH), p);
   p.setShader(null);
-  // Cortinas de aurora ondulando.
-  const cols: [string, number][] = [['#3dffb0', 0.1], ['#ff5fd2', 0.09], ['#58a8ff', 0.1]];
-  for (let b = 0; b < 3; b++) {
-    const baseY = ((((b * 311) + cam * (0.05 + b * 0.03)) % (viewH + 200)) + viewH + 200) % (viewH + 200) - 100;
-    for (let x = 0; x < FIELD_W; x += 14) {
-      const w = Math.sin(time * 0.9 + x * 0.025 + b * 2) * 26 + Math.sin(time * 0.4 + x * 0.06) * 12;
-      rect(canvas, cols[b][0], x, baseY + w, 14, 90 + 40 * Math.sin(x * 0.04 + b), cols[b][1]);
-    }
-  }
-  // Lua grande e estrelas.
-  const my = ((((60 + cam * 0.04) % (viewH + 300)) + viewH + 300) % (viewH + 300)) - 150;
-  drawGlow(canvas, '#cfd8ff', 110, 320, my, 0.2);
-  const q = P(); q.setShader(null); q.setColor(col('#e8ecff')); q.setAlphaf(0.9);
-  canvas.drawCircle(320, my, 34, q);
-  q.setColor(col('#b4bdf0')); q.setAlphaf(0.6); canvas.drawCircle(331, my + 7, 8, q); canvas.drawCircle(308, my - 10, 6, q);
+  // Sol baixo no horizonte de baixo e brilho.
+  drawGlow(canvas, '#ffd29a', 150, FIELD_W * 0.7, viewH + 20, 0.35);
+  // Três camadas de nuvens (imagens estáticas) subindo mais rápido quanto mais perto.
   for (let g = 0; g < 3; g++) {
-    const pic = layerPic('inv-stars' + g, viewH, 0, viewH, (c) => {
-      for (let i = g; i < 45; i += 3) rect(c, i % 4 === 0 ? '#ffd0f4' : '#ffffff', (i * 71 + 9) % FIELD_W, (i * 139) % viewH, 2, 2, 0.7);
+    const pic = layerPic('inv-clouds' + g, viewH, 0, viewH, (c) => {
+      for (let i = g; i < 12; i += 3) {
+        const cx = (i * 97 + 31) % (FIELD_W - 40) + 20, cy = (i * 181) % viewH;
+        const w = 46 + (i % 4) * 18, k = 4 + g;
+        rect(c, '#ffffff', cx - w / 2, cy, w, k * 2, 0.5 + g * 0.1);
+        rect(c, '#ffffff', cx - w / 3, cy - k * 1.5, w * 0.62, k * 2, 0.5 + g * 0.1);
+        rect(c, '#ffffff', cx - w / 6, cy - k * 2.6, w * 0.3, k * 1.6, 0.5 + g * 0.1);
+        rect(c, '#e3d2ff', cx - w / 2, cy + k * 1.2, w, k * 0.8, 0.45);
+      }
     });
-    drawScrolling(canvas, pic, viewH, cam * (0.06 + g * 0.05));
+    drawScrolling(canvas, pic, viewH, -cam * (0.22 + g * 0.18));
   }
-  // Pétalas caindo (para cima, no mundo de cabeça para baixo).
-  for (let i = 0; i < 10; i++) {
-    const t = (time * 0.12 + i * 0.1) % 1;
-    pixelFlower(canvas, '#ff9bd6', '#ffe08a', (i * 83 + Math.sin(time + i) * 12) % FIELD_W, t * viewH, 3, 0.45);
+  // Riscos de vento (velocidade da queda).
+  for (let i = 0; i < 12; i++) {
+    const len = 30 + (i % 4) * 14;
+    const y = (((i * 131) - cam * (0.9 + (i % 3) * 0.3)) % (viewH + len * 2) + (viewH + len * 2)) % (viewH + len * 2) - len;
+    rect(canvas, '#ffffff', (i * 53 + 17) % FIELD_W, y, 2, len, 0.18);
   }
+  void time;
+}
+
+/** O teto que desce atrás de você (nuvem de tempestade com dentes); fica mais bravo quando chega perto. */
+function drawCeiling(canvas: SkCanvas, S: SceneInput, viewH: number, time: number) {
+  const sim = S.session.sim;
+  const gap = sim.player.y - sim.camera - DESC.CRUSH; // folga até o esmagamento (un.)
+  const close = clamp(1 - gap / 170, 0, 1);
+  rect(canvas, '#140a30', 0, 0, FIELD_W, 22, 1);
+  for (let x = 0; x < FIELD_W; x += 14) {
+    const h = 8 + ((x * 7) % 5) * 3 + Math.sin(time * 4 + x * 0.3) * 2 + close * 8;
+    rect(canvas, '#140a30', x, 22, 14, h, 1);
+    rect(canvas, '#3a1c7a', x + 2, 22, 4, h * 0.6, 1);
+    rect(canvas, close > 0.3 ? '#ff4d6d' : '#7a4cff', x + 5, 22 + h - 3, 4, 3, 0.6 + 0.4 * close);
+  }
+  if (close > 0) {
+    const g = grad('ceilwarn', viewH, '#ff2a4a', '#ff2a4a00');
+    const pp = P(); pp.setShader(g); pp.setAlphaf(close * (0.3 + 0.2 * Math.sin(time * 14)));
+    canvas.drawRect(Skia.XYWHRect(0, 0, FIELD_W, viewH * 0.35), pp);
+    pp.setShader(null);
+  }
+  if (Math.sin(time * 3.3) > 0.93) rect(canvas, '#ffffff', ((time * 977) % FIELD_W), 0, 3, 36, 0.8); // relâmpago
 }
 
 /** Rascunho: metade lápis em papel, metade planta azul a giz, com a dobra rasgada no meio. */
@@ -695,9 +703,9 @@ const SKINS: Record<WorldId, Skin> = {
     body: '#4a2a2e', bodyDark: '#2e181c', ink: '#0e0508', glint: '#ffd9b0', dots: '#ff9a5a', glass: false,
   },
   inverse: {
-    top: {normal: '#ff9be0', moving: '#7fe8ff', fragile: '#ffb3b3', spring: '#ffe08a', start: '#ffc4ee', conveyor: '#ff9be0', ghost: '#f4e6ff'},
-    accent: {normal: '#ff5fd2', moving: '#49e6ff', fragile: '#ff7b8a', spring: '#ffd369', start: '#ff8ee0', conveyor: '#ff5fd2', ghost: '#f4e6ff'},
-    body: '#4a2a8a', bodyDark: '#2e1a63', ink: '#0c0626', glint: '#ffeaff', dots: '#ffb8ee', glass: false,
+    top: {normal: '#ffffff', moving: '#bfeaff', fragile: '#ffc2d6', spring: '#ffe08a', start: '#ffffff', conveyor: '#ffffff', ghost: '#f4ecff'},
+    accent: {normal: '#8fb4ff', moving: '#49c8ff', fragile: '#ff7b9a', spring: '#ffd369', start: '#8fb4ff', conveyor: '#8fb4ff', ghost: '#d9c8ff'},
+    body: '#dfe6ff', bodyDark: '#aebbf0', ink: '#2a2f6a', glint: '#ffffff', dots: '#8fa6ff', glass: false,
   },
   sketch: {
     top: {normal: '#fff4d6', moving: '#9fe0d4', fragile: '#ff9b9b', spring: '#ffd36b', start: '#fff9e6', conveyor: '#fff4d6', ghost: '#d9e6ff'},
@@ -866,6 +874,7 @@ const HERO_COLOR: Record<Hero, string> = {josperd: '#ff4dac', camila: '#49e6ff'}
 
 /** Sombra elíptica sobre a plataforma que está embaixo do herói (diminui e some com a altura). */
 function drawShadow(canvas: SkCanvas, S: SceneInput, x: number, py: number, time: number, sy: (y: number) => number) {
+  if (S.session.sim.world === 'inverse') return; // na queda livre o chão vem de cima: sem sombra
   let under: Platform | null = null;
   for (const pl of S.session.sim.platforms) {
     if (pl.broken || pl.y > py + 2 || pl.y < py - 420) continue;
@@ -982,7 +991,7 @@ const WORLD_LOOK: Record<WorldId, PortalLook> = {
   paper: {c1: '#e8d9ae', c2: '#ffffff', core: '#fff1c9', name: 'PAPEL'},
   ocean: {c1: '#49c8ff', c2: '#d4f6ff', core: '#04304f', name: 'MAR'},
   volcano: {c1: '#ff7a3a', c2: '#ffe0b0', core: '#3a0c0c', name: 'VULCAO'},
-  inverse: {c1: '#b86bff', c2: '#f0dcff', core: '#1a0a3a', name: 'INVERSO'},
+  inverse: {c1: '#b86bff', c2: '#f0dcff', core: '#1a0a3a', name: 'QUEDA'},
   sketch: {c1: '#ffd36b', c2: '#fff3c9', core: '#1d3f7a', name: 'RASCUNHO'},
 };
 function portalLook(it: Item): PortalLook {
@@ -1023,13 +1032,12 @@ function drawPortal(canvas: SkCanvas, it: Item, x: number, y: number, time: numb
       rect(canvas, c2, x + 10, cy + 4, 8, 4, 1 - Math.abs(t - 0.5));
     }
   } else if (variant === 'flip') {
-    // Setas para cima e para baixo: a tela vai virar.
-    for (let k = 0; k < 4; k++) {
-      const up = k < 2;
-      const t = (time * 1.3 + k * 0.25) % 1;
-      const cy = up ? y - ry * 0.1 - t * ry * 0.7 : y + ry * 0.1 + t * ry * 0.7;
-      const a = 1 - t;
-      for (let r = 0; r < 4; r++) rect(canvas, '#ffffff', x - (3 - r) * 3, cy + (up ? r * 3 : -r * 3), (3 - r) * 6 + 3, 3, a);
+    // Setas para BAIXO descendo: o mundo vai despencar.
+    for (let k = 0; k < 3; k++) {
+      const t = (time * 1.2 + k / 3) % 1;
+      const cy = y - ry * 0.7 + t * ry * 1.4;
+      const al = 1 - Math.abs(t - 0.5) * 1.6;
+      for (let r = 0; r < 5; r++) rect(canvas, '#ffffff', x - (4 - r) * 3 - 1.5, cy - r * 3, (4 - r) * 6 + 3, 3, al);
     }
   } else if (variant === 'sketch') {
     // Meio papel, meio planta azul, com a rasgadura no meio.
@@ -1298,7 +1306,9 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const scale = S.width / FIELD_W;
   const viewH = S.height / scale;
   const cam = lerp(sim.prevCamera, sim.camera, a);
-  const sy = (y: number) => viewH - (y - cam);
+  const desc = sim.world === 'inverse';
+  // Queda livre: o mundo DESCE — o eixo da tela cresce junto com y (o herói segue de pé).
+  const sy = desc ? (y: number) => y - cam : (y: number) => viewH - (y - cam);
   const meters = Math.max(0, (sim.maxY - PHYS.START_Y) / 10);
   const time = sim.time + a * PHYS.STEP;
   const fx = session.fx;
@@ -1309,9 +1319,6 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const sh = fx.shake;
   if (sh > 0) canvas.translate((Math.sin(sim.tick * 7.3) * sh * 22) | 0, (Math.cos(sim.tick * 5.1) * sh * 14) | 0);
 
-  // Queda livre: o mundo inteiro (fundo, plataformas, herói, tiros) é desenhado de cabeça para baixo.
-  const flipWorld = sim.world === 'inverse';
-  if (flipWorld) { canvas.translate(0, viewH); canvas.scale(1, -1); flipped = true; }
   drawWorldBackground(canvas, sim.world, cam, viewH, meters, time);
   if (fx.worldFade > 0 && fx.worldFrom && fx.worldFrom !== sim.world) {
     // Mundo anterior some por cima do novo (transição do portal).
@@ -1338,7 +1345,7 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const jump = Math.abs(pl.x - pl.px) > 200;
   const px = jump ? pl.x : lerp(pl.px, pl.x, a);
   const py = lerp(pl.py, pl.y, a);
-  const fi = frameIndex(pl, sim.mode === 'over');
+  const fi = frameIndex(desc ? {landTimer: pl.landTimer, vy: -pl.vy} : pl, sim.mode === 'over');
   const foot = sy(py) + 6;
   const main: Hero = sim.swapped !== sim.inverted ? otherHero(S.hero) : S.hero;
   drawShadow(canvas, S, px, py, time, sy);
@@ -1353,12 +1360,12 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
     q.setStyle(0);
   }
   if (Math.abs(pl.vy) > 520 && sim.mode === 'playing') {
-    for (let k = 2; k >= 1; k--) drawHero(canvas, S, main, pl.facing, px - pl.vx * 0.012 * k, foot + pl.vy * 0.03 * k, fi, 0.2 / k);
+    for (let k = 2; k >= 1; k--) drawHero(canvas, S, main, pl.facing, px - pl.vx * 0.012 * k, foot + (desc ? -pl.vy : pl.vy) * 0.03 * k, fi, 0.2 / k);
   }
   // Invencível: pisca (exceto com a hélice).
   const blink = sim.invuln > 0 && sim.jet <= 0 && Math.floor(time * 14) % 2 === 0;
   const heroAlpha = blink ? 0.35 : 1;
-  if (sim.jet > 0) {
+  if (sim.jet > 0 && !desc) {
     // Chama sob os pés.
     for (let i = 0; i < 4; i++) rect(canvas, i % 2 ? '#ffd36b' : '#ff6a3d', px - 6 + (i % 2) * 2 + ((Math.floor(time * 30) + i) % 3), foot + i * 5, 4 + (i % 2) * 2, 6, 0.9 - i * 0.18);
   }
@@ -1386,7 +1393,7 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
 
   if (sim.jet > 0 && sim.jetSpeed >= 800) drawSpeedLines(canvas, viewH, time);
   drawRingsAndPops(canvas, S, sy);
-  flipped = false;
+  if (desc) drawCeiling(canvas, S, viewH, time);
   canvas.restore(); // fim do tremor
 
   if (sim.slow > 0) {

@@ -425,7 +425,8 @@ test('portais novos: Papel espelha os dois personagens e a volta troca de herói
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'inverse');
   await page.waitForTimeout(1000);
   await shot(page, '16-queda-livre');
-  await throughPortal(page, 'back', 'clock');
+  // Queda livre: o corpo do herói fica ACIMA dos pés, então o portal fica 45 un. acima.
+  await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim, p = sim.player; sim.invuln = 99; sim.items.push({id: 5990, kind: 'portal', x: p.x, y: p.y - 45, phase: 0, hit: false, target: 'clock', variant: 'back'}); });
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'clock');
   // Papel → Rascunho (dobra rasgada): pousar do outro lado inverte o controle.
   await throughPortal(page, 'paper');

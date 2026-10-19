@@ -32,7 +32,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   const {save, loaded} = useArcade();
   const [phase, setPhase] = useState<Phase>('select');
   const [hud, setHud] = useState<Hud | null>(null);
-  const [cause, setCause] = useState<'fall' | 'damage'>('fall');
+  const [cause, setCause] = useState<'fall' | 'damage' | 'crush'>('fall');
   const [hint, setHint] = useState(true);
   const [newRecord, setNewRecord] = useState(false);
   const [perf, setPerf] = useState('');
@@ -219,7 +219,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
             {newRecord && <Text style={[S.modalS, {color: C.yellow, marginTop: 2}]}>★ NOVO RECORDE ★</Text>}
             <Text style={S.final} testID="arcade-final">{pad(hud.score)}</Text>
             <Text style={S.modalS}>pontos · {hud.meters} m · {hud.tapes} fitas · {hud.kills} abates</Text>
-            <Text style={[S.modalS, {marginTop: 2, color: cause === 'damage' ? '#ff8aa3' : '#8fd4ff'}]} testID="arcade-cause">{cause === 'damage' ? 'Acabaram as vidas.' : 'Você caiu.'}</Text>
+            <Text style={[S.modalS, {marginTop: 2, color: cause === 'damage' || cause === 'crush' ? '#ff8aa3' : '#8fd4ff'}]} testID="arcade-cause">{cause === 'damage' ? 'Acabaram as vidas.' : cause === 'crush' ? 'O teto te alcançou.' : 'Você caiu.'}</Text>
             <Text style={[S.modalS, {marginTop: 2}]}>Recorde de {info.name}: {pad(save.best[hero])}</Text>
             <Btn text="JOGAR DE NOVO" icon="refresh" onPress={() => start()} style={{marginTop: 16}} />
             <View style={{gap: 8, marginTop: 10}}>

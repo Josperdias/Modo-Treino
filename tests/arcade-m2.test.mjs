@@ -9,7 +9,7 @@ const C = p => import(join(ROOT, 'native/src/arcade/core', p));
 const {createSim, step, metersOf, windAt, ghostSolid} = await C('sim.ts');
 const {enemyAt, tri} = await C('enemies.ts');
 const {makeGen, generateUntil, nextWorld} = await C('worldgen.ts');
-const {makeBot, botInput, IDEAL} = await C('bot.ts');
+const {makeBot, botInput, IDEAL, HUMAN} = await C('bot.ts');
 const {canReach} = await C('validate.ts');
 const {PHYS, LIFE, COMBAT, POWER, PORTAL, LAVA, WORLD_ORDER, SKETCH, INVERSE, LAB, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP, PAPER, BLACKHOLE, METEOR} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
 
@@ -834,7 +834,105 @@ test('Queda livre: portal leva ao mundo "inverse" (mesma física), dura 180 m, v
     for (const e of out.enemies) seen.add(e.kind);
   }
   assert.ok(seen.has('ufo') && seen.has('orb'));
-  put(s, 300, 600, 300); portalAt(s, 'back', 'neon'); steps(s, 1);
+  put(s, 300, 600, 0); portalAt(s, 'back', 'neon', {y: 555}); steps(s, 1); // na queda livre o corpo fica ACIMA dos pés
   assert.equal(s.world, 'neon');
   assert.equal(s.swapped, false, 'a Queda livre não troca o personagem');
+});
+
+/* ---------- Queda livre = descida de verdade ---------- */
+const {DESC} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
+const {canDrop} = await C('validate.ts');
+
+function descent(extra = {}) {
+  const s = bare({platforms: [plat({y: 600, w: 600})], ...extra});
+  s.world = 'inverse'; s.gen.world = 'inverse';
+  s.camera = s.prevCamera = 300;
+  return s;
+}
+
+test('Queda livre: a gravidade puxa para a frente (y cresce), pousar dá só um saltinho e a câmera desce junto', () => {
+  const s = descent();
+  put(s, 210, 400, 0);
+  steps(s, 30);
+  assert.ok(s.player.vy > 0 && s.player.y > 400, 'cai');
+  // pousa na plataforma de y=600
+  let landed = false;
+  for (let i = 0; i < 200 && !landed; i++) { step(s, {axis: 0}); landed = s.events.some(e => e.t === 'land'); s.events.length = 0; }
+  assert.ok(landed, 'pousou');
+  assert.ok(s.player.vy < 0 && Math.abs(s.player.vy) <= DESC.HOP + 1e-6, 'salta para cima na tela, pouco');
+  let top = s.player.y;
+  for (let i = 0; i < 80; i++) { step(s, {axis: 0}); top = Math.min(top, s.player.y); }
+  assert.ok(600 - top < 60 && 600 - top > 35, `saltinho de ${(600 - top).toFixed(1)} un. (≈ HOP²/2g = ${(DESC.HOP ** 2 / 2400).toFixed(1)})`);
+  assert.ok(s.player.y <= 601, 'nunca atravessa a plataforma');
+});
+
+test('Queda livre: o teto desce sozinho e esmaga quem fica parado (causa "crush"); descer faz a câmera acompanhar', () => {
+  const s = descent();
+  put(s, 210, 600, 0);
+  const c0 = s.camera;
+  let cause = null;
+  for (let i = 0; i < 120 * 12 && s.mode === 'playing'; i++) { step(s, {axis: 0}); for (const e of s.events) if (e.t === 'over') cause = e.cause; s.events.length = 0; }
+  assert.equal(s.mode, 'over');
+  assert.equal(cause, 'crush');
+  assert.ok(s.camera > c0 + 100, 'a câmera desceu sozinha');
+  // descendo, a câmera segue o herói e ele não é esmagado
+  const t = descent({platforms: [plat({y: 700, w: 600}), plat({id: 2, y: 1500, w: 600})]});
+  put(t, 210, 650, 400);
+  steps(t, 200);
+  assert.equal(t.mode, 'playing');
+  assert.ok(t.camera >= t.player.y - t.viewH * DESC.TOP_FRAC - 1e-6);
+});
+
+test('Queda livre: plataformas só são alcançáveis caindo e nunca ficam cobertas; sem mola; itens ficam acima das plataformas', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const g = makeGen(seed); g.world = 'inverse'; g.returnWorld = 'neon'; g.portalY = 90 + 1800; g.worldY0 = 90; g.y = 90;
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(g, out, 90 + 6000);
+    const sorted = [...out.platforms].sort((a, b) => a.y - b.y);
+    assert.ok(sorted.length > 30);
+    for (let i = 1; i < sorted.length; i++) {
+      const b = sorted[i];
+      let ok = false;
+      for (let j = i - 1; j >= 0 && b.y - sorted[j].y < 460; j--) if (sorted[j].y !== b.y && canDrop(sorted[j], b, 1, true)) { ok = true; break; }
+      assert.ok(ok, `seed ${seed}: plataforma ${b.id} inalcançável caindo`);
+      assert.notEqual(b.type, 'spring');
+    }
+    for (const it of out.items) if (it.kind === 'tape') {
+      const under = out.platforms.filter(p => Math.abs(p.x - it.x) < 1 && Math.abs(p.y - it.y) < 80 && p.y > it.y);
+      void under;
+    }
+  }
+});
+
+test('Queda livre: hélice vira mergulho (sobe y), pisar num inimigo de cima o derruba, o corpo do herói fica acima dos pés', () => {
+  const s = descent();
+  put(s, 210, 400, 0); s.jet = 1; s.jetSpeed = 640;
+  steps(s, 60);
+  assert.ok(s.player.y > 400 + 300, 'mergulha');
+  const t = descent({enemies: [enemy({x0: 210, y0: 560, x: 210, y: 560})]});
+  t.platforms.length = 0;
+  put(t, 210, 520, 300);
+  steps(t, 12);
+  assert.ok(t.kills === 1, 'pisou de cima');
+  const u = descent({enemies: [enemy({x0: 210, y0: 450, x: 210, y: 450})]});
+  put(u, 210, 495, 0); steps(u, 2);
+  assert.equal(u.lives, LIFE.START - 1, 'o corpo está acima dos pés: encostar na cabeça dói');
+});
+
+test('Queda livre: robôs descem 180 m; o ideal quase nunca é esmagado e o humano às vezes sim', () => {
+  let idealOk = 0, humanOk = 0, n = 0;
+  for (const [skill, key] of [[IDEAL, 'ideal'], [HUMAN, 'human']]) {
+    for (let seed = 1; seed <= 12; seed++) {
+      const s = createSim(seed), bot = makeBot(skill, seed);
+      s.gen.portalPlaced = true; s.gen.portalY = 1e12;
+      portalAt(s, 'flip', 'inverse'); put(s, s.player.x, s.player.y + 5, 300);
+      step(s, {axis: 0});
+      assert.equal(s.world, 'inverse');
+      for (let i = 0; i < 120 * 60 && s.mode === 'playing' && s.world === 'inverse'; i++) step(s, botInput(s, bot));
+      if (s.mode === 'playing') { if (key === 'ideal') idealOk++; else humanOk++; }
+      n++;
+    }
+  }
+  assert.ok(idealOk >= 9, `ideal sobreviveu em ${idealOk}/12`);
+  assert.ok(humanOk >= 5, `humano sobreviveu em ${humanOk}/12`);
 });

@@ -1,4 +1,4 @@
-import {BLACKHOLE, COMBAT, DETOURS, ENEMIES, FIELD_W, GEN, INVERSE, LAB, LAVA, LEVELS, LIFE, PAPER, SKETCH, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
+import {BLACKHOLE, COMBAT, DESC, DETOURS, ENEMIES, FIELD_W, GEN, INVERSE, LAB, LAVA, LEVELS, LIFE, PAPER, SKETCH, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
 import {enemyAt} from './enemies.ts';
 import {jumpSpeed, landHalfWidth, platformX, vxMax, wrapX} from './physics.ts';
 import {makeRng, range} from './rng.ts';
@@ -156,7 +156,10 @@ function kill(sim: Sim, e: Enemy, by: 'stomp' | 'shot' | 'jet') {
   sim.events.push({t: 'kill', kind: e.kind, x: e.x, y: e.y, by});
 }
 
-function fatal(sim: Sim, cause: 'fall' | 'damage') {
+/** +1 normal; -1 na Queda livre (o corpo do herói fica para o lado de MENOS y dos pés, porque o mundo desce). */
+const bsOf = (sim: Sim) => (sim.world === 'inverse' ? -1 : 1);
+
+function fatal(sim: Sim, cause: 'fall' | 'damage' | 'crush') {
   if (sim.revive > 0 && tryRevive(sim)) return;
   sim.mode = 'over';
   sim.events.push({t: 'over', cause});
@@ -189,13 +192,14 @@ function hurt(sim: Sim, x: number, y: number, fromX: number) {
  */
 function tryRevive(sim: Sim): boolean {
   const p = sim.player;
-  const lo = sim.camera + 70;
-  const hi = sim.camera + sim.viewH * 0.5;
+  const desc = sim.world === 'inverse';
+  const lo = sim.camera + (desc ? sim.viewH * 0.3 : 70);
+  const hi = sim.camera + (desc ? sim.viewH * 0.75 : sim.viewH * 0.5);
   let pick: Platform | null = null;
   for (const pl of sim.platforms) {
     if (pl.broken || (pl.type !== 'normal' && pl.type !== 'conveyor' && pl.type !== 'start')) continue;
     if (pl.y < lo || pl.y > hi) continue;
-    if (!pick || pl.y > pick.y) pick = pl;
+    if (!pick || (desc ? pl.y < pick.y : pl.y > pick.y)) pick = pl;
   }
   if (!pick) {
     // Nada firme à vista: apoia uma plataforma nova (e o gerador continua acima dela).
@@ -208,11 +212,11 @@ function tryRevive(sim: Sim): boolean {
   sim.combo = 0;
   sim.comboTime = 0;
   p.x = platformX(pick, sim.time);
-  p.y = pick.y;
+  p.y = desc ? pick.y - 1 : pick.y;
   p.px = p.x;
   p.py = p.y;
   p.vx = 0;
-  p.vy = PHYS.JUMP;
+  p.vy = desc ? -DESC.HOP : PHYS.JUMP;
   p.drift = 0;
   p.landTimer = PHYS.LAND_TIME;
   // Tela limpa de ameaças para a volta não começar em dano.
@@ -244,6 +248,7 @@ function takePortal(sim: Sim, portal: Item) {
   const p = sim.player;
   const variant: PortalVariant = portal.variant ?? 'world';
   const target: WorldId = portal.target ?? sim.world;
+  const fromDescent = sim.world === 'inverse';
   const g = sim.gen;
   sim.portals++;
   g.portalsMade++;
@@ -316,13 +321,21 @@ function takePortal(sim: Sim, portal: Item) {
     sim.inverted = false;
     p.x = Math.max(SKETCH.WALL, Math.min(FIELD_W - SKETCH.WALL, p.x));
   } else if (variant === 'flip') {
-    // Queda livre: o desenho vira de cabeça para baixo; a física é a mesma.
+    // Queda livre: descida de verdade. O chão seguro fica logo ABAIXO (y maior) e o herói cai até ele.
     g.returnWorld = sim.world;
     sim.world = 'inverse';
     g.world = 'inverse';
+    safe.y = p.y + 150;
+    g.y = safe.y;
     g.worldY0 = safe.y;
+    g.nextEnemyY = safe.y + 360;
+    g.nextPowerY = Math.max(g.nextPowerY, safe.y + 700);
+    g.nextFlagY = Math.max(g.nextFlagY, safe.y + 1600);
     g.portalPlaced = false;
     g.portalY = safe.y + INVERSE.LENGTH_M * 10;
+    p.vy = 0;
+    p.landTimer = 0;
+    sim.camera = Math.max(sim.camera, p.y - sim.viewH * DESC.TOP_FRAC);
   } else {
     if (variant === 'back') {
       if (sim.world === 'sketch') {
@@ -335,6 +348,7 @@ function takePortal(sim: Sim, portal: Item) {
       sim.inverted = false;
       g.returnWorld = null;
     }
+    if (fromDescent) p.vy = 520; // de volta ao mundo normal: o primeiro salto
     sim.world = world;
     g.world = world;
     g.worldY0 = safe.y;
@@ -366,7 +380,7 @@ function onScreen(sim: Sim, y: number): boolean {
 function enemyShoot(sim: Sim, e: Enemy) {
   const p = sim.player;
   const dx = p.x - e.x;
-  const dy = p.y + 38 - e.y;
+  const dy = p.y + 38 * bsOf(sim) - e.y;
   const d = Math.hypot(dx, dy) || 1;
   const v = Math.min(COMBAT.ENEMY_BULLET_CAP, COMBAT.ENEMY_BULLET_BASE + sim.level * COMBAT.ENEMY_BULLET_PER_LEVEL);
   const mk = (vx: number, vy: number) => sim.bullets.push({id: sim.gen.nextId++, x: e.x, y: e.y, vx, vy, own: false, alive: true});
@@ -390,8 +404,10 @@ function combat(sim: Sim, input: Input, dt: number) {
   // Tiro do herói (para cima).
   if (input.fire && sim.fireCd <= 0) {
     sim.fireCd = COMBAT.FIRE_COOLDOWN;
-    sim.bullets.push({id: sim.gen.nextId++, x: p.x, y: p.y + 72, vx: 0, vy: COMBAT.BULLET_SPEED, own: true, alive: true});
-    sim.events.push({t: 'shoot', own: true, x: p.x, y: p.y + 72});
+    // Normal: sai da cabeça para cima. Queda livre: sai dos pés para a frente (para baixo na tela).
+    const fy = sim.world === 'inverse' ? p.y + 10 : p.y + 72;
+    sim.bullets.push({id: sim.gen.nextId++, x: p.x, y: fy, vx: 0, vy: COMBAT.BULLET_SPEED, own: true, alive: true});
+    sim.events.push({t: 'shoot', own: true, x: p.x, y: fy});
   }
 
   const ts = sim.slow > 0 ? PORTAL.TIME_SCALE : 1;
@@ -407,10 +423,10 @@ function combat(sim: Sim, input: Input, dt: number) {
     if (e.kind === 'blackhole') {
       // Indestrutível: puxa de longe e machuca no centro. A hélice passa por ele.
       if (sim.jet <= 0) {
-        const bx = e.x - p.x, by = e.y - (p.y + 42);
+        const bx = e.x - p.x, by = e.y - (p.y + 42 * bsOf(sim));
         const dist = Math.hypot(bx, by);
         if (dist < BLACKHOLE.PULL_R) p.drift += Math.sign(bx || 1) * BLACKHOLE.PULL * (1 - dist / BLACKHOLE.PULL_R) * dt;
-        if (dist < e.size + 16) { hurt(sim, p.x, p.y + 42, e.x); if (sim.mode !== 'playing') return; }
+        if (dist < e.size + 16) { hurt(sim, p.x, p.y + 42 * bsOf(sim), e.x); if (sim.mode !== 'playing') return; }
       }
       continue;
     }
@@ -432,12 +448,14 @@ function combat(sim: Sim, input: Input, dt: number) {
     } else e.warn = false;
 
     // Contato com o herói: hélice destrói; pisar de cima derruba; o resto machuca.
-    const bodyY = p.y + 42;
+    const bodyY = p.y + 42 * bsOf(sim);
     const dxAbs = Math.abs(p.x - e.x);
-    const stomp = p.vy < -40 && dxAbs < e.size + 16 && p.y >= e.y - 6 && p.y <= e.y + e.size + 14;
+    const stomp = sim.world === 'inverse'
+      ? p.vy > 40 && dxAbs < e.size + 16 && p.y <= e.y + 6 && p.y >= e.y - e.size - 14
+      : p.vy < -40 && dxAbs < e.size + 16 && p.y >= e.y - 6 && p.y <= e.y + e.size + 14;
     if (sim.jet > 0 && dxAbs < e.size + 8 && Math.abs(bodyY - e.y) < e.size + 20) kill(sim, e, 'jet');
     else if (stomp) {
-      p.vy = COMBAT.STOMP_SPEED;
+      p.vy = sim.world === 'inverse' ? -DESC.HOP * 1.3 : COMBAT.STOMP_SPEED;
       p.landTimer = PHYS.LAND_TIME;
       if (e.kind === 'guardian' && e.hp > 1) {
         e.hp--;
@@ -468,7 +486,7 @@ function combat(sim: Sim, input: Input, dt: number) {
           break;
         }
       }
-    } else if (Math.abs(b.y - (p.y + 42)) < 30 && Math.abs(b.x - p.x) < 20) {
+    } else if (Math.abs(b.y - (p.y + 42 * bsOf(sim))) < 30 && Math.abs(b.x - p.x) < 20) {
       b.alive = false;
       hurt(sim, b.x, b.y, b.x);
       if (sim.mode !== 'playing') return;
@@ -518,6 +536,7 @@ export function step(sim: Sim, input: Input): void {
   } else p.x = wrapX(p.x + p.vx * dt);
 
   // Vertical: integração exata para aceleração constante (a altura do salto não depende do dt).
+  const desc = sim.world === 'inverse';
   const y0 = p.y;
   const vy0 = p.vy;
   let y1: number;
@@ -526,6 +545,10 @@ export function step(sim: Sim, input: Input): void {
     // Hélice: sobe em velocidade constante, sem gravidade.
     vy1 = sim.jetSpeed;
     y1 = y0 + vy1 * dt;
+  } else if (desc) {
+    // Queda livre: a gravidade puxa para a frente (y maior), com velocidade terminal.
+    vy1 = Math.min(vy0 + PHYS.G * dt, DESC.TERMINAL);
+    y1 = y0 + ((vy0 + vy1) / 2) * dt;
   } else {
     y1 = y0 + vy0 * dt - 0.5 * PHYS.G * dt * dt;
     vy1 = vy0 - PHYS.G * dt;
@@ -533,7 +556,33 @@ export function step(sim: Sim, input: Input): void {
   p.y = y1;
   p.vy = vy1;
 
-  if (vy1 <= 0) {
+  if (desc && sim.jet <= 0 && vy1 >= 0) {
+    // Pouso na queda livre: cruza uma plataforma de cima para baixo e dá só um saltinho (para cima na tela).
+    let hit: Platform | null = null;
+    for (let i = 0; i < sim.platforms.length; i++) {
+      const pl = sim.platforms[i];
+      if (pl.broken) continue;
+      if (pl.type === 'ghost' && !ghostSolid(pl, sim.time)) continue;
+      if (y0 <= pl.y && y1 >= pl.y && Math.abs(p.x - platformX(pl, sim.time)) < landHalfWidth(pl)) {
+        if (!hit || pl.y < hit.y) hit = pl;
+      }
+    }
+    if (hit) {
+      const fall = y1 - y0;
+      const frac = fall > 0 ? (hit.y - y0) / fall : 1;
+      const rem = dt * (1 - frac);
+      p.y = hit.y - DESC.HOP * rem + 0.5 * PHYS.G * rem * rem;
+      p.vy = -DESC.HOP + PHYS.G * rem;
+      p.landTimer = PHYS.LAND_TIME;
+      if (hit.type === 'fragile') {
+        hit.broken = true;
+        sim.events.push({t: 'break', x: hit.x, y: hit.y});
+      }
+      sim.events.push({t: 'land', plat: hit.type, x: p.x, y: hit.y});
+    }
+  }
+
+  if (!desc && vy1 <= 0) {
     let hit: Platform | null = null;
     for (let i = 0; i < sim.platforms.length; i++) {
       const pl = sim.platforms[i];
@@ -587,7 +636,7 @@ export function step(sim: Sim, input: Input): void {
     for (let i = 0; i < sim.items.length; i++) {
       const it = sim.items[i];
       if (it.hit || (it.kind !== 'tape' && it.kind !== 'star')) continue;
-      const mx = p.x - it.x, my = p.y + PICKUP.BODY_Y - it.y;
+      const mx = p.x - it.x, my = p.y + PICKUP.BODY_Y * bsOf(sim) - it.y;
       const md = Math.hypot(mx, my);
       if (md > 1 && md < POWER.MAGNET_R) { const k = Math.min(md, 560 * dt) / md; it.x += mx * k; it.y += my * k; }
     }
@@ -600,14 +649,14 @@ export function step(sim: Sim, input: Input): void {
     if (it.kind === 'gate') continue;
     if (it.kind === 'portal') {
       if (it.variant === 'exit' || (it.variant === 'tele' && !it.open)) continue; // saída / ainda trancado
-      if (Math.abs(p.x - it.x) < PORTAL.HALF_W && Math.abs(p.y + 45 - it.y) < PORTAL.HALF_H) {
+      if (Math.abs(p.x - it.x) < PORTAL.HALF_W && Math.abs(p.y + 45 * bsOf(sim) - it.y) < PORTAL.HALF_H) {
         it.hit = true;
         if (it.variant === 'tele') teleport(sim, it);
         else { takePortal(sim, it); break; } // a lista mudou
       }
       continue;
     }
-    if (Math.abs(p.x - it.x) < PICKUP.HALF_W && Math.abs(p.y + PICKUP.BODY_Y - it.y) < PICKUP.HALF_H) {
+    if (Math.abs(p.x - it.x) < PICKUP.HALF_W && Math.abs(p.y + PICKUP.BODY_Y * bsOf(sim) - it.y) < PICKUP.HALF_H) {
       it.hit = true;
       if (it.kind === 'tape') {
         sim.tapes++;
@@ -642,14 +691,16 @@ export function step(sim: Sim, input: Input): void {
   sim.level = levelAt(meters);
 
   // A câmera só sobe.
-  sim.camera = Math.max(sim.camera, p.y - sim.viewH * PHYS.FOLLOW);
+  if (desc) sim.camera = Math.max(sim.camera + (DESC.SCROLL + sim.level * DESC.SCROLL_PER_LEVEL) * dt, p.y - sim.viewH * DESC.TOP_FRAC);
+  else sim.camera = Math.max(sim.camera, p.y - sim.viewH * PHYS.FOLLOW);
   ensureWorld(sim);
   if (sim.tick % 30 === 0) compact(sim);
 
   if (sim.world === 'volcano') lavaStep(sim, dt);
   else sim.lava = 0;
 
-  if (p.y < sim.camera - PHYS.FALL_MARGIN) fatal(sim, 'fall');
+  if (desc) { if (p.y < sim.camera + DESC.CRUSH) fatal(sim, 'crush'); }
+  else if (p.y < sim.camera - PHYS.FALL_MARGIN) fatal(sim, 'fall');
 }
 
 /** Vulcão: a lava sobe sozinha (nunca abaixo da base da tela); encostar machuca e joga o herói para cima. */

@@ -1,6 +1,6 @@
-import {DETOURS, ENEMIES, ENEMY_TABLE, FIELD_W, GEN, LAB, PAPER, PATTERN_TABLE, PHYS, PICKUP, PORTAL, POWER_TABLE, SPAWN, TYPE_TABLE, WORLD_FX, WORLD_ORDER, type WorldId} from '../data/neon.ts';
+import {DESC, DETOURS, ENEMIES, ENEMY_TABLE, FIELD_W, GEN, LAB, PAPER, PATTERN_TABLE, PHYS, PICKUP, PORTAL, POWER_TABLE, SPAWN, TYPE_TABLE, WORLD_FX, WORLD_ORDER, type WorldId} from '../data/neon.ts';
 import {apex} from './physics.ts';
-import {canReach, SAFETY} from './validate.ts';
+import {canDrop, canReach, SAFETY} from './validate.ts';
 import {chance, int, makeRng, next, range, weighted} from './rng.ts';
 import type {Enemy, EnemyKind, Gen, Item, ItemKind, PatternName, Platform, PlatformType, PortalVariant} from './types.ts';
 
@@ -53,7 +53,9 @@ export const nextWorld = (w: WorldId): WorldId => WORLD_ORDER[(WORLD_ORDER.index
 /** Faixa estreita (Papel): larguras, moventes e inimigos ficam bem menores. O Rascunho tem a faixa larga. */
 const narrow = (g: Gen) => !!g.lane && g.lane[1] - g.lane[0] < 200;
 /** Alcance entre plataformas: só há a volta pela lateral no campo aberto. */
-const reaches = (g: Gen, a: Platform, b: Platform) => canReach(a, b, 1, g.lane === null);
+const reaches = (g: Gen, a: Platform, b: Platform) => (g.world === 'inverse' ? canDrop(a, b, 1, g.lane === null) : canReach(a, b, 1, g.lane === null));
+/** Queda livre: o herói desce, então "acima da plataforma" (onde ficam fitas e portais) é para o lado de MENOS y. */
+const above = (g: Gen, n: number) => (g.world === 'inverse' ? -n : n);
 
 /** Faixa de X onde as plataformas e inimigos podem nascer (Papel: estreita). */
 const laneOf = (g: Gen): [number, number] => g.lane ?? [GEN.MARGIN_X, FIELD_W - GEN.MARGIN_X];
@@ -124,7 +126,7 @@ function tape(g: Gen, out: Out, x: number, y: number) {
 
 function maybeTape(g: Gen, out: Out, p: Platform, prob: number = GEN.TAPE_CHANCE) {
   if (p.type === 'moving' || p.type === 'fragile') return;
-  if (chance(g.rng, prob)) tape(g, out, p.x, p.y + PICKUP.ABOVE);
+  if (chance(g.rng, prob)) tape(g, out, p.x, p.y + above(g, PICKUP.ABOVE));
 }
 
 /* ---------- colocação ao acaso com alcance garantido ---------- */
@@ -137,11 +139,17 @@ function pickType(g: Gen, d: number, prev: Platform | null): PlatformType {
   const w = (k: keyof typeof TYPE_TABLE) => (m >= TYPE_TABLE[k].from ? lerp(TYPE_TABLE[k].w[0], TYPE_TABLE[k].w[1], d) * (g.mood === 2 ? 1.3 : g.mood === 0 ? 0.6 : 1) : 0);
   // depois de uma quebrável o chão firme é mais provável (senão o jogo vira só armadilha)
   const fragileW = prev?.type === 'fragile' ? w('fragile') * 0.45 : w('fragile');
-  return weighted(g.rng, [['normal', 0.8], ['moving', w('moving')], ['fragile', fragileW], ['spring', w('spring')]] as const);
+  return weighted(g.rng, [['normal', 0.8], ['moving', w('moving')], ['fragile', fragileW], ['spring', g.world === 'inverse' ? 0 : w('spring')]] as const);
 }
 
 /** Vão vertical até a próxima: irregular, com saltinhos curtos e esticões perto do limite. */
 function gapSample(g: Gen, d: number, prev: Platform | null): number {
+  if (g.world === 'inverse') {
+    // Queda livre: vãos de 80 a 215 (o herói cai, não sobe); mais fundo nos humores tensos.
+    const u = next(g.rng);
+    const bias = g.mood === 0 ? u * u : g.mood === 2 ? 1 - (1 - u) * (1 - u) : u;
+    return DESC.GAP[0] + (DESC.GAP[1] - DESC.GAP[0]) * bias;
+  }
   if (prev?.type === 'spring') return range(g.rng, 170, Math.min(300, apex(PHYS.SPRING) * SAFETY.RISE * 0.96));
   const lo = lerp(GEN.GAP_MIN, GEN.GAP_MIN_HARD, d);
   const hi = lerp(GEN.GAP_MAX, GEN.GAP_MAX_HARD, d);
@@ -210,8 +218,8 @@ const chaos: PatternFn = (g, d, out) => {
     maybeTape(g, out, p, 0.16);
     // fitas no caminho de saltos longos: convite para arriscar
     if (prev && p.y - prev.y > 120 && chance(g.rng, 0.35) && Math.abs(p.x - prev.x) < 200) {
-      for (const f of [0.35, 0.65]) tape(g, out, prev.x + (p.x - prev.x) * f, prev.y + (p.y - prev.y) * f + 20);
-      if (p.y - prev.y > 140 && chance(g.rng, 0.3)) out.items.push({id: g.nextId++, kind: 'star', x: prev.x + (p.x - prev.x) * 0.5, y: prev.y + (p.y - prev.y) * 0.5 + 20, phase: 0, hit: false});
+      for (const f of [0.35, 0.65]) tape(g, out, prev.x + (p.x - prev.x) * f, prev.y + (p.y - prev.y) * f + above(g, 20));
+      if (p.y - prev.y > 140 && chance(g.rng, 0.3)) out.items.push({id: g.nextId++, kind: 'star', x: prev.x + (p.x - prev.x) * 0.5, y: prev.y + (p.y - prev.y) * 0.5 + above(g, 20), phase: 0, hit: false});
     }
   }
 };
@@ -299,7 +307,7 @@ const portalPad: PatternFn = (g, _d, out) => {
   const side = pad.x < (lo + hi) / 2 ? 1 : -1;
   const {variant, target} = pickPortal(g);
   const px = narrow(g) ? clamp(pad.x + side * 40, lo, hi) : clamp(pad.x + side * PORTAL.SIDE, 62, FIELD_W - 62);
-  out.items.push({id: g.nextId++, kind: 'portal', x: px, y: pad.y + PORTAL.ABOVE, phase: range(g.rng, 0, Math.PI * 2), hit: false, target, variant});
+  out.items.push({id: g.nextId++, kind: 'portal', x: px, y: pad.y + above(g, PORTAL.ABOVE), phase: range(g.rng, 0, Math.PI * 2), hit: false, target, variant});
   g.portalPlaced = true;
   for (let i = 0; i < 2; i++) nextPlatform(g, 0.3, out, 'portalPad', {type: 'normal'});
 };
@@ -360,6 +368,7 @@ function choosePattern(g: Gen, d: number): PatternName {
   if (g.bonusEndY > 0) { if (g.y < g.bonusEndY) return 'bonus'; g.bonusEndY = 0; }
   // Sala do portal: só no campo aberto, longe de portal comum e sem desvio ativo.
   if (g.y >= g.labY && !g.lane && !DETOURS.includes(g.world) && Math.abs(g.portalY - g.y) > 1500) return 'lab';
+  if (g.world === 'inverse') return weighted(g.rng, [['chaos', 5], ['cluster', 1.4], ['ladder', 1]] as const);
   if (m < GEN.WARMUP_M) return 'ladder';
   const table = NAMES.map(name => {
     const [easy, hard, from] = PATTERN_TABLE[name];
@@ -449,14 +458,14 @@ function powerItem(g: Gen, out: Out, from: number) {
   const p = [...out.platforms.slice(from)].reverse().find(q => q.type === 'normal' && q.pattern !== 'portalPad');
   if (!p) return false;
   const kind = weighted(g.rng, POWER_TABLE.map(([k, w]) => [k as ItemKind, w] as const));
-  out.items.push({id: g.nextId++, kind, x: p.x, y: p.y + 54, phase: range(g.rng, 0, Math.PI * 2), hit: false});
+  out.items.push({id: g.nextId++, kind, x: p.x, y: p.y + above(g, 54), phase: range(g.rng, 0, Math.PI * 2), hit: false});
   return true;
 }
 
 function flagItem(g: Gen, out: Out, from: number) {
   const p = [...out.platforms.slice(from)].reverse().find(q => (q.type === 'normal' || q.type === 'conveyor') && q.w >= 40 && q.pattern !== 'portalPad');
   if (!p) return false;
-  out.items.push({id: g.nextId++, kind: 'flag', x: p.x, y: p.y + 38, phase: 0, hit: false});
+  out.items.push({id: g.nextId++, kind: 'flag', x: p.x, y: p.y + above(g, 38), phase: 0, hit: false});
   return true;
 }
 

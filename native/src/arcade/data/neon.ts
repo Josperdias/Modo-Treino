@@ -265,8 +265,13 @@ export const PORTAL = {
 
 /** Rascunho: a dobra do Papel se rasgou — campo inteiro jogável; ao POUSAR do outro lado da dobra o controle inverte e o personagem troca. */
 export const SKETCH = {LENGTH_M: 150, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MAX: 376, OFFER_AT_M: 110} as const;
-/** Queda livre: a tela vira de cabeça para baixo (a física é a mesma; o desenho é espelhado na vertical). */
+/**
+ * Queda livre: descida de verdade. O herói continua de pé, mas o mundo desce: a gravidade puxa para baixo, cada
+ * pouso é só um saltinho (HOP) e o objetivo é cair de plataforma em plataforma. Um teto desce sozinho atrás de você
+ * (SCROLL) e esmaga quem fica parado; a hélice vira mergulho.
+ */
 export const INVERSE = {LENGTH_M: 180} as const;
+export const DESC = {HOP: 330, TERMINAL: 900, SCROLL: 44, SCROLL_PER_LEVEL: 3, TOP_FRAC: 0.36, CRUSH: 90, GAP: [80, 215]} as const;
 /** Sala do portal: botão (plataforma) → portal azul trancado → barreira → portal laranja lá em cima. */
 export const LAB = {FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 130, HEAD: 84} as const;
 

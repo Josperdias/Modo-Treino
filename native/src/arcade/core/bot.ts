@@ -1,4 +1,4 @@
-import {FIELD_W, PHYS} from '../data/neon.ts';
+import {DESC, FIELD_W, PHYS} from '../data/neon.ts';
 import {horizontalTravel, landHalfWidth, platformX} from './physics.ts';
 import {enemyAt} from './enemies.ts';
 import {ghostSolid} from './sim.ts';
@@ -27,10 +27,10 @@ export const IDEAL: BotSkill = {every: 6, noise: 0, lapse: 0, dodge: 1};
 /** ~150 ms de reação, erro de ~14 un. e 6 % de descuido. */
 export const HUMAN: BotSkill = {every: 18, noise: 14, lapse: 0.06, dodge: 0.7};
 
-export type Bot = {skill: BotSkill; rng: Rng; held: number; target: number; fire: boolean; dodge: number};
+export type Bot = {skill: BotSkill; rng: Rng; held: number; target: number; fire: boolean; dodge: number; /** Queda livre: plataforma que está sendo mirada (evita ficar indeciso entre duas). */ plat: number};
 
 export function makeBot(skill: BotSkill, seed = 1): Bot {
-  return {skill, rng: makeRng(seed), held: 0, target: PHYS.START_X, fire: false, dodge: 0};
+  return {skill, rng: makeRng(seed), held: 0, target: PHYS.START_X, fire: false, dodge: 0, plat: -1};
 }
 
 function gauss(r: Rng): number {
@@ -54,7 +54,50 @@ function routeBlocked(sim: Sim, x0: number, y0: number, x1: number, y1: number, 
 /** Mundos em que o herói NÃO dá a volta pela lateral (Papel e Rascunho). */
 const noWrap = (sim: Sim) => sim.world === 'paper' || sim.world === 'sketch';
 
-export function aim(sim: Sim): number {
+/**
+ * Queda livre: escolhe a plataforma ADIANTE (y maior) mais próxima que dá para alcançar caindo e o X onde pousar nela
+ * SEM ser pego por outra plataforma no caminho (quem está embaixo de outra, dentro da faixa de pouso, fica coberto).
+ */
+function aimDescent(sim: Sim, memo?: {plat: number}): number {
+  const p = sim.player;
+  const ahead = sim.platforms.filter(pl => !pl.broken && pl.y > p.y - 6 && pl.y < p.y + 460).sort((u, v) => u.y - v.y);
+  let best: {y: number; x: number; d: number; id: number} | null = null;
+  const cur = ahead.find(pl => pl.y - p.y < 130 && Math.abs(platformX(pl, sim.time) - p.x) < landHalfWidth(pl)) ?? null;
+  for (let i = 0; i < ahead.length; i++) {
+    const pl = ahead[i];
+    if (pl === cur) continue; // já está sobre (ou vai pousar já) nesta: o destino é a próxima
+    const t = (DESC.HOP + Math.sqrt(DESC.HOP * DESC.HOP + 2 * PHYS.G * Math.max(0, pl.y - p.y))) / PHYS.G;
+    if (pl.type === 'ghost' && !(ghostSolid(pl, sim.time + t - 0.12) && ghostSolid(pl, sim.time + t + 0.12))) continue;
+    const px = platformX(pl, sim.time + t);
+    let segs: [number, number][] = [[px - landHalfWidth(pl) + 8, px + landHalfWidth(pl) - 8]];
+    // Quem está no meio do caminho (entre o herói e esta) tapa pedaços da faixa.
+    for (const q of ahead) {
+      if (q === pl || q.y >= pl.y - 2) continue;
+      if (q.y < p.y + 4 && Math.abs(platformX(q, sim.time) - p.x) >= landHalfWidth(q)) continue; // já ficou para trás
+      const tq = (DESC.HOP + Math.sqrt(DESC.HOP * DESC.HOP + 2 * PHYS.G * Math.max(0, q.y - p.y))) / PHYS.G;
+      const qx = platformX(q, sim.time + tq), hw = landHalfWidth(q) + 11 + (q.type === 'moving' ? q.shift : 0);
+      const next: [number, number][] = [];
+      for (const [lo, hi] of segs) {
+        if (qx + hw <= lo || qx - hw >= hi) next.push([lo, hi]);
+        else { if (qx - hw > lo) next.push([lo, qx - hw]); if (qx + hw < hi) next.push([qx + hw, hi]); }
+      }
+      segs = next;
+    }
+    segs = segs.filter(([lo, hi]) => hi - lo > 6);
+    if (!segs.length) continue;
+    let tx = px, bd = Infinity;
+    for (const [lo, hi] of segs) { const cx = Math.min(hi, Math.max(lo, p.x)); if (Math.abs(cx - p.x) < bd) { bd = Math.abs(cx - p.x); tx = cx; } }
+    if (bd > horizontalTravel(t, sim.level) * 0.92) continue;
+    const blocked = routeBlocked(sim, p.x, p.y, tx, pl.y, t);
+    const score = -pl.y - (blocked ? 400 : 0) + (memo && pl.id === memo.plat ? 0 : 0);
+    if (!best || score > best.y || (score === best.y && bd < best.d)) best = {y: score, x: tx, d: bd, id: pl.id};
+  }
+  if (memo) memo.plat = best ? best.id : -1;
+  return best ? best.x : p.x;
+}
+
+export function aim(sim: Sim, memo?: {plat: number}): number {
+  if (sim.world === 'inverse') return aimDescent(sim, memo);
   const p = sim.player;
   // Sala do portal: enquanto o portal azul estiver trancado, o botão é o destino preferido.
   let wantSwitch = -1;
@@ -123,7 +166,7 @@ export function botInput(sim: Sim, bot: Bot): Input {
     bot.fire = shouldFire(sim) && next(bot.rng) >= bot.skill.lapse;
     bot.dodge = bot.skill.dodge && next(bot.rng) < bot.skill.dodge ? dodgeDir(sim) : 0;
     if (next(bot.rng) >= bot.skill.lapse) {
-      bot.target = aim(sim) + (bot.skill.noise ? gauss(bot.rng) * bot.skill.noise : 0);
+      bot.target = aim(sim, bot) + (bot.skill.noise ? gauss(bot.rng) * bot.skill.noise : 0);
     }
   }
   let dx = bot.target - sim.player.x;

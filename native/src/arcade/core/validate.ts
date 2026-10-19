@@ -1,5 +1,5 @@
-import {GEN, PHYS} from '../data/neon.ts';
-import {apex, jumpSpeed, landHalfWidth, reach, wrapDist} from './physics.ts';
+import {DESC, GEN, PHYS} from '../data/neon.ts';
+import {apex, horizontalTravel, jumpSpeed, landHalfWidth, reach, wrapDist} from './physics.ts';
 import type {Platform} from './types.ts';
 
 /**
@@ -41,6 +41,24 @@ export function canReach(a: Platform, b: Platform, level = 1, wrap = true): bool
   if (r < 0) return false;
   const need = worstDx(a, b, wrap) - landHalfWidth(b) + b.shift * 0; // pouso aceita qualquer ponto da plataforma
   return need <= r * SAFETY.REACH;
+}
+
+/**
+ * Queda livre: `b` está ABAIXO de `a` (y maior no motor) e o herói chega lá caindo: sai de `a` com o saltinho
+ * (sobe um pouco) e depois cai; o tempo total dá o alcance horizontal.
+ */
+export function canDrop(a: Platform, b: Platform, level = 1, wrap = true): boolean {
+  const dy = b.y - a.y;
+  if (dy <= 0) return true;
+  const t = (DESC.HOP + Math.sqrt(DESC.HOP * DESC.HOP + 2 * PHYS.G * dy)) / PHYS.G;
+  // O herói sai pela ponta de `a` (não pelo centro): quem está embaixo de `a` e dentro da sua faixa de pouso fica COBERTO.
+  const [a0, a1] = span(a), [b0, b1] = span(b);
+  const aLo = a0 - landHalfWidth(a), aHi = a1 + landHalfWidth(a);
+  const bLo = b0 - landHalfWidth(b), bHi = b1 + landHalfWidth(b);
+  if (!(bLo < aLo - 6 || bHi > aHi + 6)) return false;
+  const exit = a.w / 2 + PHYS.LAND_TOL + 4;
+  const need = Math.max(0, worstDx(a, b, wrap) - landHalfWidth(b) - exit);
+  return need <= horizontalTravel(t, level) * SAFETY.REACH;
 }
 
 /**

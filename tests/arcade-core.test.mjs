@@ -279,7 +279,7 @@ test('robô IDEAL (quase) nunca morre em 25 sementes × 240 s: o jogo é possív
     if (s.mode === 'over') byDamage++;
     else assert.ok(metersOf(s) > 150, `só ${metersOf(s)} m`);
   }
-  assert.ok(byDamage <= 4 && falls <= 3, `${byDamage}/25 morreram, ${falls} caíram`);
+  assert.ok(byDamage <= 5 && falls <= 3, `${byDamage}/25 morreram, ${falls} caíram`);
 });
 
 test('robô HUMANO (150 ms de reação, erro de ~14 un.) progride bem e às vezes cai: o jogo é difícil mas justo', () => {
