@@ -1,9 +1,9 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {AppState, Image, PanResponder, Platform, Pressable, StyleSheet, useWindowDimensions, View} from 'react-native';
-import {Canvas, Picture, createPicture, type SkPicture} from '@shopify/react-native-skia';
+import {Canvas, Picture, createPicture, type SkImage, type SkPicture} from '@shopify/react-native-skia';
 import Animated, {Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming} from 'react-native-reanimated';
-import {LinearGradient} from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import {LinearGradient} from 'expo-linear-gradient';
 import {Text} from '../../text';
 import {Icon} from '../../ui';
 import type {Control, Hero} from '../save';
@@ -11,6 +11,7 @@ import {loadSprites} from '../render/assets';
 import {loadMenuImages, type MenuImages} from './assets';
 import {MOTION_MS, choiceOf, clamp, releaseTarget, stageRect, tapTarget, targetOf, tweenAt, type Choice, type Tween} from './pose';
 import {drawMenu} from './scene';
+import {pickLoadingStyle, type LoadingStyle} from './loadingStyle';
 
 export type SelectMenuProps = {
   /** Último personagem usado (já vem escolhido se o jogador já jogou antes). */
@@ -25,15 +26,14 @@ export type SelectMenuProps = {
   onControl: (c: Control) => void;
 };
 
+const LUNGE_MS = 360; // o personagem avança para a tela antes do carregando
 const LOAD_BG: Record<Choice, number> = {josperd: require('../../../assets/arcade/menu/bg_josperd.webp'), camila: require('../../../assets/arcade/menu/bg_camila.webp')};
 const LOAD_HERO: Record<Choice, number> = {josperd: require('../../../assets/arcade/menu/hero_josperd.webp'), camila: require('../../../assets/arcade/menu/hero_camila.webp')};
-const LUNGE_MS = 360; // o personagem avança para a tela antes do carregando
+const ACCENT_HEX: Record<Choice, string> = {josperd: '#ff4dc4', camila: '#4fe6ff'};
 const NAMES: Record<Choice, string> = {josperd: 'JOSPERD', camila: 'CAMILA'};
-const COLORS: Record<Choice, string> = {josperd: '#ff4dc4', camila: '#4fe6ff'};
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-const pad = (n: number) => String(Math.max(0, Math.floor(n))).padStart(4, '0');
 const NO_IMAGES = {} as MenuImages;
-const MIN_LOADING_MS = 1100;
+const MIN_LOADING_MS = 2000; // dá tempo de ver a tela de carregamento (e é o piso do carregamento de verdade)
 
 export default function SelectMenu(p: SelectMenuProps) {
   const win = useWindowDimensions();
@@ -53,6 +53,8 @@ export default function SelectMenu(p: SelectMenuProps) {
     opened: now(),
     glintAt: -1,
     lungeAt: -1,
+    loadAt: -1,
+    sprites: null as (SkImage | null)[] | null,
   });
 
   const blank = useMemo(() => createPicture(() => {}, {width: 1, height: 1}), []);
@@ -150,8 +152,12 @@ export default function SelectMenu(p: SelectMenuProps) {
       const sec = (t0 - s.opened) / 1000;
       const intro = reduce ? 1 : clamp(sec / 0.9, 0, 1);
       const glint = s.glintAt < 0 || reduce ? -1 : (t0 - s.glintAt) / 670;
+      const load = s.loadAt < 0 ? undefined : (() => {
+        const el = (t0 - s.loadAt) / 1000, u = clamp((el * 1000) / MIN_LOADING_MS, 0, 1);
+        return {hero: (s.t < 0 ? 'josperd' : 'camila') as Choice, time: el, progress: u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2, sprites: s.sprites};
+      })();
       publish(createPicture((canvas) => {
-        drawMenu(canvas, {t: s.t, time: reduce ? 0 : sec, intro: 1 - Math.pow(1 - intro, 3), glint, lunge: s.lungeAt < 0 ? 0 : (t0 - s.lungeAt) / LUNGE_MS, W: size.w, H: size.h, stage, images, still: !!reduce});
+        drawMenu(canvas, {t: s.t, time: reduce ? 0 : sec, intro: 1 - Math.pow(1 - intro, 3), glint, lunge: s.lungeAt < 0 ? 0 : (t0 - s.lungeAt) / LUNGE_MS, W: size.w, H: size.h, stage, images, still: !!reduce, load});
       }, rect));
     };
     raf = requestAnimationFrame(tick);
@@ -163,11 +169,12 @@ export default function SelectMenu(p: SelectMenuProps) {
 
   /* ---------- jogar: clarão → carregando → começa ---------- */
   const flash = useSharedValue(0);
+  const flashStyle = useAnimatedStyle(() => ({opacity: flash.value}));
+  // Carregando "clássico" (ilustrado): barra, personagem que entra e logo que pulsa.
+  const [loadStyle, setLoadStyle] = useState<LoadingStyle>('pixel');
   const meter = useSharedValue(0);
   const pulse = useSharedValue(0);
-  const flashStyle = useAnimatedStyle(() => ({opacity: flash.value}));
   const meterStyle = useAnimatedStyle(() => ({width: `${meter.value * 100}%`}));
-  // No carregando o personagem entra vindo "de dentro" da tela e continua avançando devagar.
   const heroStyle = useAnimatedStyle(() => {
     const e = Math.min(1, meter.value * 5);
     return {transform: [{translateY: (1 - e) * 60}, {scale: 0.86 + 0.14 * e + 0.07 * meter.value}], opacity: Math.min(1, e * 1.6)};
@@ -185,9 +192,17 @@ export default function SelectMenu(p: SelectMenuProps) {
     flash.value = withDelay(Math.max(0, lunge - 90), withSequence(withTiming(1, {duration: 110}), withTiming(0, {duration: 220})));
     const t0 = now();
     setTimeout(() => {
+      // 15 % das vezes aparece o carregando clássico; o resto é o de pixels. (Os testes podem forçar um dos dois.)
+      const forced = (globalThis as {__MODO_LOADING_STYLE__?: LoadingStyle}).__MODO_LOADING_STYLE__;
+      const style = forced ?? pickLoadingStyle(Math.random());
+      setLoadStyle(style);
+      if (style === 'pixel') st.current.loadAt = now();
+      else {
+        meter.value = withTiming(1, {duration: MIN_LOADING_MS, easing: Easing.inOut(Easing.quad)});
+        pulse.value = withRepeat(withTiming(1, {duration: 700, easing: Easing.inOut(Easing.sin)}), -1, true);
+      }
       setPhase('loading');
-      meter.value = withTiming(1, {duration: MIN_LOADING_MS, easing: Easing.inOut(Easing.quad)});
-      pulse.value = withRepeat(withTiming(1, {duration: 700, easing: Easing.inOut(Easing.sin)}), -1, true);
+      loadSprites().then((sp) => { st.current.sprites = sp[c]; }).catch(() => {});
       // O "carregando" é de verdade: espera os sprites do jogo, e nunca menos que o tempo da animação.
       Promise.race([loadSprites(), new Promise((r) => setTimeout(r, 6000))]).catch(() => {}).then(() => {
         setTimeout(() => props.current.onPlay(c), Math.max(0, MIN_LOADING_MS - (now() - t0 - lunge - 60)));
@@ -210,16 +225,7 @@ export default function SelectMenu(p: SelectMenuProps) {
   }, [choose, play]);
 
   /* ---------- botão JOGAR entra/sai ---------- */
-  const shown = useSharedValue(choice ? 1 : 0);
-  useEffect(() => { shown.value = withTiming(choice ? 1 : 0, {duration: reduce ? 0 : 420, easing: Easing.out(Easing.cubic)}); }, [choice, reduce, shown]);
-  const blink = useSharedValue(1);
-  useEffect(() => { blink.value = reduce || !choice ? 1 : withRepeat(withSequence(withTiming(1, {duration: 700}), withTiming(0.35, {duration: 500, easing: Easing.inOut(Easing.sin)}), withTiming(1, {duration: 500, easing: Easing.inOut(Easing.sin)})), -1); }, [choice, reduce, blink]);
-  const blinkStyle = useAnimatedStyle(() => ({opacity: blink.value}));
-  const playStyle = useAnimatedStyle(() => ({opacity: shown.value, transform: [{translateY: (1 - shown.value) * 60}]}));
-
   const stage = size ? stageRect(size.w, size.h) : stageRect(win.width, win.height);
-  const accent = choice ? COLORS[choice] : '#ffffff';
-  const btnH = Math.max(50, stage.h * 0.05);
   const zoneTop = stage.h * 0.17, zoneH = stage.h * 0.61;
 
   return (
@@ -261,7 +267,7 @@ export default function SelectMenu(p: SelectMenuProps) {
       />
 
       {/* Topo: sair e controle */}
-      <View pointerEvents="box-none" style={[S.top, {left: stage.x + 12, right: size ? size.w - stage.x - stage.w + 12 : 12}]}>
+      {phase !== 'loading' && <View pointerEvents="box-none" style={[S.top, {left: stage.x + 12, right: size ? size.w - stage.x - stage.w + 12 : 12}]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Fechar o fliperama" onPress={p.onClose} style={S.round} testID="arcade-close"><Icon name="close" size={22} color="#fff" /></Pressable>
         <Pressable
           accessibilityRole="button"
@@ -273,32 +279,25 @@ export default function SelectMenu(p: SelectMenuProps) {
           <Icon name={p.control === 'touch' ? 'hand-left-outline' : 'phone-portrait-outline'} size={16} color="#fff" />
           <Text style={S.ctrlT}>{p.control === 'touch' ? 'TOQUE' : 'INCLINAR'}</Text>
         </Pressable>
-      </View>
+      </View>}
 
-      {/* Rodapé: indicador + JOGAR */}
-      <View pointerEvents="box-none" style={[S.bottom, {left: stage.x, width: stage.w, height: stage.h * 0.105 + 28}]}>
-        {/* Sem texto na tela: só o aviso para leitores de tela (a dica de deslizar fica na arte). */}
-        <View accessibilityLiveRegion="polite" accessibilityLabel={choice ? `${NAMES[choice]} selecionado` : ''} testID="arcade-indicator" style={{height: 0, width: 0}} />
-        <Animated.View style={[{width: '90%'}, playStyle]} pointerEvents={choice ? 'auto' : 'none'}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={choice ? `Jogar com ${NAMES[choice]}` : 'Escolha seu personagem'}
-            disabled={!choice}
-            onPress={play}
-            testID="arcade-play"
-          >
-            <View style={[S.play, {minHeight: btnH}]}>
-              <Animated.View style={blinkStyle}><Outlined text="PRESS START" size={Math.round(Math.min(34, stage.w * 0.088))} glow={accent} /></Animated.View>
-              {!!choice && <Outlined text={`RECORDE ${pad(p.best[choice])}`} size={12} spacing={2} />}
-            </View>
-          </Pressable>
-        </Animated.View>
-      </View>
+      {/* Rodapé: o PRESS START é desenhado em pixels no canvas; aqui só a área de toque e o aviso para leitor de tela. */}
+      {/* Sem texto na tela: só o aviso para leitores de tela (a dica de deslizar fica na arte). */}
+      <View accessibilityLiveRegion="polite" accessibilityLabel={choice ? `${NAMES[choice]} selecionado` : ''} testID="arcade-indicator" style={{height: 0, width: 0}} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={choice ? `Jogar com ${NAMES[choice]}. Recorde ${p.best[choice]} pontos` : 'Escolha seu personagem'}
+        disabled={!choice || phase !== 'select'}
+        onPress={play}
+        testID="arcade-play"
+        style={{position: 'absolute', left: stage.x + stage.w * 0.08, width: stage.w * 0.84, top: stage.y + stage.h * 0.875, height: stage.h * 0.1}}
+      />
 
-      {/* Clarão + carregando */}
+      {/* Clarão + carregando (a tela de carregamento em pixels é desenhada no canvas) */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {backgroundColor: '#fff'}, flashStyle]} />
-      {phase === 'loading' && (
-        <View style={[StyleSheet.absoluteFill, S.loading]} testID="arcade-loading">
+      {phase === 'loading' && loadStyle === 'pixel' && <View style={StyleSheet.absoluteFill} testID="arcade-loading" accessibilityLabel="Carregando o jogo" accessibilityLiveRegion="polite" />}
+      {phase === 'loading' && loadStyle === 'classic' && (
+        <View style={[StyleSheet.absoluteFill, S.loading]} testID="arcade-loading" accessibilityLabel="Carregando o jogo" accessibilityLiveRegion="polite">
           <Image source={LOAD_BG[choice ?? 'josperd']} resizeMode="stretch" style={[StyleSheet.absoluteFill, {opacity: 0.55}]} />
           <LinearGradient colors={['rgba(9,3,36,.92)', 'rgba(9,3,36,.35)', 'rgba(4,2,20,.95)']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
           <Animated.View style={[{position: 'absolute', bottom: 0, left: stage.x, width: stage.w, aspectRatio: 1024 / 1536}, heroStyle]} pointerEvents="none">
@@ -309,7 +308,7 @@ export default function SelectMenu(p: SelectMenuProps) {
             <Image source={require('../../../assets/arcade/menu/logo.webp')} resizeMode="contain" style={{width: '100%', height: '100%', resizeMode: 'contain'}} accessibilityLabel="NEON STEP DX" />
           </Animated.View>
           <View style={{position: 'absolute', bottom: stage.y + stage.h * 0.07, width: '100%', alignItems: 'center'}}>
-            <Text style={[S.loadT, {textShadowColor: accent}]}>CARREGANDO…</Text>
+            <Text style={[S.loadT, {textShadowColor: ACCENT_HEX[choice ?? 'josperd']}]}>CARREGANDO…</Text>
             <View style={S.meter}>
               <Animated.View style={[S.meterFill, meterStyle]} />
               <View style={S.meterCuts} pointerEvents="none">{Array.from({length: 15}, (_, i) => <View key={i} style={S.meterCut} />)}</View>
@@ -322,28 +321,7 @@ export default function SelectMenu(p: SelectMenuProps) {
   );
 }
 
-/** Letreiro de fliperama: letra branca com contorno preto grosso e brilho, sem caixa por trás. */
-const OUT = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
-function Outlined({text, size, spacing, glow}: {text: string; size: number; spacing?: number; glow?: string}) {
-  const w = Math.max(2, Math.round(size / 9));
-  const base = {fontSize: size, fontWeight: '900' as const, letterSpacing: spacing ?? size * 0.09, textAlign: 'center' as const};
-  return (
-    <View accessible={false} importantForAccessibility="no-hide-descendants">
-      {glow && <Text style={[base, {position: 'absolute', left: 0, right: 0, color: '#000', textShadowColor: glow, textShadowRadius: size * 0.7, textShadowOffset: {width: 0, height: 0}}]}>{text}</Text>}
-      {OUT.map(([x, y], i) => <Text key={i} style={[base, {position: 'absolute', left: x * w, right: -x * w, top: y * w, color: '#000'}]}>{text}</Text>)}
-      <Text style={[base, {color: '#fff'}]}>{text}</Text>
-    </View>
-  );
-}
-
 const S = StyleSheet.create({
-  top: {position: 'absolute', top: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  round: {width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(3,6,28,.72)', borderWidth: 1, borderColor: 'rgba(147,230,255,.45)', alignItems: 'center', justifyContent: 'center'},
-  ctrl: {flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: 'rgba(3,6,28,.72)', borderWidth: 1, borderColor: 'rgba(147,230,255,.45)'},
-  ctrlT: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: '#fff'},
-  bottom: {position: 'absolute', bottom: 0, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 14},
-  indicator: {fontSize: 11, fontWeight: '800', letterSpacing: 2.4, color: '#e2e4fb', textShadowRadius: 9, textShadowOffset: {width: 0, height: 0}, marginBottom: 8, minHeight: 14},
-  play: {alignItems: 'center', justifyContent: 'center', paddingVertical: 6, gap: 4},
   loading: {alignItems: 'center', justifyContent: 'center', zIndex: 10, backgroundColor: '#05021a'},
   loadT: {fontSize: 16, fontWeight: '900', letterSpacing: 5, color: '#fff', textShadowRadius: 14, textShadowOffset: {width: 0, height: 0}},
   loadS: {fontSize: 10, fontWeight: '800', letterSpacing: 2.4, color: 'rgba(226,228,251,.85)', marginTop: 10},
@@ -351,4 +329,8 @@ const S = StyleSheet.create({
   meterFill: {height: '100%', backgroundColor: '#ff4fd8'},
   meterCuts: {...StyleSheet.absoluteFillObject, flexDirection: 'row', justifyContent: 'space-evenly'},
   meterCut: {width: 3, height: '100%', backgroundColor: '#050624'},
+  top: {position: 'absolute', top: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
+  round: {width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(3,6,28,.72)', borderWidth: 1, borderColor: 'rgba(147,230,255,.45)', alignItems: 'center', justifyContent: 'center'},
+  ctrl: {flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: 'rgba(3,6,28,.72)', borderWidth: 1, borderColor: 'rgba(147,230,255,.45)'},
+  ctrlT: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: '#fff'},
 });

@@ -117,3 +117,26 @@ test('animação: dura 760 ms, começa e termina nos valores; duração 0 (reduz
   assert.equal(tweenAt({...tw, dur: 0}, 1000), -1);
   assert.equal(mix(0, 10, 0.5), 5);
 });
+
+test('fonte de pixels: grade 5×7 em todo glifo, largura = 6 por letra − 1, sem acento vira espaço', async () => {
+  const {pixelText, hasGlyph, GLYPH_W, GLYPH_H} = await import('../native/src/arcade/menu/pixelfont.ts');
+  for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%.!:-<>* ') assert.ok(hasGlyph(ch), ch);
+  const t = pixelText('PRESS START');
+  assert.equal(t.cols, 11 * (GLYPH_W + 1) - 1);
+  assert.equal(t.rows, GLYPH_H);
+  assert.ok(t.cells.every(([c, r]) => c >= 0 && c < t.cols && r >= 0 && r < 7));
+  assert.equal(new Set(t.cells.map((c) => c.join())).size, t.cells.length, 'sem células repetidas');
+  assert.deepEqual(pixelText('Ã').cells, [], 'caractere desconhecido não desenha nada');
+  assert.ok(pixelText('P').cells.length > 10);
+});
+
+test('carregando: 15 % clássico, o resto de pixels', async () => {
+  const {pickLoadingStyle, CLASSIC_CHANCE} = await import('../native/src/arcade/menu/loadingStyle.ts');
+  assert.equal(CLASSIC_CHANCE, 0.15);
+  assert.equal(pickLoadingStyle(0), 'classic');
+  assert.equal(pickLoadingStyle(0.1499), 'classic');
+  assert.equal(pickLoadingStyle(0.15), 'pixel');
+  assert.equal(pickLoadingStyle(0.999), 'pixel');
+  let c = 0; for (let i = 0; i < 10000; i++) if (pickLoadingStyle(i / 10000) === 'classic') c++;
+  assert.equal(c, 1500);
+});

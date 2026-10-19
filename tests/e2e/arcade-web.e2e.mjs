@@ -43,14 +43,15 @@ test.before(async () => {
 test.after(async () => { await browser?.close(); if (server) await new Promise((ok) => server.close(ok)); });
 
 /** save: objeto gravado em `arcade.v1` antes do app abrir (uma vez). */
-async function open({save = null, viewport = {width: 393, height: 852}, touch = false} = {}) {
+async function open({save = null, viewport = {width: 393, height: 852}, touch = false, loadStyle = 'pixel'} = {}) {
   const context = await browser.newContext({viewport, deviceScaleFactor: 2, hasTouch: touch, isMobile: touch, reducedMotion: 'reduce'});
   context.setDefaultTimeout(15000);
   await context.route('https://api.github.com/**', (r) => r.fulfill({status: 200, headers: {'access-control-allow-origin': '*', 'content-type': 'application/json'}, body: '[]'}));
-  await context.addInitScript(({save}) => {
+  await context.addInitScript(({save, loadStyle}) => {
     window.__MODO_ARCADE_SEED__ = 20260416; // semente fixa: mundo igual em todo teste
+    window.__MODO_LOADING_STYLE__ = loadStyle; // o sorteio de 15 % é testado à parte; aqui cada estilo é forçado
     if (save && !localStorage.getItem('__seeded')) { localStorage.setItem('arcade.v1', JSON.stringify(save)); localStorage.setItem('__seeded', '1'); }
-  }, {save});
+  }, {save, loadStyle});
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -151,12 +152,12 @@ test('menu: tela neutra na 1ª vez, escolher mostra o JOGAR com o recorde, troca
   await shot(page, '01-menu-neutro');
   await pick(page, 'josperd');
   await chosen(page, 'JOSPERD');
-  await page.getByText('RECORDE 1234').first().waitFor();
+  assert.match(await page.getByTestId('arcade-play').getAttribute('aria-label'), /Recorde 1234/);
   await page.waitForTimeout(1000);
   await shot(page, '01a-menu-josperd');
   await page.getByTestId('arcade-swap').click(); // botão de setas do centro
   await chosen(page, 'CAMILA');
-  await page.getByText('RECORDE 0077').first().waitFor();
+  assert.match(await page.getByTestId('arcade-play').getAttribute('aria-label'), /Recorde 77/);
   await page.waitForTimeout(1000);
   await shot(page, '01b-menu-camila');
   await startGame(page, 'camila');
@@ -169,7 +170,6 @@ test('menu: quem já jogou volta com o último personagem já escolhido', {skip}
   const {context, page} = await open({save: {v: 1, unlocked: true, plays: 3, best: {josperd: 10, camila: 500}, settings: {hero: 'camila'}}});
   await toArcade(page);
   await chosen(page, 'CAMILA');
-  await page.getByText('PRESS START').first().waitFor();
   await page.getByLabel('Jogar com CAMILA').waitFor();
   await context.close();
 });
@@ -226,7 +226,21 @@ test('menu: o botão de controle alterna toque/inclinação e fica salvo; JOGAR 
   await pick(page, 'josperd');
   await page.getByTestId('arcade-play').click();
   await page.getByTestId('arcade-loading').waitFor({timeout: 5000});
-  await shot(page, '01c-carregando');
+  await page.waitForTimeout(1100);
+  await shot(page, '01c-carregando-pixel');
+  await page.getByTestId('arcade-score').waitFor({timeout: 20000});
+  await context.close();
+});
+
+test('menu: o carregando clássico (ilustrado) também entra no jogo', {skip}, async () => {
+  const {context, page} = await open({save: {v: 1, unlocked: true}, loadStyle: 'classic'});
+  await toArcade(page);
+  await pick(page, 'camila');
+  await page.getByTestId('arcade-play').click();
+  await page.getByTestId('arcade-loading').waitFor({timeout: 5000});
+  await page.getByText('CARREGANDO…').waitFor();
+  await page.waitForTimeout(900);
+  await shot(page, '01d-carregando-classico');
   await page.getByTestId('arcade-score').waitFor({timeout: 20000});
   await context.close();
 });
