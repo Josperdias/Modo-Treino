@@ -451,14 +451,16 @@ test('portais novos: Papel espelha os dois personagens e a volta troca de herói
     sim.items.push({id: 9200, kind: 'portal', variant: 'tele', x: 270, y: pad.y + 74, phase: 0, hit: false, lock: sw.id, open: false, dx: 120, dy: q.y + 30});
     sim.items.push({id: 9201, kind: 'gate', x: 210, y: gy, phase: 0, hit: false, lock: sw.id, open: false});
     sim.items.push({id: 9202, kind: 'portal', variant: 'exit', x: 120, y: q.y + 74, phase: 0, hit: false, lock: sw.id});
-    sim.player.x = 110; sim.player.y = sim.player.py = sw.y + 60; sim.player.vy = -200; sim.invuln = 99;
+    sim.platforms = sim.platforms.filter(pl => pl.pattern === 'lab' || pl.pattern === 'labExit' || pl.y < cam - 100); // sem outras plataformas no caminho (o mundo ao fundo é aleatório)
+    sim.player.x = 110; sim.player.y = sim.player.py = sw.y + 2; sim.player.vy = -300; sim.invuln = 99;
   });
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.items.find(i => i.variant === 'tele')?.open === true, null, {timeout: 8000});
+  await page.evaluate(() => globalThis.__MODO_ARCADE_SESSION__.pause()); // a captura demora: sem pausa o herói sai da sala (e a câmera sobe e descarta o portal)
   await page.waitForTimeout(400);
   await shot(page, '18-sala-do-portal-aberta');
-  await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim, a = sim.items.find(i => i.variant === 'tele'); sim.player.x = a.x; sim.player.y = sim.player.py = a.y - 45; sim.player.vy = 0; });
-  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.items.find(i => i.variant === 'tele')?.hit === true, null, {timeout: 8000});
-  assert.ok((await page.evaluate(() => globalThis.__MODO_ARCADE_SESSION__.sim.player.x)) < 160, 'teletransportado para o portal laranja');
+  await page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__, sim = s.sim, a = sim.items.find(i => i.variant === 'tele'); sim.camera = sim.prevCamera = Math.min(sim.camera, a.y - 300); sim.player.x = a.x; sim.player.y = sim.player.py = a.y - 45; sim.player.vy = 0; s.resume(); });
+  // (o portal usado some da lista na faxina seguinte; por isso a prova é a posição do herói: do portal azul, x=270, para o laranja, x=120)
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.player.x < 160, null, {timeout: 8000});
   // Bônus: zona dourada.
   await throughPortal(page, 'bonus');
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.bonusY1 > 0);
