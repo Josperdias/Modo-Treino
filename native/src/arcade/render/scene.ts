@@ -1095,7 +1095,8 @@ function drawPortal(canvas: SkCanvas, it: Item, x: number, y: number, time: numb
     const color = (i + tick) % 4 === 0 ? '#ffffff' : (i + tick) % 2 ? c1 : c2;
     rect(canvas, color, Math.round((x + Math.cos(a) * rx) / 2) * 2 - 3, Math.round((y + Math.sin(a) * ry) / 2) * 2 - 3, 6, 6);
   }
-  if (text) drawPixelText(canvas, name, x, y + ry + 18, 2, {top: '#ffffff', low: c2, shadow: variant === 'paper' ? '#7a5a38' : c1});
+  // Os portais da sala do portal (entrada azul e saída laranja) não levam nome: o cadeado e a cor bastam.
+  if (text && variant !== 'tele' && variant !== 'exit') drawPixelText(canvas, name, x, y + ry + 18, 2, {top: '#ffffff', low: c2, shadow: variant === 'paper' ? '#7a5a38' : c1});
 }
 
 /** Barreira da sala do portal: feixe de laser de ponta a ponta com dois emissores; aberta, vira pontilhado verde. */
