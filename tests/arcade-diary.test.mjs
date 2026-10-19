@@ -169,7 +169,7 @@ test('qualidade adaptativa: começa no piso, sobe para o mínimo se o quadro dem
   assert.equal(slow.level, 2);
   assert.equal(slow.escalated, true);
   assert.equal(changed, 1, 'sobe uma vez só');
-  assert.equal(slow.scale, 0.75);
+  assert.equal(slow.scale, 1, 'o canvas não é mais reduzido/ampliado');
   // Depois que melhora, continua no mínimo (sem oscilar).
   for (let i = 0; i < 2000; i++) { ts += 33; slow.feed(1, 33, ts); }
   assert.equal(slow.level, 2);

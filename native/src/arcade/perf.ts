@@ -63,7 +63,7 @@ const round = (v: number) => Math.round(v * 100) / 100;
 
 /**
  * Qualidade adaptativa do desenho: 0 completo · 1 leve (sem brilhos, sem transição de portal, menos partículas e fundo simples) ·
- * 2 mínimo (além disso 30 quadros/s e canvas a 75 %). O celular decide: começa no piso (1 no app, 0 na web) e sobe para 2 quando
+ * 2 mínimo (além disso 30 quadros/s). O celular decide: começa no piso (1 no app, 0 na web) e sobe para 2 quando
  * o tempo entre quadros passa de `Q_UP_FRAME_MS` (o desenho em JS pode ser rápido e a GPU ainda assim não dar conta).
  * Nunca desce sozinho: oscilar entre níveis é pior que ficar no leve.
  */
@@ -109,6 +109,6 @@ export class Quality {
 
   /** Pula o desenho deste quadro (limite de quadros por segundo do nível). */
   skipDraw(ts: number, lastDraw: number): boolean { return ts - lastDraw < MIN_DRAW_GAP_MS[this.level]; }
-  /** Resolução relativa do canvas. */
-  get scale(): number { return this.level >= 2 ? 0.75 : 1; }
+  /** Resolução relativa do canvas: sempre 1 (ampliar o canvas por `transform` quebrou o desenho no Android). */
+  get scale(): number { return 1; }
 }

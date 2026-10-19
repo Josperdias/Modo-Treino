@@ -154,3 +154,7 @@ Inimigos, poderes, portais e os outros universos (M2), checkpoint na Cidade Neon
 - `Quality`: piso 1 no app (0 na web), sobe para 2 quando o tempo entre quadros passa de 20 ms (`Q_UP_FRAME_MS`), nunca desce; `onSlow` grava `settings.lite = true`. Limite de quadros `MIN_DRAW_GAP_MS` [15, 15, 28] ms (60 qps; 120 Hz não dobra a carga).
 - Nível ≥ 1 também pula: meio-tom em tela cheia, a camada com transparência da skyline e a transição (crossfade com `saveLayer` do mundo anterior) do portal.
 - Erro dos portais (Cristal e Atalho) e da linha de recorde no aparelho: `Value is undefined, expected an Object` (JSI). Não reproduz na web; `guard()` isola cada parte do desenho e a pausa/aviso mostram qual falhou.
+
+## 1.4.13 — Sem sala do portal; sem reduzir o canvas
+- `LAB.ENABLED = false`: `makeGen` ainda sorteia `labY` (os mapas não mudam) mas o guarda em `1e15` (Infinity viraria null no JSON da partida guardada); o mecanismo (botão/`gate`/portais `tele`/`exit`) continua no motor e nos testes, que forçam `labY`. Motivo: pedido do dono (atrapalhava a jogabilidade).
+- `Quality.scale` = 1: o nível 2 reduzia o canvas a 75 % e o ampliava com `transform`/`transformOrigin`; no Android isso (provável causa de "os gráficos não aparecem" depois da 1.4.12, quando o app passou a começar/subir para o nível 2) não é confiável. Nível 2 = só sem brilhos/partículas reduzidas + 30 qps.

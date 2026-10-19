@@ -2,6 +2,12 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.13] — 2026-10-19
+
+### Jogabilidade e gráficos 🕹️
+- **Sala do portal removida** (o botão, a barreira e o portal azul "trancado" atrapalhavam o jogo): agora só existem os portais normais.
+- **Gráficos de volta**: o modo leve não reduz mais o tamanho da tela do jogo (isso podia deixar o desenho cortado ou sumido no Android). Ele só tira efeitos pesados e limita os quadros por segundo.
+
 ## [1.4.12] — 2026-10-19
 
 ### Mais leve de verdade no celular 🕹️

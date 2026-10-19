@@ -279,7 +279,7 @@ export const SKETCH = {LENGTH_M: 300, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MA
 export const INVERSE = {LENGTH_M: 350} as const;
 export const DESC = {HOP: 330, TERMINAL: 900, SCROLL: 44, SCROLL_PER_LEVEL: 3, TOP_FRAC: 0.36, CRUSH: 90, GAP: [80, 215]} as const;
 /** Sala do portal: botão (plataforma) → portal azul trancado → barreira → portal laranja lá em cima. */
-export const LAB = {FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 620, HEAD: 84, /** Distância mínima (m) entre a sala do portal e qualquer portal de mundo. */ FAR_M: 400, /** Altura aproximada (m) que a sala ocupa: conta na distância até o próximo portal de mundo. */ SPAN_M: 130} as const;
+export const LAB = {/** Desligada no jogo (pedido do dono: o botão + portal trancado atrapalhava a jogabilidade). O mecanismo continua no motor e nos testes (força `labY`). */ ENABLED: false, FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 620, HEAD: 84, /** Distância mínima (m) entre a sala do portal e qualquer portal de mundo. */ FAR_M: 400, /** Altura aproximada (m) que a sala ocupa: conta na distância até o próximo portal de mundo. */ SPAN_M: 130} as const;
 
 /** Vulcão: a lava sobe sozinha; encostar nela machuca (e ela recua). */
 export const LAVA = {SPEED: 92, GAP: 130, RESET_GAP: 220} as const;

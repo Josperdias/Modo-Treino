@@ -217,11 +217,7 @@ export default function GameCanvas(p: GameCanvasProps) {
       accessible
       accessibilityLabel="Jogo NEON STEP DX. Segure o lado esquerdo ou direito da tela para mover o personagem e toque no botão redondo de baixo para atirar."
     >
-      {/* Nível mínimo: o canvas é menor e ampliado (menos pixels para a GPU de aparelhos fracos). */}
-      <Canvas
-        style={qLevel >= 2 ? {position: 'absolute', left: 0, top: 0, width: (size?.w ?? 0) * 0.75, height: (size?.h ?? 0) * 0.75, transformOrigin: 'top left', transform: [{scale: 1 / 0.75}]} : StyleSheet.absoluteFill}
-        pointerEvents="none"
-      >
+      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
         <Picture picture={picture} />
       </Canvas>
     </View>

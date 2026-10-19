@@ -738,19 +738,16 @@ test('barreira aberta (ou hélice) deixa passar; portal laranja é só saída (n
   assert.ok(!ex.hit);
 });
 
-test('sala do portal: só no campo aberto, a cada 450–760 m, sempre resolvível; robô ideal passa por ela', () => {
-  let passed = 0, total = 0;
-  for (let seed = 1; seed <= 10; seed++) {
-    const s = createSim(seed), bot = makeBot(IDEAL, seed);
-    let pressed = false, tele = false;
-    for (let i = 0; i < 120 * 200 && s.mode === 'playing' && !tele; i++) {
-      step(s, botInput(s, bot));
-      for (const e of s.events) { if (e.t === 'press') pressed = true; if (e.t === 'portal' && e.variant === 'tele') tele = true; }
-      s.events.length = 0;
-    }
-    if (s.mode === 'playing' || tele) { total++; if (tele && pressed) passed++; }
+test('sala do portal: desligada no jogo (o botão e o portal trancado atrapalhavam) — nenhuma partida gera botão, barreira nem portal azul/laranja', () => {
+  assert.equal(LAB.ENABLED, false);
+  for (let seed = 1; seed <= 30; seed++) {
+    const g = makeGen(seed);
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(g, out, 90 + 20000);
+    assert.equal(g.labY, 1e15);
+    assert.ok(!out.items.some(i => i.kind === 'gate' || i.variant === 'tele' || i.variant === 'exit'), `seed ${seed}: gerou sala do portal`);
+    assert.ok(!out.platforms.some(p => p.type === 'switch'), `seed ${seed}: gerou botão`);
   }
-  assert.ok(passed >= 7, `o robô só passou pela sala em ${passed}/${total}`);
 });
 
 /* ---------- Rascunho (campo inteiro, dobra rasgada) ---------- */

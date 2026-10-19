@@ -43,7 +43,7 @@ export function makeGen(seed: number): Gen {
     paperExitY: 0,
     bonusEndY: 0,
     portalsMade: 0,
-    labY: PHYS.START_Y + range(rng, LAB.FIRST_M[0], LAB.FIRST_M[1]) * 10,
+    labY: ((y) => (LAB.ENABLED ? y : 1e15))(PHYS.START_Y + range(rng, LAB.FIRST_M[0], LAB.FIRST_M[1]) * 10), // sorteia sempre: os mapas não mudam por a sala estar desligada
     sketchOffered: false,
     lastPortalY: -1e9,
   };
@@ -358,7 +358,8 @@ const lab: PatternFn = (g, d, out) => {
   const q = put(g, out, 'labExit', bx, qy, 132, 'normal');
   out.items.push({id: g.nextId++, kind: 'portal', variant: 'exit', x: bx, y: q.y + PORTAL.ABOVE, phase: 0, hit: false, lock: sw.id});
   for (let i = 0; i < 2; i++) nextPlatform(g, 0.3, out, 'lab', {type: 'normal'});
-  g.labY = g.y + range(g.rng, LAB.GAP_M[0], LAB.GAP_M[1]) * 10;
+  const nextLab = g.y + range(g.rng, LAB.GAP_M[0], LAB.GAP_M[1]) * 10;
+  g.labY = LAB.ENABLED ? nextLab : 1e15; // finito: Infinity não sobrevive ao JSON da partida guardada
 };
 
 const PATTERNS: Record<Exclude<PatternName, 'start' | 'labExit'>, PatternFn> = {portalPad, bonus, lab, chaos, cluster, drought, springPad, ladder};
