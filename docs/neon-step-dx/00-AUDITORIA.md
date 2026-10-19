@@ -90,6 +90,7 @@ Gravidade: **A** = bloqueia a versão nativa · **M** = corrigir no caminho · *
 - Banco `AMOSTRAS/` não veio no zip, mas é recriado pelo script (`compor_v7.py`, funções `create_samples`).
 - Fontes de texto: o protótipo usa fontes do sistema; no app usarei Barlow Condensed e DM Sans (OFL), como já é regra do projeto.
 - Nada do pacote entra no repositório/app antes de você aprovar o catálogo final (ver plano, Fase 3).
+- **Áudio que entrou no app (M3)**: não vem do pacote do ChatGPT. As 11 trilhas e os efeitos foram **compostos e sintetizados do zero** por `scripts/arcade_audio/` (teoria por regras + osciladores/FM/modais), sem amostras nem trechos de música existente; é código do próprio projeto. A conferência foi por medição (pico, loop sem emenda, % da energia na escala, pulso), em `AUDIT_audio.json`; **a escuta humana final continua sendo sua** (semelhança acidental com música conhecida não se prova por medição).
 
 ## 5. Perguntas que dependem de você (com o que assumo se não disser nada)
 

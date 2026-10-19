@@ -2,6 +2,16 @@
 
 O texto público da release fica em `CHANGELOG.md` (só uma dica, o jogo é um segredo). Aqui ficam os detalhes.
 
+## [Em desenvolvimento] — M3: trilhas e sons originais por código
+
+Pedido do dono: "crie faixas para o jogo para cada parte e adicione sons, baseados mais naquilo que você fez do que a do ChatGPT".
+
+- **11 trilhas, uma por parte**: `menu`, `neon`, `crystal`, `clock`, `cosmos`, `ocean`, `volcano`, `paper`, `sketch`, `inverse` (queda livre) e `bonus` (chuva de fitas). Cada uma tem andamento, escala e timbre próprios (ex.: neon = pulsos NES a 148 bpm com stabs de funk; ocean = bolhas de Minnaert a 92; cosmos = sinos e escada de Shepard subindo na seção B; clock = tique-taque de madeiras esquerda/direita; paper = farfalhar de papel; inverse = escada de Shepard descendo e vento a 170 bpm) e fecha em laço sem emenda.
+- **~50 efeitos**: pousos por tipo de plataforma, fitas que sobem de nota com o combo, poderes, tiros, acertos, mortes, um som por tipo de portal, botão/barreira da sala do portal, troca do Papel, esmagamento, aviso de lava, batimento com 1 vida, vinhetas de fim e de recorde.
+- **Camada opt-in**: nova config `sfx` e `music` (ambas **desligadas por padrão**); botão de som no menu (liga/desliga os dois) e chaves separadas na pausa. A trilha acompanha o mundo atual e o bônus, com fade cruzado; pausar ou sair do app cala tudo. Os efeitos tocam misturados (sem foco de áudio) e a música do usuário no Media3 não é interrompida.
+- **Tudo gerado**: `python3 scripts/arcade_audio/build.py tudo`. Medições (pico −1,2 dBFS, emenda do laço, energia na escala, pulso, silêncio) em `AUDIT_audio.json`. Peso total ≈ 6,6 MB em OGG Vorbis.
+- Testes: `tests/arcade-audio.test.mjs` (mapeamento evento→som, trilha por mundo, todos os arquivos existem e cobrem o manifesto, limites de tamanho/pico) e um e2e no Chromium (som desligado por padrão, liga e fica salvo, trilha do menu e efeitos tocam sem erros).
+
 ## [Em desenvolvimento] — M2 (parte 2): mais Doodle Jump, portais longe, Papel espelhado
 
 Pedido do dono: "muito mais aleatório, desorganizado e difícil; portais longe uns dos outros e com ideias novas (o Papel: duas personagens espelhadas e a troca); mais elementos que chamem a atenção; otimizar tudo".

@@ -1,0 +1,482 @@
+{
+ "musica": {
+  "neon": {
+   "duracao_s": 51.89,
+   "compassos": 32,
+   "bpm": 148,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -16.49,
+   "graves_pct": 44.1,
+   "medios_pct": 38.4,
+   "agudos_pct": 15.8,
+   "pulso_autocorr": 0.48,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.72,
+   "energia_na_escala_pct": 70.3,
+   "bytes": 499350,
+   "segundos_para_renderizar": 4.2
+  },
+  "menu": {
+   "duracao_s": 58.18,
+   "compassos": 32,
+   "bpm": 132,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -16.2,
+   "graves_pct": 58.2,
+   "medios_pct": 30.8,
+   "agudos_pct": 10.0,
+   "pulso_autocorr": 0.594,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.54,
+   "energia_na_escala_pct": 81.6,
+   "bytes": 581186,
+   "segundos_para_renderizar": 5.0
+  },
+  "crystal": {
+   "duracao_s": 61.94,
+   "compassos": 32,
+   "bpm": 124,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -15.45,
+   "graves_pct": 39.8,
+   "medios_pct": 57.5,
+   "agudos_pct": 2.7,
+   "pulso_autocorr": 0.162,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.45,
+   "energia_na_escala_pct": 87.4,
+   "bytes": 633006,
+   "segundos_para_renderizar": 6.9
+  },
+  "clock": {
+   "duracao_s": 68.57,
+   "compassos": 32,
+   "bpm": 112,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -15.39,
+   "graves_pct": 47.8,
+   "medios_pct": 40.4,
+   "agudos_pct": 11.7,
+   "pulso_autocorr": 0.754,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.55,
+   "energia_na_escala_pct": 76.8,
+   "bytes": 673256,
+   "segundos_para_renderizar": 10.6
+  },
+  "cosmos": {
+   "duracao_s": 76.8,
+   "compassos": 32,
+   "bpm": 100,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -15.64,
+   "graves_pct": 15.3,
+   "medios_pct": 80.3,
+   "agudos_pct": 4.4,
+   "pulso_autocorr": 0.367,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.51,
+   "energia_na_escala_pct": 92.9,
+   "bytes": 746853,
+   "segundos_para_renderizar": 8.1
+  },
+  "ocean": {
+   "duracao_s": 83.48,
+   "compassos": 32,
+   "bpm": 92,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -14.75,
+   "graves_pct": 68.7,
+   "medios_pct": 29.5,
+   "agudos_pct": 1.9,
+   "pulso_autocorr": 0.169,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.34,
+   "energia_na_escala_pct": 82.0,
+   "bytes": 890659,
+   "segundos_para_renderizar": 11.2
+  },
+  "volcano": {
+   "duracao_s": 46.83,
+   "compassos": 32,
+   "bpm": 164,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -14.92,
+   "graves_pct": 62.3,
+   "medios_pct": 31.0,
+   "agudos_pct": 6.2,
+   "pulso_autocorr": 0.454,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.44,
+   "energia_na_escala_pct": 72.2,
+   "bytes": 454960,
+   "segundos_para_renderizar": 3.7
+  },
+  "paper": {
+   "duracao_s": 71.11,
+   "compassos": 32,
+   "bpm": 108,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -15.13,
+   "graves_pct": 23.7,
+   "medios_pct": 72.0,
+   "agudos_pct": 4.2,
+   "pulso_autocorr": 0.59,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.54,
+   "energia_na_escala_pct": 87.5,
+   "bytes": 736600,
+   "segundos_para_renderizar": 10.1
+  },
+  "sketch": {
+   "duracao_s": 45.0,
+   "compassos": 18,
+   "bpm": 96,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -14.36,
+   "graves_pct": 47.5,
+   "medios_pct": 51.6,
+   "agudos_pct": 0.8,
+   "pulso_autocorr": 0.038,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.39,
+   "energia_na_escala_pct": 95.0,
+   "bytes": 465982,
+   "segundos_para_renderizar": 3.3
+  },
+  "inverse": {
+   "duracao_s": 45.18,
+   "compassos": 32,
+   "bpm": 170,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -15.62,
+   "graves_pct": 46.9,
+   "medios_pct": 38.3,
+   "agudos_pct": 14.2,
+   "pulso_autocorr": 0.836,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.57,
+   "energia_na_escala_pct": 65.6,
+   "bytes": 434504,
+   "segundos_para_renderizar": 4.2
+  },
+  "bonus": {
+   "duracao_s": 21.82,
+   "compassos": 16,
+   "bpm": 176,
+   "pico_dBFS": -1.2,
+   "rms_dBFS": -15.61,
+   "graves_pct": 59.2,
+   "medios_pct": 28.3,
+   "agudos_pct": 11.8,
+   "pulso_autocorr": 0.607,
+   "emenda_loop": 0.0,
+   "silencio_pct": 0.51,
+   "energia_na_escala_pct": 75.4,
+   "bytes": 216782,
+   "segundos_para_renderizar": 1.6
+  }
+ },
+ "sfx": {
+  "ui_click": {
+   "duracao_s": 0.04,
+   "bytes": 4034,
+   "pico_dBFS": -3.1,
+   "nivel": 0.6
+  },
+  "ui_start": {
+   "duracao_s": 1.08,
+   "bytes": 8633,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "ui_pause": {
+   "duracao_s": 0.201,
+   "bytes": 5181,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "ui_resume": {
+   "duracao_s": 0.201,
+   "bytes": 4964,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "land_normal": {
+   "duracao_s": 0.07,
+   "bytes": 3938,
+   "pico_dBFS": -3.1,
+   "nivel": 0.5
+  },
+  "land_moving": {
+   "duracao_s": 0.07,
+   "bytes": 4208,
+   "pico_dBFS": -3.1,
+   "nivel": 0.5
+  },
+  "land_conveyor": {
+   "duracao_s": 0.076,
+   "bytes": 4284,
+   "pico_dBFS": -3.1,
+   "nivel": 0.5
+  },
+  "land_fragile": {
+   "duracao_s": 0.2,
+   "bytes": 5287,
+   "pico_dBFS": -3.65,
+   "nivel": 0.7
+  },
+  "land_ghost": {
+   "duracao_s": 0.3,
+   "bytes": 5923,
+   "pico_dBFS": -3.1,
+   "nivel": 0.6
+  },
+  "land_spring": {
+   "duracao_s": 0.42,
+   "bytes": 5975,
+   "pico_dBFS": -3.1,
+   "nivel": 0.8
+  },
+  "tape1": {
+   "duracao_s": 0.163,
+   "bytes": 4745,
+   "pico_dBFS": -3.1,
+   "nivel": 0.7
+  },
+  "tape2": {
+   "duracao_s": 0.163,
+   "bytes": 4762,
+   "pico_dBFS": -3.1,
+   "nivel": 0.7
+  },
+  "tape3": {
+   "duracao_s": 0.163,
+   "bytes": 4799,
+   "pico_dBFS": -3.1,
+   "nivel": 0.7
+  },
+  "tape4": {
+   "duracao_s": 0.163,
+   "bytes": 4828,
+   "pico_dBFS": -3.1,
+   "nivel": 0.7
+  },
+  "tape5": {
+   "duracao_s": 0.163,
+   "bytes": 4785,
+   "pico_dBFS": -3.1,
+   "nivel": 0.7
+  },
+  "star": {
+   "duracao_s": 0.745,
+   "bytes": 8885,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "shield": {
+   "duracao_s": 0.6,
+   "bytes": 5472,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "boost": {
+   "duracao_s": 0.38,
+   "bytes": 4395,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "jet": {
+   "duracao_s": 0.8,
+   "bytes": 9686,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "heart": {
+   "duracao_s": 0.344,
+   "bytes": 5949,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "flag": {
+   "duracao_s": 0.58,
+   "bytes": 9112,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "magnet": {
+   "duracao_s": 0.5,
+   "bytes": 4303,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "shoot": {
+   "duracao_s": 0.09,
+   "bytes": 4326,
+   "pico_dBFS": -3.1,
+   "nivel": 0.55
+  },
+  "enemy_shoot": {
+   "duracao_s": 0.14,
+   "bytes": 4594,
+   "pico_dBFS": -3.1,
+   "nivel": 0.6
+  },
+  "enemy_warn": {
+   "duracao_s": 0.16,
+   "bytes": 4586,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "hit": {
+   "duracao_s": 0.35,
+   "bytes": 6209,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "shield_block": {
+   "duracao_s": 0.65,
+   "bytes": 5720,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "kill": {
+   "duracao_s": 0.28,
+   "bytes": 5675,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "kill_big": {
+   "duracao_s": 0.7,
+   "bytes": 8895,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "stomp": {
+   "duracao_s": 0.1,
+   "bytes": 4421,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_world": {
+   "duracao_s": 1.0,
+   "bytes": 10965,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_paper": {
+   "duracao_s": 1.0,
+   "bytes": 10824,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_bonus": {
+   "duracao_s": 0.55,
+   "bytes": 9605,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_warp": {
+   "duracao_s": 1.3,
+   "bytes": 13443,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_back": {
+   "duracao_s": 0.79,
+   "bytes": 8074,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_time": {
+   "duracao_s": 1.0,
+   "bytes": 11637,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_leap": {
+   "duracao_s": 0.316,
+   "bytes": 6298,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_flip": {
+   "duracao_s": 0.9,
+   "bytes": 9887,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_sketch": {
+   "duracao_s": 0.9,
+   "bytes": 12326,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "portal_tele": {
+   "duracao_s": 0.45,
+   "bytes": 6114,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "press": {
+   "duracao_s": 0.59,
+   "bytes": 6476,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "bonk": {
+   "duracao_s": 0.2,
+   "bytes": 5924,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "swap": {
+   "duracao_s": 0.6,
+   "bytes": 6860,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "revive": {
+   "duracao_s": 1.045,
+   "bytes": 11401,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "crush": {
+   "duracao_s": 1.1,
+   "bytes": 10742,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "lava_warn": {
+   "duracao_s": 0.6,
+   "bytes": 7156,
+   "pico_dBFS": -3.1,
+   "nivel": 0.7
+  },
+  "life_low": {
+   "duracao_s": 0.3,
+   "bytes": 4343,
+   "pico_dBFS": -3.1,
+   "nivel": 0.7
+  },
+  "fall": {
+   "duracao_s": 0.7,
+   "bytes": 4649,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "over": {
+   "duracao_s": 1.82,
+   "bytes": 17430,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  },
+  "record": {
+   "duracao_s": 3.106,
+   "bytes": 29653,
+   "pico_dBFS": -3.1,
+   "nivel": 0.85
+  }
+ }
+}

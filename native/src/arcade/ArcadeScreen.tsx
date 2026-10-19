@@ -14,6 +14,8 @@ import {Session, type Hud} from './session.ts';
 import {step as simStep} from './core/sim.ts';
 import {recordRun, type Hero} from './save';
 import type {SimEvent} from './core/types.ts';
+import {ArcadeAudio} from './audio/engine';
+import {cuesFor, lavaClose, musicFor, stingerFor} from './audio/plan.ts';
 
 const NEON = {pink: '#ff4dac', cyan: '#49e6ff', bg: '#140a24', bg2: '#251438', glass: 'rgba(16,9,31,.72)'};
 const HEROES: {id: Hero; name: string}[] = [{id: 'josperd', name: 'JOSPERD'}, {id: 'camila', name: 'CAMILA'}];
@@ -38,6 +40,8 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   const [perf, setPerf] = useState('');
   const session = useRef<Session | null>(null);
   const hero = save.settings.hero;
+  const audio = useRef<ArcadeAudio | null>(null);
+  const getAudio = () => (audio.current ??= new ArcadeAudio());
   const set = (patch: Partial<typeof save.settings>) => updateArcade((s) => ({...s, settings: {...s.settings, ...patch}}));
 
   const start = useCallback((who?: Hero) => {
@@ -50,6 +54,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
       (globalThis as any).__MODO_ARCADE_SESSION__ = s;
       (globalThis as any).__MODO_ARCADE_STEP__ = (axis: number) => simStep(s.sim, {axis});
     }
+    audio.current?.ui('ui_start');
     setHud(s.hud());
     setHint(true);
     setNewRecord(false);
@@ -57,9 +62,10 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   }, [hero, save.best, save.bestMeters]);
 
   const pause = useCallback(() => {
-    if (session.current && !session.current.over) { session.current.pause(); setPhase('pause'); }
+    if (session.current && !session.current.over) { session.current.pause(); audio.current?.ui('ui_pause'); setPhase('pause'); }
   }, []);
   const resume = useCallback(() => { session.current?.resume(); setPhase('play'); }, []);
+  const toggleSound = useCallback((on: boolean) => { updateArcade((s) => ({...s, settings: {...s.settings, sfx: on, music: on}})); }, []);
 
   // Voltar do Android: jogando → pausa; pausa/fim → seleção; seleção → sai.
   useEffect(() => {
@@ -84,6 +90,32 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
     return () => { deactivateKeepAwake('modo-arcade').catch(() => {}); };
   }, [phase]);
 
+  // Som (opt-in): liga/desliga conforme os ajustes; sai calado junto com a tela.
+  useEffect(() => {
+    if (!loaded) return;
+    if (!save.settings.sfx && !save.settings.music && !audio.current) return;
+    getAudio().configure(save.settings.sfx, save.settings.music);
+  }, [loaded, save.settings.sfx, save.settings.music]);
+  useEffect(() => () => { audio.current?.dispose(); audio.current = null; }, []);
+
+  // Trilha da parte do jogo (menu, cada mundo, bônus) e aviso da lava.
+  useEffect(() => {
+    if (!audio.current) return;
+    if (phase === 'pause') { audio.current.pause(); return; }
+    audio.current.resume();
+    if (phase !== 'play') { audio.current.setMusic(phase === 'select' ? 'menu' : null); return; }
+    const tick = () => {
+      const s = session.current;
+      if (!s || !audio.current) return;
+      const m = s.sim;
+      audio.current.setMusic(musicFor({phase: 'play', world: m.world, y: m.player.y, bonusY0: m.bonusY0, bonusY1: m.bonusY1}));
+      if (lavaClose(m.world, m.player.y, m.lava)) audio.current.play([{id: 'lava_warn', gain: 0.8}]);
+    };
+    tick();
+    const id = setInterval(tick, 350);
+    return () => clearInterval(id);
+  }, [phase, save.settings.sfx, save.settings.music]);
+
   useEffect(() => {
     if (phase !== 'play') return;
     const t = setTimeout(() => setHint(false), 3800);
@@ -102,6 +134,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   const onEvents = useCallback((events: SimEvent[]) => {
     for (const e of events) {
       if (e.t === 'over') setCause(e.cause);
+      audio.current?.play(cuesFor(e));
       if (!save.settings.haptics || Platform.OS === 'web') continue;
       if (e.t === 'collect' || e.t === 'pickup' || e.t === 'kill') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       else if (e.t === 'hit' && !e.blocked) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
@@ -117,6 +150,8 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
     updateArcade(() => r.save);
     setNewRecord(r.record);
     setPhase('over');
+    const a = audio.current;
+    if (a) setTimeout(() => a.play([{id: stingerFor(r.record), gain: 0.9}]), 650);
   }, [save, hero]);
 
   const info = HEROES.find((h) => h.id === hero)!;
@@ -188,6 +223,8 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
           onPlay={(h) => { set({hero: h}); start(h); }}
           onClose={onClose}
           onControl={(c) => set({control: c})}
+          sound={save.settings.sfx || save.settings.music}
+          onSound={toggleSound}
         />
       )}
 
@@ -200,6 +237,8 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
             <View style={S.settings}>
               <Chips options={['touch', 'tilt'] as const} value={save.settings.control} onChange={(v) => set({control: v})} format={(v) => (v === 'touch' ? 'TOQUE' : 'INCLINAR')} label={(v) => (v === 'touch' ? 'Controle por toque' : 'Controle por inclinação')} />
               {save.settings.control === 'tilt' && <Switch value={save.settings.tiltInvert} onChange={(v) => set({tiltInvert: v})} title="Inverter a inclinação" desc="Use se o personagem andar para o lado contrário." />}
+              <Switch value={save.settings.sfx} onChange={(v) => set({sfx: v})} title="Efeitos sonoros" desc="Desligados por padrão. Sons originais feitos por código." />
+              <Switch value={save.settings.music} onChange={(v) => set({music: v})} title="Trilha do jogo" desc="Uma faixa para cada parte. Desligada por padrão." />
               <Switch value={save.settings.haptics} onChange={(v) => set({haptics: v})} title="Vibração leve" desc="Desligada por padrão." />
               <Switch value={save.settings.perf} onChange={(v) => set({perf: v})} title="Medidor de desempenho" desc="Mostra FPS e tempo de quadro na tela." />
             </View>

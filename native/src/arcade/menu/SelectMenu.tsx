@@ -24,6 +24,9 @@ export type SelectMenuProps = {
   onPlay: (hero: Hero) => void;
   onClose: () => void;
   onControl: (c: Control) => void;
+  /** Som do jogo ligado (efeitos ou trilha) e o botão que liga/desliga os dois. Desligado por padrão. */
+  sound: boolean;
+  onSound: (on: boolean) => void;
 };
 
 const PRESS_MS = 760; // pisca + pixels se espalhando antes do carregando
@@ -272,16 +275,28 @@ export default function SelectMenu(p: SelectMenuProps) {
       {/* Topo: sair e controle */}
       {phase !== 'loading' && <View pointerEvents="box-none" style={[S.top, {left: stage.x + 12, right: size ? size.w - stage.x - stage.w + 12 : 12}]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Fechar o fliperama" onPress={p.onClose} style={S.round} testID="arcade-close"><Icon name="close" size={22} color="#fff" /></Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={p.control === 'touch' ? 'Controle por toque. Tocar para usar a inclinação' : 'Controle por inclinação. Tocar para usar o toque'}
-          onPress={() => p.onControl(p.control === 'touch' ? 'tilt' : 'touch')}
-          style={S.ctrl}
-          testID="arcade-control"
-        >
-          <Icon name={p.control === 'touch' ? 'hand-left-outline' : 'phone-portrait-outline'} size={16} color="#fff" />
-          <Text style={S.ctrlT}>{p.control === 'touch' ? 'TOQUE' : 'INCLINAR'}</Text>
-        </Pressable>
+        <View style={{flexDirection: 'row', gap: 8}}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={p.control === 'touch' ? 'Controle por toque. Tocar para usar a inclinação' : 'Controle por inclinação. Tocar para usar o toque'}
+            onPress={() => p.onControl(p.control === 'touch' ? 'tilt' : 'touch')}
+            style={S.ctrl}
+            testID="arcade-control"
+          >
+            <Icon name={p.control === 'touch' ? 'hand-left-outline' : 'phone-portrait-outline'} size={16} color="#fff" />
+            <Text style={S.ctrlT}>{p.control === 'touch' ? 'TOQUE' : 'INCLINAR'}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={p.sound ? 'Som ligado. Tocar para desligar' : 'Som desligado. Tocar para ligar'}
+            accessibilityState={{selected: p.sound}}
+            onPress={() => p.onSound(!p.sound)}
+            style={S.round}
+            testID="arcade-sound"
+          >
+            <Icon name={p.sound ? 'volume-high' : 'volume-mute'} size={20} color="#fff" />
+          </Pressable>
+        </View>
       </View>}
 
       {/* Rodapé: o PRESS START é desenhado em pixels no canvas; aqui só a área de toque e o aviso para leitor de tela. */}

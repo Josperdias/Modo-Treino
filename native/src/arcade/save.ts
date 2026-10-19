@@ -11,6 +11,9 @@ export type ArcadeSettings = {
   haptics: boolean;
   /** Medidor de desempenho na tela (FPS, tempo de quadro). */
   perf: boolean;
+  /** Efeitos sonoros e trilhas do jogo (originais, gerados por código). Desligados por padrão. */
+  sfx: boolean;
+  music: boolean;
 };
 
 export type ArcadeSave = {
@@ -31,7 +34,7 @@ export const DEFAULT_SAVE: ArcadeSave = {
   best: {josperd: 0, camila: 0},
   bestMeters: {josperd: 0, camila: 0},
   plays: 0,
-  settings: {hero: 'josperd', control: 'touch', tiltInvert: false, haptics: false, perf: false},
+  settings: {hero: 'josperd', control: 'touch', tiltInvert: false, haptics: false, perf: false, sfx: false, music: false},
 };
 
 const num = (v: unknown, max = 1e9) => {
@@ -57,6 +60,8 @@ export function normalizeSave(raw: unknown): ArcadeSave {
       tiltInvert: s.tiltInvert === true,
       haptics: s.haptics === true,
       perf: s.perf === true,
+      sfx: s.sfx === true,
+      music: s.music === true,
     },
   };
 }

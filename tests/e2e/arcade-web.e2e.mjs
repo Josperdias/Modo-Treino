@@ -509,6 +509,39 @@ test('configurações na pausa: medidor de desempenho mostra FPS; escolhas ficam
   await context.close();
 });
 
+test('som: desligado por padrão; o botão do menu liga, fica salvo, e a partida toca trilha e efeitos sem erros', {skip}, async () => {
+  const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
+  // Espia o que o navegador de fato manda tocar (expo-audio na web usa elementos de mídia).
+  await page.evaluate(() => {
+    window.__plays = [];
+    const orig = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () { window.__plays.push(String(this.currentSrc || this.src)); return orig.apply(this, arguments).catch(() => {}); };
+  });
+  await toArcade(page);
+  assert.equal((await saved(page)) === null || (await saved(page)).settings?.sfx !== true, true);
+  assert.equal(await page.evaluate(() => window.__plays.length), 0, 'nada toca antes de ligar o som');
+  await page.getByTestId('arcade-sound').click();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('arcade.v1') || '{}').settings?.music === true);
+  const st = (await saved(page)).settings;
+  assert.equal(st.sfx, true);
+  assert.equal(st.music, true);
+  await page.waitForFunction(() => window.__plays.some((u) => /menu/.test(u)), null, {timeout: 8000}); // trilha do menu
+  await startGame(page);
+  await page.waitForTimeout(2500);
+  const plays = await page.evaluate(() => window.__plays);
+  assert.ok(plays.length >= 2, 'tocou algo no jogo: ' + plays.length);
+  await page.getByTestId('arcade-pause').click();
+  await page.getByText('Efeitos sonoros').waitFor();
+  await page.getByText('Trilha do jogo').waitFor();
+  await page.getByText('Efeitos sonoros').click();
+  await page.getByText('Trilha do jogo').click();
+  await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem('arcade.v1') || '{}').settings; return s?.sfx === false && s?.music === false; });
+  await page.getByText('CONTINUAR', {exact: true}).click();
+  await page.waitForTimeout(500);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('fim de jogo: cair encerra, mostra pontos, grava o recorde e permite jogar de novo', {skip}, async () => {
   const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
   await toArcade(page);
