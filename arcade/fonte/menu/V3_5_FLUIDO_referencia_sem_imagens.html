@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
+  <meta name="theme-color" content="#080819"/>
+  <meta name="description" content="Protótipo interativo da seleção de personagens NEON STEP DX"/>
+  <title>NEON STEP DX — Seleção de Personagem (V3.5)</title>
+  <style>
+:root{color-scheme:dark;--magenta:#ff24d5;--cyan:#14dfff;--ink:#040517}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;overscroll-behavior:none}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#05040e;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100dvh;overflow:hidden}
+.ambient{position:fixed;inset:-15%;background:radial-gradient(ellipse at 23% 42%,#6b0755 0%,transparent 39%),radial-gradient(ellipse at 80% 50%,#063c80 0%,transparent 39%),#05040e;filter:blur(36px);opacity:.75;pointer-events:none}
+.cabinet{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;max-height:100dvh}
+.stage{width:min(100vw,calc(100dvh / 2),520px);aspect-ratio:1 / 2;position:relative;isolation:isolate;overflow:hidden;outline:none;background:#070819;box-shadow:0 0 0 1px #ffffff23,0 0 60px #8e0b8578,0 0 130px #0167a96e;touch-action:pan-y;user-select:none}
+.stage:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.panels{position:absolute;inset:0;z-index:0;overflow:hidden;background:linear-gradient(110deg,#120018,#011331)}
+.panel{position:absolute;inset:0;overflow:hidden;transition:clip-path .62s cubic-bezier(.2,.8,.2,1),filter .55s ease;will-change:clip-path}
+.panel img{display:block;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.panel.left{clip-path:polygon(0 0,66% 0,35% 100%,0 100%);filter:brightness(1.11)}
+.panel.right{clip-path:polygon(66% 0,100% 0,100% 100%,35% 100%);filter:brightness(1.1)}
+.edge-grain{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,#03020b17 4px);mix-blend-mode:overlay;pointer-events:none}
+.stage.is-josperd .panel.left{clip-path:polygon(0 0,83% 0,65% 100%,0 100%)}
+.stage.is-josperd .panel.right{clip-path:polygon(83% 0,100% 0,100% 100%,65% 100%);filter:brightness(.67)}
+.stage.is-camila .panel.left{clip-path:polygon(0 0,45% 0,23% 100%,0 100%);filter:brightness(.65)}
+.stage.is-camila .panel.right{clip-path:polygon(45% 0,100% 0,100% 100%,23% 100%)}
+.ghost{position:absolute;width:70%;opacity:.12;z-index:1;pointer-events:none;filter:grayscale(.5) brightness(.7)}
+.ghost img{width:100%;display:block}
+.ghost-left{left:-26%;top:12%;transform:rotate(-12deg)}
+.ghost-right{right:-27%;top:13%;transform:rotate(10deg)}
+.select-zone{position:absolute;top:17%;height:61%;width:50%;z-index:4;cursor:pointer;background:none;border:0;touch-action:pan-y}
+.zone-left{left:0}.zone-right{right:0}
+.hero{position:absolute;z-index:5;pointer-events:none;transition:opacity .54s,filter .5s,transform .65s cubic-bezier(.25,1.25,.38,1);will-change:transform;animation:levitate 3.6s ease-in-out infinite alternate}
+.hero img{width:100%;height:auto;display:block;filter:drop-shadow(0 0 12px #ff37b75f)}
+.hero-left{width:76%;left:-18%;top:22%;opacity:.94;transform:translate3d(0,0,0) scale(.98)}
+.hero-right{width:73%;right:-22%;top:25%;opacity:.94;transform:translate3d(0,0,0) scale(.98);animation-delay:-1.6s}
+.hero-right img{filter:drop-shadow(0 0 11px #1cf9ef72)}
+.stage.is-josperd .hero-left{transform:translate3d(4%,0,0) scale(1.15);opacity:1;filter:brightness(1.04)}
+.stage.is-josperd .hero-right{transform:translate3d(24%,5%,0) scale(.85);opacity:.48;filter:saturate(.54) brightness(.7)}
+.stage.is-camila .hero-right{transform:translate3d(-7%,0,0) scale(1.14);opacity:1;filter:brightness(1.05)}
+.stage.is-camila .hero-left{transform:translate3d(-20%,5%,0) scale(.83);opacity:.44;filter:saturate(.5) brightness(.7)}
+@keyframes levitate{0%{translate:0 0}100%{translate:0 -1.1%}}
+.info{position:absolute;z-index:7;bottom:10.7%;width:61%;pointer-events:none;transition:transform .6s ease,filter .5s ease,opacity .45s}
+.info img{width:100%;height:auto;display:block}
+.info-left{left:-4%;filter:drop-shadow(0 6px 18px #ad06a15b)}
+.info-right{right:-4%;filter:drop-shadow(0 6px 18px #008cd264)}
+.stage.is-josperd .info-left{transform:translateX(5%) scale(1.04)}
+.stage.is-josperd .info-right{opacity:.7;transform:translateX(12%) scale(.94)}
+.stage.is-camila .info-right{transform:translateX(-5%) scale(1.04)}
+.stage.is-camila .info-left{opacity:.65;transform:translateX(-12%) scale(.94)}
+.divider-art{position:absolute;z-index:8;inset:0;width:100%;height:100%;pointer-events:none;object-fit:fill;transition:transform .6s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 10px #b51bd69b)}
+.stage.is-josperd .divider-art{transform:translateX(16%)}
+.stage.is-camila .divider-art{transform:translateX(-16%)}
+.center-switch{position:absolute;z-index:12;left:50%;top:61%;width:14.5%;aspect-ratio:1;transform:translate(-50%,-50%);border:0;padding:0;background:transparent;cursor:pointer;transition:left .6s cubic-bezier(.2,.8,.2,1),scale .2s;filter:drop-shadow(0 0 10px #02e5ff9a)}
+.center-switch img{width:100%;height:100%}
+.center-switch:active{scale:.9}
+.stage.is-josperd .center-switch{left:67%}
+.stage.is-camila .center-switch{left:34%}
+.topline{position:absolute;z-index:8;top:3%;font-family:ui-monospace,Consolas,monospace;font-size:clamp(7px,1.7cqw,13px);letter-spacing:.3em;line-height:1.55;color:#ffa3f4;opacity:.7;text-shadow:0 0 10px #ff3cdb;pointer-events:none}
+.leftline{left:5.5%}.rightline{right:5.5%;color:#97eaff;text-align:right;text-shadow:0 0 10px #12eaff}
+.mini-bars{display:block;letter-spacing:0;font-size:1.6em;opacity:.8}
+.brand{position:absolute;z-index:11;width:72%;height:auto;top:1.7%;left:14%;pointer-events:none;filter:drop-shadow(0 8px 12px #000d);animation:logo-breathe 4s ease-in-out infinite}
+@keyframes logo-breathe{50%{filter:drop-shadow(0 0 10px #ff07cb85) drop-shadow(0 8px 13px #000e)}}
+.scanline{position:absolute;inset:-60% 0;z-index:14;opacity:.15;background:linear-gradient(transparent 47%,#fff 50%,transparent 53%);animation:scan 10s linear infinite;pointer-events:none}
+@keyframes scan{to{transform:translateY(100%)}}
+.selected-indicator{position:absolute;z-index:15;bottom:9.2%;left:5%;width:90%;text-align:center;font-size:clamp(8px,1.8cqw,12px);font-family:ui-monospace,monospace;letter-spacing:.2em;color:#e2e4fb;text-shadow:0 0 9px #11dfff,0 0 12px #e319b8;font-weight:800;opacity:0;transition:opacity .2s}
+.stage.has-selection .selected-indicator{opacity:1}
+.bottom-ui{position:absolute;inset:auto 0 0;z-index:16;height:10.5%;background:linear-gradient(0deg,#02020ef5 9%,#03041a86 70%,transparent);display:flex;justify-content:center;align-items:flex-end}
+.swipe-img{position:absolute;left:12%;width:76%;bottom:27%;transition:opacity .4s,transform .5s;pointer-events:none;filter:drop-shadow(0 0 3px #05edff);animation:hint 2.8s ease-in-out infinite}
+@keyframes hint{0%,100%{transform:translateX(-1.5%)}50%{transform:translateX(1.5%)}}
+.play-button{position:absolute;bottom:12%;left:16%;width:68%;min-height:38%;border-radius:4px;border:1px solid #ffb8ff7a;color:#fff;background:linear-gradient(100deg,#e70f9f,#6710c8 47%,#00c4ef);box-shadow:0 0 14px #a502ab99,inset 0 0 16px #fff2;font-size:clamp(10px,2.45cqw,15px);letter-spacing:.13em;font-weight:900;font-family:system-ui,sans-serif;cursor:pointer;opacity:0;pointer-events:none;transform:translateY(100%);transition:opacity .3s,transform .4s}
+.play-button:disabled{pointer-events:none}
+.stage.has-selection .swipe-img{opacity:0;transform:translateY(30%)}
+.stage.has-selection .play-button{opacity:1;pointer-events:auto;transform:translateY(0)}
+.stage.has-selection .selected-indicator{bottom:7.65%;}
+.audio-control{position:absolute;right:2.5%;top:26%;z-index:20;background:#03061cb8;border:1px solid #93e6ff70;color:#fff;border-radius:20px;padding:7px 9px;font-size:11px;font-weight:700;letter-spacing:.08em;cursor:pointer;backdrop-filter:blur(10px)}
+.audio-control.on{box-shadow:0 0 12px #05ddffe0}
+.white-flash{position:absolute;inset:0;z-index:40;background:#fff;opacity:0;pointer-events:none;transition:opacity .12s}
+.white-flash.active{opacity:1}
+.loading{position:absolute;z-index:35;inset:0;background:radial-gradient(ellipse at 50% 32%,#2c0e68,#040418 72%);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.loading.visible{opacity:1;pointer-events:auto}
+.loading img{width:95%;animation:load-pulse .7s ease-in-out infinite alternate;filter:drop-shadow(0 0 26px #bc16d6)}
+@keyframes load-pulse{from{transform:scale(.97)}to{transform:scale(1.04)}}
+.loading-copy{font:900 clamp(13px,3.2cqw,20px) ui-monospace,monospace;letter-spacing:.25em;margin-top:10%;text-shadow:0 0 12px #40dffd}
+.loading-meter{height:5px;width:65%;margin-top:7%;background:#ffffff21;border:1px solid #0df6fa55;overflow:hidden}
+.loading-meter i{display:block;width:0%;height:100%;background:linear-gradient(90deg,#ff18d9,#f9f,#00eaff);box-shadow:0 0 15px #fff}
+.loading.visible .loading-meter i{animation:fill-loading 1.14s ease-in-out forwards}
+@keyframes fill-loading{to{width:100%}}
+.loading-glint{position:absolute;left:-40%;top:0;bottom:0;width:30%;transform:skew(-25deg);background:#ffffff16;animation:glint 2s infinite}
+@keyframes glint{to{left:140%}}
+.game{position:absolute;z-index:30;inset:0;display:none;background:#081022}
+.game.active{display:block}
+.game canvas{display:block;width:100%;height:100%}
+.game-header{position:absolute;top:3%;left:5%;right:5%;display:flex;justify-content:space-between;align-items:start;gap:8px;pointer-events:none}
+.game-header>div{display:flex;flex-direction:column;gap:1px}
+.game-header span{font-size:11px;letter-spacing:.18em;color:#affffb}
+.game-header strong{font-size:35px;font-style:italic;text-shadow:3px 3px #ff0dba,0 0 10px #02edff}
+.game-header button{pointer-events:auto;color:#fff;background:#020b1aaf;border:1px solid #21e1f1;border-radius:5px;padding:11px 13px;font-weight:900;cursor:pointer}
+.game-hint{position:absolute;bottom:16%;left:0;width:100%;text-align:center;font:700 10px ui-monospace,monospace;letter-spacing:.13em;color:#ffffffae}
+.game-buttons{position:absolute;inset:auto 5% 5%;display:flex;justify-content:space-between;pointer-events:none}
+.game-buttons button{pointer-events:auto;touch-action:none;width:22%;height:53px;border:1px solid #ffffff70;border-radius:12px;background:#0f165b99;color:#fff;font-size:27px;box-shadow:inset 0 0 22px #31a8ff77;cursor:pointer}
+.under-caption{display:flex;width:100%;justify-content:space-between;gap:12px;margin-top:10px;color:#b3a7d3;font:9px ui-monospace,monospace;letter-spacing:.13em}
+@media(max-width:600px){.under-caption{display:none}.stage{box-shadow:none}.audio-control{top:23%}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* NEON STEP DX — V3.5 / deliberate compositing order, one coordinated transition system */
+.stage{container-type:inline-size;touch-action:pan-y;--motion:760ms;--motion-ease:cubic-bezier(.22,1,.36,1)}
+/* Layer stack: 0 backgrounds / 5 patterns / 9 rear hero / 12 divider / 17 front hero / 20 names / 24 logo / 27 controls */
+.panel{transition:clip-path var(--motion) var(--motion-ease),filter var(--motion) ease;will-change:clip-path}
+.panel.left,.lane-left{clip-path:polygon(0 0,66% 0,35% 100%,0 100%)}
+.panel.right,.lane-right{clip-path:polygon(66% 0,100% 0,100% 100%,35% 100%)}
+.stage.is-josperd .panel.left{clip-path:polygon(0 0,73% 0,43% 100%,0 100%)}
+.stage.is-josperd .panel.right{clip-path:polygon(73% 0,100% 0,100% 100%,43% 100%);filter:brightness(.74) saturate(.83)}
+.stage.is-camila .panel.left{clip-path:polygon(0 0,59% 0,28% 100%,0 100%);filter:brightness(.74) saturate(.83)}
+.stage.is-camila .panel.right{clip-path:polygon(59% 0,100% 0,100% 100%,28% 100%)}
+/* Selected mask extends slightly across the dividing ray: visually in front, never over the other portrait/name. */
+.character-lane{position:absolute;inset:0;z-index:9;pointer-events:none;overflow:hidden;contain:layout style;backface-visibility:hidden;transition:clip-path var(--motion) var(--motion-ease);will-change:clip-path}
+.stage.is-josperd .lane-left{clip-path:polygon(0 0,79% 0,49% 100%,0 100%);z-index:17}
+.stage.is-josperd .lane-right{clip-path:polygon(73% 0,100% 0,100% 100%,43% 100%);z-index:9}
+.stage.is-camila .lane-left{clip-path:polygon(0 0,59% 0,28% 100%,0 100%);z-index:9}
+.stage.is-camila .lane-right{clip-path:polygon(53% 0,100% 0,100% 100%,22% 100%);z-index:17}
+/* Two drift paths below the hero, clipped exactly like the backgrounds. */
+.pattern-deck{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.28;mix-blend-mode:screen;overflow:hidden}
+.pattern-l,.pattern-r{position:absolute;inset:-4%;overflow:hidden;background-size:46px 46px,80px 80px,100% 100%;animation:patternDrift 23s ease-in-out infinite alternate}
+.pattern-l{clip-path:polygon(0 0,66% 0,35% 100%,0 100%);background-image:radial-gradient(circle at 6px 8px,#ff3fd784 1px,transparent 2px),linear-gradient(130deg,transparent 44%,#ff1b8f1a 46%,transparent 49%),linear-gradient(to bottom,transparent,#d607c530)}
+.pattern-r{clip-path:polygon(66% 0,100% 0,100% 100%,35% 100%);background-image:radial-gradient(circle at 5px 8px,#11ddff78 1px,transparent 2px),linear-gradient(40deg,transparent 44%,#43b8ff25 46%,transparent 49%),linear-gradient(to bottom,transparent,#1199ee28);animation-delay:-11s}
+@keyframes patternDrift{0%{transform:translate3d(-.4%,.2%,0)}100%{transform:translate3d(.4%,-.2%,0)}}
+.pattern-l,.pattern-r{transition:clip-path var(--motion) var(--motion-ease)}
+.stage.is-josperd .pattern-l{clip-path:polygon(0 0,73% 0,43% 100%,0 100%)}
+.stage.is-josperd .pattern-r{clip-path:polygon(73% 0,100% 0,100% 100%,43% 100%)}
+.stage.is-camila .pattern-l{clip-path:polygon(0 0,59% 0,28% 100%,0 100%)}
+.stage.is-camila .pattern-r{clip-path:polygon(59% 0,100% 0,100% 100%,28% 100%)}
+/* Ambient sparkles are luminous accents, not flashing sprites. */
+.neon-ambience{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+.neon-ambience i{position:absolute;display:block;width:3px;height:3px;border-radius:1px;background:#fff;box-shadow:0 0 9px 2px #ff36d6;animation:ambientSparkle 6.8s ease-in-out infinite}
+.neon-ambience i:nth-child(1){left:11%;top:37%;animation-delay:-1s}
+.neon-ambience i:nth-child(2){left:40%;top:21%;animation-delay:-3.3s}
+.neon-ambience i:nth-child(3){left:75%;top:37%;box-shadow:0 0 8px 2px #00d7ff;animation-delay:-2.1s}
+.neon-ambience i:nth-child(4){left:86%;top:63%;box-shadow:0 0 8px 2px #06ffff;animation-delay:-4.2s}
+.neon-ambience i:nth-child(5){left:22%;top:66%;animation-delay:-.4s}
+@keyframes ambientSparkle{0%,30%,100%{opacity:.04;transform:scale(.6)}44%,54%{opacity:.65;transform:scale(1)}68%{opacity:.1;transform:scale(.7)}}
+/* Outlined arcade brackets, restrained texture across the sides */
+.pattern-rails{position:absolute;z-index:6;inset:1.7% 2.2%;pointer-events:none;border:1px solid #62caff18;border-radius:6px;box-shadow:inset 0 0 0 1px #c000fd0b}
+.pattern-rails:before,.pattern-rails:after{content:'';position:absolute;height:10%;width:14%;border-top:1px solid #ec64ec60;top:0}
+.pattern-rails:before{left:0;border-left:1px solid #ec64ec60}
+.pattern-rails:after{right:0;border-right:1px solid #3bcff96b;border-color:#3bcff96b}
+/* Heroes: the transform animates; a tiny nested bob avoids simultaneous transform conflicts. */
+.character-lane .hero{z-index:auto;animation:none;filter:none;transition:transform var(--motion) var(--motion-ease),opacity var(--motion) ease,filter var(--motion) ease;will-change:transform,opacity}
+.character-lane .hero img{animation:heroBreath 6.8s ease-in-out infinite;transform-origin:50% 65%;backface-visibility:hidden;filter:drop-shadow(0 0 9px rgba(255,42,226,.35))}
+.character-lane .hero-right img{animation-delay:-3.4s;filter:drop-shadow(0 0 10px rgba(20,220,250,.4))}
+@keyframes heroBreath{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-.65%) rotate(.22deg)}}
+.character-lane .hero-left{width:75%;left:-15.5%;top:22.1%;opacity:.99;transform:translate3d(0,0,0) scale(1)}
+.character-lane .hero-right{width:73%;right:-16.0%;top:24.0%;opacity:.99;transform:translate3d(0,0,0) scale(1)}
+/* Keep the non-selected hero visible: ~73% opacity, gently scaled and tucked in its own corner. */
+.stage.is-josperd .character-lane .hero-left{transform:translate3d(5%,0,0) scale(1.055);opacity:1;filter:brightness(1.05)}
+.stage.is-josperd .character-lane .hero-right{transform:translate3d(13%,1.1%,0) scale(.91);opacity:.74;filter:saturate(.84) brightness(.87)}
+.stage.is-camila .character-lane .hero-right{transform:translate3d(-7%,0,0) scale(1.055);opacity:1;filter:brightness(1.05)}
+.stage.is-camila .character-lane .hero-left{transform:translate3d(-12%,1.1%,0) scale(.91);opacity:.74;filter:saturate(.84) brightness(.87)}
+/* Info assets already include the complete crowns, faces, names, subtitles, flowers and pixel portrait. */
+.info{z-index:20;width:49%;bottom:10%;pointer-events:none;transition:transform var(--motion) var(--motion-ease),opacity .56s ease,filter .56s ease}
+.info-left{left:.5%;right:auto;filter:drop-shadow(0 7px 12px #8b007f33)}
+.info-right{right:.5%;left:auto;filter:drop-shadow(0 7px 12px #00aafc33)}
+.stage.is-josperd .info-left{transform:translate3d(1%,0,0) scale(1.02);opacity:1}
+.stage.is-josperd .info-right{transform:translate3d(7%,1%,0) scale(.955);opacity:.76}
+.stage.is-camila .info-right{transform:translate3d(-1%,0,0) scale(1.02);opacity:1}
+.stage.is-camila .info-left{transform:translate3d(-7%,1%,0) scale(.955);opacity:.76}
+.divider-art{z-index:12;filter:drop-shadow(0 0 6px #53e6ff99);transition:transform var(--motion) var(--motion-ease),filter var(--motion) ease}
+.stage.is-josperd .divider-art{transform:translateX(7%)}
+.stage.is-camila .divider-art{transform:translateX(-7%)}
+.brand{z-index:24;animation:logo-breathe 6s ease-in-out infinite}
+.center-switch{z-index:27;top:62%;width:12%;transition:left var(--motion) var(--motion-ease),scale .2s}
+.stage.is-josperd .center-switch{left:57%}
+.stage.is-camila .center-switch{left:43%}
+.select-zone{z-index:26}
+.topline{z-index:25}
+.audio-control{z-index:32}
+.scanline{z-index:25;opacity:.055;animation-duration:16s}
+.swipe-img{animation:hint 4.4s ease-in-out infinite}
+.selected-indicator{z-index:29;font-size:clamp(8px,1.7cqw,12px)}
+.bottom-ui{z-index:30}
+.play-button{border-radius:10px;min-height:41%;border:1px solid #fff6;letter-spacing:.13em;box-shadow:0 0 14px #a502ab67,inset 0 0 15px #fff2;transition:opacity .36s,transform .5s var(--motion-ease),box-shadow .26s ease}
+.play-button:active{box-shadow:0 0 23px #ff44d9b0,inset 0 0 19px #fff7}
+/* Confirmation glint drawn below brand/info, appears only when a character changes. */
+.selection-glint{position:absolute;z-index:19;inset:16% 0 20%;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent 25%,#ffffff15 47%,#ffffff30 50%,#ffffff13 53%,transparent 72%);transform:translateX(-115%) skew(-8deg)}
+.stage.selection-pulse .selection-glint{animation:selectGlint .67s cubic-bezier(.24,.6,.18,1) forwards}
+@keyframes selectGlint{0%{opacity:0;transform:translateX(-110%) skew(-8deg)}25%{opacity:.48}100%{opacity:0;transform:translateX(120%) skew(-8deg)}}
+/* Soft accessibility and mobile motion budget */
+@media(max-width:600px){.audio-control{top:26%}}
+@media(prefers-reduced-motion:reduce){
+ .character-lane,.character-lane .hero,.info,.divider-art,.center-switch,.panel{transition:none!important}
+ .character-lane .hero img,.neon-ambience i,.pattern-l,.pattern-r,.selection-glint{animation:none!important}
+}
+
+</style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <main class="cabinet">
+    <section class="stage" id="stage" aria-label="Selecionar personagem NEON STEP DX" tabindex="0">
+      <div class="panels" id="panels">
+        <div class="panel left" aria-hidden="true"><img src="ASSET:asset_00_b0da66af.webp" alt=""/></div>
+        <div class="panel right" aria-hidden="true"><img src="ASSET:asset_01_d06a6c2e.webp" alt=""/></div>
+        <div class="edge-grain" aria-hidden="true"></div><div class="pattern-deck" aria-hidden="true"><div class="pattern-l"></div><div class="pattern-r"></div></div><div class="neon-ambience" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="ghost ghost-left" aria-hidden="true"><img src="ASSET:asset_02_1a027ad9.webp" alt=""/></div>
+        <div class="ghost ghost-right" aria-hidden="true"><img src="ASSET:asset_03_d08b80b7.webp" alt=""/></div>
+        <button type="button" class="select-zone zone-left" id="chooseJosperd" aria-label="Escolher Josperd" title="Selecionar Josperd"></button>
+        <button type="button" class="select-zone zone-right" id="chooseCamila" aria-label="Escolher Camila" title="Selecionar Camila"></button>
+        <div class="character-lane lane-left" aria-hidden="true"><div class="hero hero-left" id="heroJosperd" aria-hidden="true"><img src="ASSET:asset_04_d79a5dc2.webp" alt="" draggable="false"/></div></div>
+        <div class="character-lane lane-right" aria-hidden="true"><div class="hero hero-right" id="heroCamila" aria-hidden="true"><img src="ASSET:asset_05_8668b5e8.webp" alt="" draggable="false"/></div></div>
+        <div class="selection-glint" aria-hidden="true"></div>
+        <div class="pattern-rails" aria-hidden="true"></div>
+        <div class="info info-left" aria-hidden="true"><img src="ASSET:asset_06_b51a7768.png" alt="" draggable="false"/></div>
+        <div class="info info-right" aria-hidden="true"><img src="ASSET:asset_07_7dcdf778.png" alt="" draggable="false"/></div>
+        <img class="divider-art" src="ASSET:asset_08_6cb7c53b.webp" alt="" aria-hidden="true" draggable="false" />
+        <button type="button" class="center-switch" id="swap" aria-label="Alternar personagem">
+          <img src="ASSET:asset_09_a64fac45.webp" alt="" draggable="false" />
+        </button>
+        <div class="topline leftline" aria-hidden="true">CHARACTER<br/>SELECT <span class="mini-bars">▰▰ ▬</span></div>
+        <div class="topline rightline" aria-hidden="true">PLAY<br/>YOUR STYLE <span class="mini-bars">▬ ▰▰</span></div>
+        <img class="brand" src="ASSET:asset_10_77940895.webp" alt="NEON STEP DX" draggable="false" />
+        <div class="scanline" aria-hidden="true"></div>
+        <div class="selected-indicator" id="indication" role="status" aria-live="polite">DESLIZE OU TOQUE PARA ESCOLHER</div>
+        <div class="bottom-ui">
+          <img class="swipe-img" src="ASSET:asset_11_0326c1d3.webp" alt="Deslize para escolher" draggable="false" />
+          <button type="button" id="playButton" class="play-button" disabled>ESCOLHA SEU PERSONAGEM</button>
+        </div>
+      </div>
+      <button class="audio-control" id="musicToggle" aria-label="Ativar ou desativar música" title="Música da seleção">♫ <span id="musicText">OFF</span></button>
+      <div class="white-flash" id="flash" aria-hidden="true"></div>
+      <div class="loading" id="loading" aria-hidden="true">
+        <span class="loading-glint"></span>
+        <img src="ASSET:asset_10_77940895.webp" alt="NEON STEP DX"/>
+        <div class="loading-copy">ENTRANDO NO JOGO<span class="dots">...</span></div>
+        <div class="loading-meter"><i></i></div>
+      </div>
+      <section class="game" id="game" aria-hidden="true" aria-label="Demonstração jogável de salto automático">
+        <canvas id="gameCanvas" width="390" height="780"></canvas>
+        <div class="game-header"><div><span>NEON STEP DX</span><strong id="score">0000</strong></div><button type="button" id="backToSelection">✕ MENU</button></div>
+        <div class="game-hint">PRÉVIA JOGÁVEL • SALTO AUTOMÁTICO</div>
+        <div class="game-buttons"><button id="moveLeft" aria-label="Mover para esquerda">◀</button><button id="moveRight" aria-label="Mover para direita">▶</button></div>
+      </section>
+    </section>
+    <div class="under-caption"><span>ARCADE EXPERIMENT / BY JOSPERD</span><span>SELECT SCREEN · PROTOTYPE</span></div>
+  </main>
+  <audio id="theme" preload="none" src="ASSET:asset_12_4bf6a962.ogg" loop></audio>
+  <script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const stage = $('stage');
+  const zones = { josperd: $('chooseJosperd'), camila: $('chooseCamila') };
+  const play = $('playButton');
+  const indicator = $('indication');
+  const theme = $('theme');
+  const musicToggle = $('musicToggle');
+  const musicText = $('musicText');
+  const loading = $('loading');
+  const flash = $('flash');
+  const gamePage = $('game');
+  let selected = null;
+  let musicOn = false;
+  let mode = 'select';
+  let pointerStart = null;
+  let ignoreClickBefore = 0;
+  let soundCtx = null;
+
+  function sfx(frequency = 560, duration = .07, type = 'square') {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      soundCtx ??= new AudioContext();
+      const osc = soundCtx.createOscillator();
+      const volume = soundCtx.createGain();
+      osc.type = type; osc.frequency.value = frequency;
+      const now = soundCtx.currentTime;
+      volume.gain.setValueAtTime(.027, now);
+      volume.gain.exponentialRampToValueAtTime(.0001, now + duration);
+      osc.connect(volume).connect(soundCtx.destination);
+      osc.start(now); osc.stop(now + duration);
+    } catch (_) { /* sound support is optional */ }
+  }
+
+  function setMusic(on) {
+    musicOn = on;
+    musicToggle.classList.toggle('on', musicOn);
+    musicText.textContent = on ? 'ON' : 'OFF';
+    if (on && mode === 'select') {
+      theme.volume = .25;
+      theme.play().catch(() => { musicOn = false; musicText.textContent = 'OFF'; musicToggle.classList.remove('on'); });
+    } else {
+      theme.pause();
+    }
+  }
+  musicToggle.addEventListener('click', e => { e.stopPropagation(); setMusic(!musicOn); sfx(880, .08); });
+
+  function choose(name) {
+    if (mode !== 'select') return;
+    const isNew = selected !== name;
+    selected = name;
+    stage.classList.toggle('is-josperd', name === 'josperd');
+    stage.classList.toggle('is-camila', name === 'camila');
+    stage.classList.add('has-selection');
+    play.disabled = false;
+    const display = name === 'josperd' ? 'JOSPERD' : 'CAMILA';
+    indicator.textContent = `${display} SELECIONADO`;
+    play.textContent = `JOGAR COM ${display}  ›`;
+    if (isNew) {
+      stage.classList.remove('selection-pulse');
+      void stage.offsetWidth; // restart a one-shot glint only on explicit selection
+      stage.classList.add('selection-pulse');
+      sfx(name === 'josperd' ? 620 : 840, .08);
+      if (navigator.vibrate) navigator.vibrate(18);
+    }
+  }
+  zones.josperd.addEventListener('click', () => { if (Date.now() > ignoreClickBefore) choose('josperd'); });
+  zones.camila.addEventListener('click', () => { if (Date.now() > ignoreClickBefore) choose('camila'); });
+  $('swap').addEventListener('click', e => {
+    e.stopPropagation();
+    choose(selected === 'josperd' ? 'camila' : 'josperd');
+  });
+  stage.addEventListener('pointerdown', e => {
+    if (mode !== 'select' || e.target.closest('.audio-control,.play-button,.center-switch')) return;
+    pointerStart = {x:e.clientX,y:e.clientY,time:Date.now()};
+  });
+  stage.addEventListener('pointerup', e => {
+    if (!pointerStart || mode !== 'select') return;
+    const dx = e.clientX - pointerStart.x;
+    const dy = e.clientY - pointerStart.y;
+    pointerStart = null;
+    if (Math.abs(dx) > 32 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+      ignoreClickBefore = Date.now() + 450;
+      choose(dx > 0 ? 'josperd' : 'camila');
+    }
+  });
+  stage.addEventListener('pointercancel', () => { pointerStart = null; });
+  document.addEventListener('keydown', e => {
+    if (mode === 'select') {
+      if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { e.preventDefault(); choose('josperd'); }
+      if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { e.preventDefault(); choose('camila'); }
+      if (e.key === 'Enter' || e.key === ' ') { if (selected) { e.preventDefault(); startLoading(); } }
+    } else if (mode === 'play') {
+      if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') held.left = true;
+      if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') held.right = true;
+      if (e.key === 'Escape') returnToSelect();
+    }
+  });
+  document.addEventListener('keyup', e => {
+    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') held.left = false;
+    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') held.right = false;
+  });
+  play.addEventListener('click', startLoading);
+
+  function startLoading() {
+    if (!selected || mode !== 'select') return;
+    mode = 'loading';
+    sfx(1045, .11, 'sawtooth');
+    if (navigator.vibrate) navigator.vibrate([40,35,90]);
+    flash.classList.add('active');
+    setTimeout(() => {
+      loading.classList.add('visible');
+      flash.classList.remove('active');
+      theme.pause();
+      theme.currentTime = 0;
+    }, 125);
+    setTimeout(() => {
+      flash.classList.add('active');
+      setTimeout(() => {
+        loading.classList.remove('visible');
+        gamePage.classList.add('active');
+        gamePage.setAttribute('aria-hidden','false');
+        stage.classList.add('gaming');
+        mode = 'play';
+        resetDemo();
+        flash.classList.remove('active');
+      }, 155);
+    }, 1380);
+  }
+
+  // Tiny self-contained playable demo; only exercises the selection-to-game transition.
+  const canvas = $('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const avatar = {josperd: new Image(), camila: new Image()};
+  avatar.josperd.src = 'ASSET:asset_13_c6eaf723.png';
+  avatar.camila.src = 'ASSET:asset_14_326eff4f.png';
+  const held = {left:false,right:false};
+  let game = null;
+  let raf = 0;
+  let previousTime = 0;
+  let accumulator = 0;
+  const step = 1/60;
+  const ground = () => ({x:100,y:680,w:190,type:'normal'});
+  function platform(x,y,w=90,type='normal') {return {x,y,w,type};}
+  function spawnPlatform() {
+    const y = game.minY - (72+Math.random()*24);
+    const x = 22+Math.random()*(390-125);
+    game.platforms.push(platform(x,y,85+Math.random()*35,Math.random()<.13?'special':'normal'));
+    game.minY = y;
+  }
+  function resetDemo() {
+    if (raf) cancelAnimationFrame(raf);
+    held.left = held.right = false;
+    game = { x:195,y:610, vx:0,vy:-610, w:40,h:52,score:0,platforms:[ground(),platform(75,570,95),platform(220,468,95),platform(85,360,90),platform(190,255,95),platform(40,155,95)],minY:155, count:0 };
+    previousTime = 0; accumulator = 0;
+    $('score').textContent = '0000';
+    raf = requestAnimationFrame(frame);
+  }
+  function stepGame(dt) {
+    const g=game; if(!g) return;
+    if (held.left) g.vx = Math.max(-260, g.vx - 1350*dt);
+    else if (held.right) g.vx = Math.min(260, g.vx + 1350*dt);
+    else g.vx *= .86;
+    g.x += g.vx*dt;
+    if (g.x < -g.w) g.x = 390;
+    if (g.x > 390) g.x = -g.w;
+    const previousBottom = g.y + g.h;
+    g.vy += 1350*dt;
+    g.y += g.vy*dt;
+    if (g.vy > 0) {
+      for (const p of g.platforms) {
+        if (previousBottom <= p.y+9 && g.y+g.h >= p.y && g.x+g.w-6 > p.x && g.x+6 < p.x+p.w) {
+          g.y = p.y - g.h;
+          g.vy = p.type === 'special' ? -780 : -620;
+          if(g.count++ % 3 === 0) sfx(360,.035,'sine');
+          break;
+        }
+      }
+    }
+    if (g.y < 320 && g.vy < 0) {
+      const offset = 320-g.y;
+      g.y=320;
+      g.platforms.forEach(p=>p.y+=offset);
+      g.minY+=offset;
+      g.score += offset*.15;
+      $('score').textContent = String(Math.floor(g.score)).padStart(4,'0');
+    }
+    while(g.minY > 125) spawnPlatform();
+    g.platforms = g.platforms.filter(p=>p.y < 810);
+    if(g.y > 810) resetDemo();
+  }
+  function renderGame() {
+    const W=390,H=780,g=game;
+    ctx.clearRect(0,0,W,H);
+    const background=ctx.createLinearGradient(0,0,W,H);
+    background.addColorStop(0, selected==='josperd'?'#320038':'#05244d');
+    background.addColorStop(.5,'#090c2c');
+    background.addColorStop(1,'#18052b');
+    ctx.fillStyle=background;ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#3b4d8840';ctx.lineWidth=1;
+    for(let x=0;x<W;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,780);ctx.stroke();}
+    for(let y=0;y<H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(390,y);ctx.stroke();}
+    ctx.shadowColor=selected==='josperd'?'#ff2ad9':'#00dcff';ctx.shadowBlur=19;
+    for(const p of g.platforms){
+      ctx.fillStyle=p.type==='special'?'#fff095':'#32dffa';
+      ctx.fillRect(p.x,p.y,p.w,8);
+      ctx.fillStyle=p.type==='special'?'#d90ea2':'#2857af';
+      ctx.fillRect(p.x+4,p.y+8,p.w-8,5);
+    }
+    ctx.shadowBlur=0;
+    const sprite=avatar[selected];
+    if(sprite.complete && sprite.naturalWidth){
+      ctx.save();ctx.translate(g.x+g.w/2,g.y+g.h/2);
+      if (g.vx<-10) ctx.scale(-1,1);
+      ctx.imageSmoothingEnabled=false;
+      ctx.drawImage(sprite,-g.w/2-8,-g.h/2-11,g.w+16,g.h+20);
+      ctx.restore();
+    }else{ctx.fillStyle='#fff';ctx.fillRect(g.x,g.y,g.w,g.h);}
+  }
+  function frame(now) {
+    if(mode !== 'play') return;
+    if(!previousTime) previousTime = now;
+    accumulator += Math.min(.05,(now-previousTime)/1000);
+    previousTime=now;
+    while(accumulator>=step){stepGame(step);accumulator-=step;}
+    renderGame();
+    raf=requestAnimationFrame(frame);
+  }
+  function returnToSelect(){
+    mode='select';
+    if(raf) cancelAnimationFrame(raf);
+    raf=0;game=null;
+    gamePage.classList.remove('active');
+    gamePage.setAttribute('aria-hidden','true');
+    stage.classList.remove('gaming');
+    held.left=held.right=false;
+    if(musicOn) setMusic(true);
+  }
+  $('backToSelection').addEventListener('click',returnToSelect);
+  function bindDirection(id,direction){
+    const el=$(id);
+    el.addEventListener('pointerdown',e=>{e.preventDefault();held[direction]=true;el.setPointerCapture(e.pointerId);});
+    el.addEventListener('pointerup',()=>held[direction]=false);
+    el.addEventListener('pointercancel',()=>held[direction]=false);
+    el.addEventListener('lostpointercapture',()=>held[direction]=false);
+  }
+  bindDirection('moveLeft','left');bindDirection('moveRight','right');
+})();
+
+</script>
+</body>
+</html>

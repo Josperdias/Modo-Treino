@@ -2,6 +2,16 @@
 
 O texto público da release fica em `CHANGELOG.md` (só uma dica, o jogo é um segredo). Aqui ficam os detalhes.
 
+## [Em desenvolvimento] — M1.6 novo menu de seleção (nativo, Skia)
+
+Refinado a partir do **V3.5 FLUIDO** do Drive (a linha principal; o V4 experimental fica de referência em `arcade/fonte/menu/`).
+- **Cena Skia** (`native/src/arcade/menu/scene.ts`): painéis divididos por polígonos, personagens na faixa deles, raio, brilhos, padrões à deriva, rastro de luz ao trocar, logo que respira, botão de setas e dica de deslizar. Toda a geometria e o movimento (760 ms, `cubic-bezier(.22,1,.36,1)`) estão em `pose.ts`, **puro e testado** (`tests/arcade-menu.test.mjs`).
+- **Gesto**: o dedo acompanha o menu e solta no personagem mais próximo (passou de 32 px, vai para o lado do arrasto); toque curto no miolo da tela escolhe o lado; botão de setas alterna; teclado ←/→/Enter/Esc na web.
+- **Fluxo (pedido do dono)**: tela neutra com **só o aviso de deslizar** (sem texto de "selecionado"); ao escolher aparece **PRESS START** (com o recorde do personagem); depois a **tela de carregamento estilizada** (fundo e arte do personagem escolhido, logo pulsando, medidor em blocos) que espera os sprites de verdade (mín. ~1,1 s). Quem já jogou volta com o último personagem pré-selecionado.
+- **Acessibilidade**: dois "rádios" invisíveis (`arcade-hero-*`, `aria-checked`) e uma região viva que anuncia "X selecionado" só para leitor de tela.
+- **Assets**: `scripts/preparar-menu-arcade.py` recomprime a arte do V3.5 em WebP (`native/assets/arcade/menu/`); a arte dos personagens não é alterada. A música do menu (`character_select.ogg`) **não** foi incluída (espera o áudio nativo do M3).
+- Testes e2e: 17 no Chromium (menu neutro/escolher/trocar/salvar, pré-seleção, teclado, arrastar, controle + carregando, layouts 360×640 e 412×915).
+
 ## [1.4.5] — marco M1 (jogo nativo)
 
 Easter egg novo, **escondido** e sem mudar nada do resto do app. Lançado junto com o app 1.4.5.

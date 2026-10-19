@@ -39,8 +39,15 @@ async function load(mod: number): Promise<SkImage | null> {
   }
 }
 
-export async function loadSprites(): Promise<SpriteSet> {
-  const out: SpriteSet = {josperd: [], camila: []};
-  for (const hero of ['josperd', 'camila'] as const) out[hero] = await Promise.all(FILES[hero].map(load));
-  return out;
+let spritesCache: Promise<SpriteSet> | null = null;
+/** Carrega uma vez: o menu pré-carrega enquanto o jogador escolhe e o jogo reaproveita. */
+export function loadSprites(): Promise<SpriteSet> {
+  if (!spritesCache) {
+    spritesCache = (async () => {
+      const out: SpriteSet = {josperd: [], camila: []};
+      for (const hero of ['josperd', 'camila'] as const) out[hero] = await Promise.all(FILES[hero].map(load));
+      return out;
+    })();
+  }
+  return spritesCache;
 }

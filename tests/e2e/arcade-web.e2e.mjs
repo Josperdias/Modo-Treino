@@ -67,11 +67,21 @@ async function openSettings(page) { await page.getByLabel('Abrir ajustes').click
 async function toArcade(page) {
   await openSettings(page);
   await page.getByText('JOGAR AGORA').click();
-  await page.getByText('ESCOLHA SEU PERSONAGEM').waitFor();
+  await page.getByTestId('arcade-menu').waitFor();
+  await page.waitForTimeout(1300); // a animação de entrada do menu
 }
-async function startGame(page, who = 'JOSPERD') {
-  await page.getByText(`COMEÇAR COM ${who}`).click();
-  await page.getByTestId('arcade-score').waitFor();
+/** O menu não escreve "selecionado" na tela; quem escolheu fica na região viva dos leitores de tela. */
+const chosen = (page, who) => page.getByLabel(`${who} selecionado`).waitFor({state: 'attached'});
+/** Escolhe o personagem no menu e aperta JOGAR (o "carregando" é de verdade e dura ~1,2 s). */
+/** Toque curto no meio da tela: lado esquerdo = Josperd, direito = Camila (como o protótipo). */
+async function pick(page, who) {
+  const box = await page.getByTestId('arcade-menu').boundingBox();
+  await page.mouse.click(box.x + box.width * (who.toLowerCase() === 'josperd' ? 0.25 : 0.75), box.y + box.height * 0.45);
+}
+async function startGame(page, who = 'josperd') {
+  await pick(page, who);
+  await page.getByTestId('arcade-play').click();
+  await page.getByTestId('arcade-score').waitFor({timeout: 20000});
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__ && globalThis.__MODO_ARCADE_SESSION__.sim.tick > 60);
 }
 
@@ -134,18 +144,90 @@ test('desbloqueio: toques espaçados (> 1,5 s) recomeçam a contagem', {skip}, a
   await context.close();
 });
 
-test('seleção: escolher Camila, salvar a escolha e mostrar recordes; o jogo abre sem erro', {skip}, async () => {
+test('menu: tela neutra na 1ª vez, escolher mostra o JOGAR com o recorde, trocar e salvar o personagem', {skip}, async () => {
   const {context, page, errors} = await open({save: {v: 1, unlocked: true, best: {josperd: 1234, camila: 77}}});
   await toArcade(page);
+  assert.equal(await page.getByTestId('arcade-indicator').getAttribute('aria-label'), '', 'nada escolhido na 1ª vez');
+  await shot(page, '01-menu-neutro');
+  await pick(page, 'josperd');
+  await chosen(page, 'JOSPERD');
   await page.getByText('RECORDE 1234').waitFor();
+  await page.waitForTimeout(1000);
+  await shot(page, '01a-menu-josperd');
+  await page.getByTestId('arcade-swap').click(); // botão de setas do centro
+  await chosen(page, 'CAMILA');
   await page.getByText('RECORDE 0077').waitFor();
-  await shot(page, '01-selecao');
-  await page.getByTestId('arcade-hero-camila').click();
-  await page.getByText('COMEÇAR COM CAMILA').waitFor();
+  await page.waitForTimeout(1000);
+  await shot(page, '01b-menu-camila');
+  await startGame(page, 'camila');
   assert.equal((await saved(page)).settings.hero, 'camila');
-  await shot(page, '01b-selecao-camila');
-  await startGame(page, 'CAMILA');
   assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('menu: quem já jogou volta com o último personagem já escolhido', {skip}, async () => {
+  const {context, page} = await open({save: {v: 1, unlocked: true, plays: 3, best: {josperd: 10, camila: 500}, settings: {hero: 'camila'}}});
+  await toArcade(page);
+  await chosen(page, 'CAMILA');
+  await page.getByText('PRESS START').waitFor();
+  await page.getByLabel('Jogar com CAMILA').waitFor();
+  await context.close();
+});
+
+test('menu: teclado escolhe e começa; Esc fecha', {skip}, async () => {
+  const {context, page} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await page.keyboard.press('ArrowRight');
+  await chosen(page, 'CAMILA');
+  await page.keyboard.press('ArrowLeft');
+  await chosen(page, 'JOSPERD');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('arcade-menu').waitFor({state: 'detached'});
+  await context.close();
+});
+
+test('menu: arrastar o dedo acompanha o toque e solta no personagem; toque curto escolhe o lado', {skip}, async () => {
+  const {context, page} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  const box = await page.getByTestId('arcade-menu').boundingBox();
+  const y = box.y + box.height * 0.45;
+  // Desliza para a ESQUERDA → Camila.
+  await page.mouse.move(box.x + box.width * 0.7, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5, y, {steps: 6});
+  await page.mouse.move(box.x + box.width * 0.25, y, {steps: 6});
+  await page.mouse.up();
+  await chosen(page, 'CAMILA');
+  await page.waitForTimeout(900); // termina a animação
+  assert.equal(await page.getByTestId('arcade-hero-camila').getAttribute('aria-checked'), 'true', 'leitor de tela: Camila marcada');
+  // Desliza para a DIREITA → Josperd.
+  await page.mouse.move(box.x + box.width * 0.25, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5, y, {steps: 6});
+  await page.mouse.move(box.x + box.width * 0.8, y, {steps: 6});
+  await page.mouse.up();
+  await chosen(page, 'JOSPERD');
+  // Um arrastão curtinho não troca.
+  await page.mouse.move(box.x + box.width * 0.3, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.3 + 12, y, {steps: 3});
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  await chosen(page, 'JOSPERD');
+  await context.close();
+});
+
+test('menu: o botão de controle alterna toque/inclinação e fica salvo; JOGAR mostra o carregando', {skip}, async () => {
+  const {context, page} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await page.getByTestId('arcade-control').click();
+  await page.getByText('INCLINAR', {exact: true}).waitFor();
+  assert.equal((await saved(page)).settings.control, 'tilt');
+  await pick(page, 'josperd');
+  await page.getByTestId('arcade-play').click();
+  await page.getByTestId('arcade-loading').waitFor({timeout: 5000});
+  await shot(page, '01c-carregando');
+  await page.getByTestId('arcade-score').waitFor({timeout: 20000});
   await context.close();
 });
 
@@ -280,7 +362,7 @@ test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, que
   for (const who of ['josperd', 'camila']) {
     const {context, page, errors} = await open({save: {v: 1, unlocked: true, settings: {hero: who}}});
     await toArcade(page);
-    await startGame(page, who.toUpperCase());
+    await startGame(page, who);
     // Robô simples dentro da página: mira a plataforma mais alta que o salto atual alcança.
     const seen = await page.evaluate(() => {
       const s = globalThis.__MODO_ARCADE_SESSION__, step = globalThis.__MODO_ARCADE_STEP__;
@@ -317,12 +399,15 @@ test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, que
   }
 });
 
-test('layout: cabe em celular estreito (360×640) e em tela grande sem cortar o jogo', {skip}, async () => {
+test('layout: menu e jogo cabem em celular estreito (360×640) e em tela grande', {skip}, async () => {
   for (const viewport of [{width: 360, height: 640}, {width: 412, height: 915}]) {
     const {context, page, errors} = await open({save: {v: 1, unlocked: true}, viewport});
     await toArcade(page);
-    const btn = await page.getByText('COMEÇAR COM JOSPERD').boundingBox();
-    assert.ok(btn.y + btn.height <= viewport.height, `botão de começar cortado em ${viewport.width}×${viewport.height}`);
+    await pick(page, 'josperd');
+    await page.waitForTimeout(900);
+    await shot(page, `06-menu-${viewport.width}x${viewport.height}`);
+    const btn = await page.getByTestId('arcade-play').boundingBox();
+    assert.ok(btn.y + btn.height <= viewport.height && btn.x >= 0 && btn.x + btn.width <= viewport.width, `botão JOGAR cortado em ${viewport.width}×${viewport.height}`);
     await startGame(page);
     await shot(page, `06-layout-${viewport.width}x${viewport.height}`);
     assert.deepEqual(errors, []);
