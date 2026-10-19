@@ -38,7 +38,7 @@ T_KEYS = T.KEYS
 name_hint = None
 
 
-def measure_music(x, bpm, bars):
+def measure_music(x, bpm, bars, spb=16):
     mono = x.mean(axis=0).astype(np.float64)
     peak = float(np.max(np.abs(x)))
     rms = float(np.sqrt(np.mean(mono ** 2) + 1e-12))
@@ -76,7 +76,11 @@ def measure_music(x, bpm, bars):
         root, sc = key
         pcs = {(root + i) % 12 for i in C.SCALES[sc]}
         in_scale = float(sum(chroma[p] for p in pcs))
+    bar_s = (60.0 / bpm / 4.0) * spb
+    nb = int(len(mono) / SR / bar_s)
+    bar_db = np.array([20 * np.log10(np.sqrt(np.mean(mono[int(i * bar_s * SR):int((i + 1) * bar_s * SR)] ** 2)) + 1e-9) for i in range(nb)])
     return {
+        'dinamica_db': round(float(np.percentile(bar_db, 90) - np.percentile(bar_db, 10)), 2),
         'duracao_s': round(len(mono) / SR, 2), 'compassos': bars, 'bpm': bpm,
         'pico_dBFS': round(20 * np.log10(peak + 1e-9), 2), 'rms_dBFS': round(20 * np.log10(rms + 1e-9), 2),
         'graves_pct': round(100 * band(20, 200), 1), 'medios_pct': round(100 * band(200, 2500), 1), 'agudos_pct': round(100 * band(2500, 16000), 1),
@@ -91,11 +95,15 @@ def build_music(ids):
     global name_hint
     for name in ids:
         t0 = time.time()
-        song, fx = T.TRACKS[name]()
+        song, fx, aux = T.TRACKS[name]()
         name_hint = name
-        out = song.finalize(fx)
-        size = write_ogg(out, os.path.join(OUT, 'musica', f'{name}.ogg'), 2.0)
-        m = measure_music(out, song.bpm, song.bars)
+        out = song.finalize(fx, aux)
+        size = write_ogg(out, os.path.join(OUT, 'musica', f'{name}.ogg'), 1.3)
+        if os.environ.get('ARCADE_THUMBS'):
+            import viz
+            viz.thumb(out, song.bpm, song.spb, name, os.path.join(os.environ['ARCADE_THUMBS'], f'{name}.png'))
+        m = measure_music(out, song.bpm, song.bars, song.spb)
+        m['compassos_spb'] = song.spb
         m['bytes'] = size
         m['segundos_para_renderizar'] = round(time.time() - t0, 1)
         report[name] = m

@@ -5,6 +5,7 @@ import numpy as np
 import synth as S
 from synth import SR
 import compose as C
+import tape as TP
 
 
 class Sig(np.ndarray):
@@ -156,6 +157,10 @@ def sfx_defs():
     D['lava_warn'] = lambda r: _lava(r)
     D['life_low'] = lambda r: _heartbeat()
     D['fall'] = lambda r: blip(1500, 120, 0.7, 'sine', tau=0.5) * 0.9
+
+    # fita: carregamento (começo da partida) e parada (fim das vidas)
+    D['tape_load'] = lambda r: _tape_load()
+    D['tape_stop'] = lambda r: _tape_stop()
 
     # vinhetas (música curta)
     D['over'] = lambda r: _over()
@@ -456,3 +461,29 @@ def write_manifest(out_dir):
         lines.append(f"  {n}: {{dur: {m.get('duracao_s', 0.5)}, level: {m.get('nivel', 0.85)}}},")
     lines += ['};', '']
     open(os.path.join(ts_dir, 'assets.ts'), 'w').write('\n'.join(lines))
+
+
+def _tape_load():
+    data = bytes([69, 72, 76, 81, 76, 72, 69, 64, 67, 71, 74, 79, 74, 71, 67, 62, 65, 69, 72, 77])
+    y = TP.loader(data, pilot_s=0.3, level=0.8)
+    y = y[: n_of(1.3)]
+    out = np.zeros(len(y) + n_of(0.1))
+    out[: len(y)] = y
+    place(out, blip(1800, 1800, 0.012, 'pulse', 0.5, tau=0.006), 0.0)
+    return sg_(out * np.minimum(1.0, S.tt(len(out)) / 0.01))
+
+
+def _tape_stop():
+    n = n_of(1.4)
+    notes = [57, 60, 64, 69]
+    x = np.zeros(n)
+    for k, m in enumerate(notes):
+        y = S.pulse(S.hz(m), n_of(0.9), 0.25) * np.exp(-S.tt(n_of(0.9)) / 0.5) * 0.25
+        x[n_of(0.0): n_of(0.9)] += y
+    st = np.stack([x, x])
+    st = TP.tape_stop(st, n_of(0.18), n_of(1.1), power=1.5)
+    return sg_(st[0])
+
+
+def sg_(x):
+    return np.asarray(x, dtype=np.float64).view(Sig)

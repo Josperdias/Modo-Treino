@@ -2,6 +2,16 @@
 
 O texto público da release fica em `CHANGELOG.md` (só uma dica, o jogo é um segredo). Aqui ficam os detalhes.
 
+## [Em desenvolvimento] — M3.2: trilhas v2 (compostas à mão, com fita)
+
+Pedido do dono: a primeira trilha estava "muito genérica, mal feita"; refazer "melhor", usando o material do Drive (as 26 músicas por código), efeitos e fita, algo criativo e bem mais desenvolvido.
+
+- **O que estava errado**: melodias sorteadas por regras (sem tema), a mesma forma em todas as faixas, 45–80 s e os mesmos timbres. Foi trocado por um motor novo (`comp.py`) e uma **partitura escrita à mão por faixa**.
+- **Formas longas** (49–108 s em laço): introdução, tema, variação com eco/contramelodia, refrão, ponte, subida, retorno forte e saída; cada faixa fecha o laço de um jeito próprio.
+- **Compassos e ideias próprias**: menu (fases de Reich), neon (NES/VRC6, cartucho que corrompe), crystal (vidro que CONGELA), clock (7/8, três ponteiros defasados), cosmos (Shepard a faixa inteira, sobe um tom), ocean (6/8, bolhas de Minnaert, baleia, fita debaixo d'água), volcano (taiko e metais), paper (valsa 3/4 com o tema e o ESPELHO dele), sketch (5/4, tema retrógrado e invertido, canais que trocam na ponte), inverse (tudo cai, só o baixo sobe), bonus (chuva de marimba, sobe um tom).
+- **Fita**: `tape.py` (oscilação, chiado, estalinhos, tape-stop/start, travadas, bitcrush, *dropouts*). Várias faixas terminam com a fita carregando a própria partitura (pulsos de loader de computador doméstico, formato público) e novos efeitos `tape_load` (PRESS START) e `tape_stop` (vidas acabam).
+- Conferência por medição (sem escuta): `AUDIT_audio.json` agora também traz `dinamica_db` e `compassos_spb`; espectrograma de cada faixa com `ARCADE_THUMBS`.
+
 ## [Em desenvolvimento] — M3: trilhas e sons originais por código
 
 Pedido do dono: "crie faixas para o jogo para cada parte e adicione sons, baseados mais naquilo que você fez do que a do ChatGPT".

@@ -66,7 +66,7 @@ export function cuesFor(e: SimEvent): Cue[] {
     case 'press': return [{id: 'press', gain: 0.95}];
     case 'bonk': return [{id: 'bonk', gain: 0.9}];
     case 'revive': return [{id: 'revive', gain: 1}];
-    case 'over': return e.cause === 'crush' ? [{id: 'crush', gain: 1}] : e.cause === 'fall' ? [{id: 'fall', gain: 0.9}] : [];
+    case 'over': return e.cause === 'crush' ? [{id: 'crush', gain: 1}] : e.cause === 'fall' ? [{id: 'fall', gain: 0.9}] : [{id: 'tape_stop', gain: 0.8}];
   }
 }
 

@@ -169,7 +169,7 @@ def shepard(n, start_oct=0.0, rate=0.25, f0=55.0, voices=9, base_mid=None):
     for k in range(voices):
         o = (pos + k) % voices  # oitava circular
         f = f0 * 2.0 ** o
-        loud = np.exp(-0.5 * ((o - center) / (voices * 0.17)) ** 2)
+        loud = np.exp(-0.5 * ((o - center) / (voices * 0.17)) ** 2) * np.clip((0.40 * SR - f) / (0.08 * SR), 0, 1)
         ph = np.cumsum(f) / SR
         y += loud * np.sin(2 * np.pi * ph)
     return y / voices * 2.2
@@ -246,3 +246,134 @@ def clap(rng, n=None):
         k = int(d * SR)
         y[k:] += 0.6 * bp(white(n - k, rng), 900, 3500) * np.exp(-t[: n - k] / 0.05)
     return y * 0.6
+
+
+# ---------- v2: mais timbres ----------
+
+def saw6(freq, n):
+    """Serra do VRC6: acumulador em degraus (7 passos por ciclo), áspera e 'de cartucho'."""
+    ph, _ = phase_of(freq, n)
+    return (np.floor(ph * 7.0) / 3.0 - 1.0) * 0.9
+
+
+def formant(freq, n, vowel='a', rng=None, breath=0.04):
+    """Coro de formantes: pulso glotal filtrado por 3 ressonâncias de vogal (a, e, i, o, u)."""
+    F = {'a': (800, 1150, 2900), 'e': (400, 1600, 2700), 'i': (270, 2140, 2950), 'o': (450, 800, 2830), 'u': (325, 700, 2700)}[vowel]
+    src = saw(freq, n)
+    y = np.zeros(n)
+    for f, a in zip(F, (1.0, 0.55, 0.3)):
+        y += a * bp(src, f * 0.88, f * 1.12, 1)
+    if rng is not None and breath:
+        y += breath * bp(rng.standard_normal(n), 1500, 5000, 1)
+    return y * 0.6
+
+
+def supersaw(freq, n, spread=0.012, voices=5):
+    out = np.zeros(n)
+    for k in range(voices):
+        d = (k - (voices - 1) / 2) / max(1, (voices - 1) / 2)
+        out += saw(np.asarray(freq) * (1 + spread * d), n)
+    return out / voices * 1.2
+
+
+def crash(rng, n=None, tau=0.7):
+    n = n or int(1.6 * SR)
+    t = tt(n)
+    return hp(rng.standard_normal(n), 3000) * np.exp(-t / tau) * 0.5 * np.minimum(1, t / 0.003)
+
+
+def ride(rng, n=None):
+    n = n or int(0.5 * SR)
+    t = tt(n)
+    y = hp(rng.standard_normal(n), 5500) * np.exp(-t / 0.12) * 0.25
+    for f, a in ((2300, 0.3), (3410, 0.25), (4870, 0.2)):
+        y += a * np.sin(2 * np.pi * f * t) * np.exp(-t / 0.18) * 0.25
+    return y
+
+
+def taiko(n=None, f0=95.0, f1=55.0, tau=0.35):
+    n = n or int(0.9 * SR)
+    t = tt(n)
+    f = sweep(f0, f1, n)
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / tau)
+    skin = modal(f0 * 1.9, n, 'drum', 0.5) * 0.35
+    thump = np.zeros(n)
+    k = int(0.006 * SR)
+    thump[:k] = np.hanning(2 * k)[:k]
+    return body + skin + 0.4 * thump
+
+
+def tom(freq, n=None, tau=0.22):
+    n = n or int(0.5 * SR)
+    t = tt(n)
+    f = freq * (1 + 0.5 * np.exp(-t / 0.03))
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / tau)
+
+
+def wood(freq, n=None, tau=0.04):
+    n = n or int(0.12 * SR)
+    t = tt(n)
+    return (np.sin(2 * np.pi * freq * t) + 0.5 * np.sin(2 * np.pi * freq * 2.4 * t)) * np.exp(-t / tau) * 0.7
+
+
+def shaker(rng, n=None, tau=0.05):
+    n = n or int(0.12 * SR)
+    t = tt(n)
+    return bp(rng.standard_normal(n), 5000, 11000, 1) * np.exp(-t / tau) * np.minimum(1, t / 0.012) * 0.5
+
+
+def rim(rng, n=None):
+    n = n or int(0.08 * SR)
+    t = tt(n)
+    return (np.sin(2 * np.pi * 1700 * t) * 0.6 + bp(rng.standard_normal(n), 2000, 6000, 1) * 0.5) * np.exp(-t / 0.018)
+
+
+def riser(rng, n, f0=300.0, f1=7000.0, tonal=0.0, tone_hz=0.0):
+    """Subida de ruído filtrado (e, opcionalmente, um tom que sobe junto)."""
+    out = np.zeros(n)
+    centers = np.geomspace(150, 9000, 12)
+    x = rng.standard_normal(n)
+    fc = sweep(f0, f1, n)
+    for c in centers:
+        out += bp(x, c / 1.35, c * 1.35, 1) * np.exp(-(np.log2(fc / c) / 0.6) ** 2)
+    env = np.linspace(0, 1, n) ** 2.2
+    out = out * env
+    if tonal and tone_hz:
+        out += tonal * np.sin(2 * np.pi * np.cumsum(sweep(tone_hz, tone_hz * 4, n)) / SR) * env
+    return out
+
+
+def hiss(rng, n, level=0.02):
+    return hp(rng.standard_normal(n), 3500) * level
+
+
+def crackle(rng, n, density=14.0, level=0.18):
+    """Estalinhos de fita/vinil: impulsos curtos aleatórios (`density` por segundo)."""
+    out = np.zeros(n)
+    k = int(density * n / SR)
+    pos = rng.integers(0, max(1, n - 40), k)
+    for p in pos:
+        a = level * rng.uniform(0.2, 1.0) * (1 if rng.random() < 0.5 else -1)
+        L = int(rng.integers(3, 18))
+        out[p:p + L] += a * np.exp(-np.arange(L) / (L / 3.0))
+    return out
+
+
+def fm_bass(freq, n, tau=0.18, index=3.5):
+    """Baixo FM 'slap' de Mega Drive: modulador forte que some rápido."""
+    ie = np.exp(-tt(n) / 0.05) * index + 0.4
+    y = fm(freq, n, 1.0, 1.0, ie)
+    y += 0.5 * fm(np.asarray(freq) * 2, n, 1.0, 0.5, ie * 0.5) * np.exp(-tt(n) / 0.06)
+    return y * np.exp(-tt(n) / tau)
+
+
+def fm_ep(freq, n, tau=0.5, bright=1.0):
+    """Piano elétrico FM (dois pares de operadores: corpo + 'dente' agudo)."""
+    t = tt(n)
+    body = fm(freq, n, 1.0, 1.1 * bright, np.exp(-t / 0.5))
+    tine = fm(np.asarray(freq) * 1.0, n, 14.0, 0.5 * bright, np.exp(-t / 0.04))
+    return (body + 0.25 * tine) * np.exp(-t / tau)
+
+
+def reverse(x):
+    return x[::-1].copy()

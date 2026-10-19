@@ -221,6 +221,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
           best={save.best}
           haptics={save.settings.haptics}
           onPlay={(h) => { set({hero: h}); start(h); }}
+          onPress={() => audio.current?.ui('tape_load')}
           onClose={onClose}
           onControl={(c) => set({control: c})}
           sound={save.settings.sfx || save.settings.music}

@@ -22,6 +22,8 @@ export type SelectMenuProps = {
   best: Record<Hero, number>;
   haptics: boolean;
   onPlay: (hero: Hero) => void;
+  /** Toca no PRESS START (antes do carregando): o jogo usa para o som da fita carregando. */
+  onPress?: () => void;
   onClose: () => void;
   onControl: (c: Control) => void;
   /** Som do jogo ligado (efeitos ou trilha) e o botão que liga/desliga os dois. Desligado por padrão. */
@@ -190,6 +192,7 @@ export default function SelectMenu(p: SelectMenuProps) {
     const c = choiceOfNow();
     if (!c || startedRef.current) return;
     startedRef.current = true;
+    props.current.onPress?.();
     if (props.current.haptics && Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setPhase('flash');
     const lunge = reduce ? 0 : PRESS_MS;

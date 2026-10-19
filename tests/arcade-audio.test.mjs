@@ -56,7 +56,7 @@ test('eventos: todo som pedido existe como arquivo', () => {
     assert.ok(c.gain > 0 && c.gain <= 1);
   }
   assert.ok(n > 60);
-  assert.ok(SFX.has(stingerFor(true)) && SFX.has(stingerFor(false)) && SFX.has('lava_warn') && SFX.has('ui_start') && SFX.has('ui_pause'));
+  assert.ok(SFX.has(stingerFor(true)) && SFX.has(stingerFor(false)) && SFX.has('lava_warn') && SFX.has('ui_start') && SFX.has('ui_pause') && SFX.has('tape_load'));
 });
 
 test('eventos: casos específicos', () => {
@@ -65,7 +65,7 @@ test('eventos: casos específicos', () => {
   assert.deepEqual(cuesFor({t: 'hit', x: 0, y: 0, blocked: true, lives: 2}).map(c => c.id), ['shield_block']);
   assert.deepEqual(cuesFor({t: 'kill', kind: 'guardian', x: 0, y: 0, by: 'stomp'}).map(c => c.id), ['kill_big', 'stomp']);
   assert.deepEqual(cuesFor({t: 'portal', world: 'neon', variant: 'exit', x: 0, y: 0}).map(c => c.id), ['portal_tele']);
-  assert.deepEqual(cuesFor({t: 'over', cause: 'damage'}), []);
+  assert.deepEqual(cuesFor({t: 'over', cause: 'damage'}).map(c => c.id), ['tape_stop']);
   assert.equal(cuesFor({t: 'pickup', kind: 'gate', x: 0, y: 0}).length, 0);
 });
 
@@ -91,7 +91,7 @@ test('arquivos gerados: manifesto cobre tudo, tamanhos sãos, sem silêncio', ()
   let total = 0;
   for (const id of MUSIC) { const b = statSync(join(AUD, 'musica', `${id}.ogg`)).size; total += b; assert.ok(b > 100e3 && b < 1.2e6, `${id} ${b}`); }
   for (const id of SFX) { const b = statSync(join(AUD, 'sfx', `${id}.ogg`)).size; total += b; assert.ok(b > 1e3 && b < 60e3, `${id} ${b}`); }
-  assert.ok(total < 9e6, `áudio do jogo pesa ${total}`);
+  assert.ok(total < 10e6, `áudio do jogo pesa ${total}`);
   const rep = JSON.parse(readFileSync(join(ROOT, 'docs/neon-step-dx/AUDIT_audio.json'), 'utf8'));
   for (const id of MUSIC) {
     const m = rep.musica[id];
