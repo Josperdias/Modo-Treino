@@ -2,6 +2,11 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.7] — 2026-10-19
+
+### O segredo ganhou som 🎧
+- O **jogo escondido** agora tem **trilhas e efeitos sonoros originais**, feitos por código: uma música para cada parte do jogo e sons para pular, pegar fitas, atirar e atravessar portais. Tudo vem **desligado**; ligue pelo botão de alto-falante na abertura do jogo ou no menu de pausa (com volume). Se a música do app estiver tocando, ela é pausada quando você liga a trilha do jogo. A pista continua a mesma: ele mora onde o app conta a própria versão.
+
 ## [1.4.6] — 2026-10-19
 
 ### O segredo ficou bem maior 🕹️

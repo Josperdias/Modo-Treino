@@ -21,6 +21,10 @@ test('som: desligado por padrão e save normaliza', () => {
   assert.equal(DEFAULT_SAVE.settings.music, false);
   assert.equal(normalizeSave({settings: {sfx: 'sim', music: 1}}).settings.sfx, false);
   assert.equal(normalizeSave({settings: {sfx: true, music: true}}).settings.music, true);
+  assert.equal(DEFAULT_SAVE.settings.volume, 2);
+  assert.equal(normalizeSave({settings: {volume: 3}}).settings.volume, 3);
+  assert.equal(normalizeSave({settings: {volume: 1}}).settings.volume, 1);
+  assert.equal(normalizeSave({settings: {volume: 9}}).settings.volume, 2);
   assert.deepEqual(normalizeSave({}).settings, DEFAULT_SAVE.settings);
 });
 

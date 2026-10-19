@@ -8,6 +8,7 @@ import {C, R} from '../theme';
 import {Btn, Card, Chips, Icon, Pattern, Press, Switch} from '../ui';
 import {Flower, Star} from '../glyphs';
 import {useArcade, updateArcade} from './arcadeStore';
+import {useMusic} from '../music/MusicProvider';
 import GameHost from './GameHost';
 import MenuHost from './MenuHost';
 import {Session, type Hud} from './session.ts';
@@ -40,6 +41,10 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   const [perf, setPerf] = useState('');
   const session = useRef<Session | null>(null);
   const hero = save.settings.hero;
+  const userMusic = useMusic();
+  const userMusicRef = useRef(userMusic);
+  userMusicRef.current = userMusic;
+  const pausedUserMusic = useRef(false);
   const audio = useRef<ArcadeAudio | null>(null);
   const getAudio = () => (audio.current ??= new ArcadeAudio());
   const set = (patch: Partial<typeof save.settings>) => updateArcade((s) => ({...s, settings: {...s.settings, ...patch}}));
@@ -96,6 +101,13 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
     if (!save.settings.sfx && !save.settings.music && !audio.current) return;
     getAudio().configure(save.settings.sfx, save.settings.music);
   }, [loaded, save.settings.sfx, save.settings.music]);
+  useEffect(() => { audio.current?.setVolume(save.settings.volume); }, [save.settings.volume, save.settings.sfx, save.settings.music]);
+  // Com a trilha do jogo ligada, a música do próprio app (fita/rádio) é pausada uma vez, para não tocarem juntas. Não volta sozinha.
+  useEffect(() => {
+    if (!save.settings.music || pausedUserMusic.current) return;
+    pausedUserMusic.current = true;
+    try { if (userMusicRef.current.playing) userMusicRef.current.playPause(); } catch { /* sem problema */ }
+  }, [save.settings.music]);
   useEffect(() => () => { audio.current?.dispose(); audio.current = null; }, []);
 
   // Trilha da parte do jogo (menu, cada mundo, bônus) e aviso da lava.
@@ -240,6 +252,9 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
               {save.settings.control === 'tilt' && <Switch value={save.settings.tiltInvert} onChange={(v) => set({tiltInvert: v})} title="Inverter a inclinação" desc="Use se o personagem andar para o lado contrário." />}
               <Switch value={save.settings.sfx} onChange={(v) => set({sfx: v})} title="Efeitos sonoros" desc="Desligados por padrão. Sons originais feitos por código." />
               <Switch value={save.settings.music} onChange={(v) => set({music: v})} title="Trilha do jogo" desc="Uma faixa para cada parte. Desligada por padrão." />
+              {(save.settings.sfx || save.settings.music) && (
+                <Chips options={[1, 2, 3] as const} value={save.settings.volume} onChange={(v) => set({volume: v})} format={(v) => (v === 1 ? 'BAIXO' : v === 2 ? 'MÉDIO' : 'ALTO')} label={(v) => `Volume do som: ${v === 1 ? 'baixo' : v === 2 ? 'médio' : 'alto'}`} />
+              )}
               <Switch value={save.settings.haptics} onChange={(v) => set({haptics: v})} title="Vibração leve" desc="Desligada por padrão." />
               <Switch value={save.settings.perf} onChange={(v) => set({perf: v})} title="Medidor de desempenho" desc="Mostra FPS e tempo de quadro na tela." />
             </View>

@@ -14,6 +14,8 @@ export type ArcadeSettings = {
   /** Efeitos sonoros e trilhas do jogo (originais, gerados por código). Desligados por padrão. */
   sfx: boolean;
   music: boolean;
+  /** Volume do som do jogo: 1 baixo, 2 médio (padrão), 3 alto. */
+  volume: 1 | 2 | 3;
 };
 
 export type ArcadeSave = {
@@ -34,7 +36,7 @@ export const DEFAULT_SAVE: ArcadeSave = {
   best: {josperd: 0, camila: 0},
   bestMeters: {josperd: 0, camila: 0},
   plays: 0,
-  settings: {hero: 'josperd', control: 'touch', tiltInvert: false, haptics: false, perf: false, sfx: false, music: false},
+  settings: {hero: 'josperd', control: 'touch', tiltInvert: false, haptics: false, perf: false, sfx: false, music: false, volume: 2},
 };
 
 const num = (v: unknown, max = 1e9) => {
@@ -62,6 +64,7 @@ export function normalizeSave(raw: unknown): ArcadeSave {
       perf: s.perf === true,
       sfx: s.sfx === true,
       music: s.music === true,
+      volume: s.volume === 1 ? 1 : s.volume === 3 ? 3 : 2,
     },
   };
 }

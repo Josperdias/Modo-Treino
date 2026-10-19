@@ -27,11 +27,18 @@ export class ArcadeAudio {
   private timer: ReturnType<typeof setInterval> | null = null;
   private limiter = new Limiter(GAPS);
   private modeSet = false;
+  private vol = 1;
 
   private async mode() {
     if (this.modeSet) return;
     this.modeSet = true;
     try { await setAudioModeAsync({playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'mixWithOthers'}); } catch { /* sem modo: toca como der */ }
+  }
+
+  /** 1 baixo · 2 médio · 3 alto. */
+  setVolume(level: number) {
+    this.vol = level <= 1 ? 0.5 : level >= 3 ? 1 : 0.75;
+    for (const m of [this.cur, ...this.fading]) { if (m) { try { m.p.volume = m.vol * MUSIC_MASTER * this.vol; } catch { /* ok */ } } }
   }
 
   configure(sfx: boolean, music: boolean) {
@@ -73,7 +80,7 @@ export class ArcadeAudio {
       if (!p) continue;
       try {
         const lvl = (SFX_META as Record<string, {level: number}>)[c.id]?.level ?? 0.85;
-        p.volume = Math.max(0, Math.min(1, SFX_MASTER * c.gain * Math.min(1, lvl + 0.15)));
+        p.volume = Math.max(0, Math.min(1, SFX_MASTER * this.vol * c.gain * Math.min(1, lvl + 0.15)));
         void p.seekTo(0).catch(() => {});
         p.play();
       } catch { /* som perdido: sem problema */ }
@@ -118,11 +125,11 @@ export class ArcadeAudio {
       const step = dt / FADE_MS;
       if (this.cur && this.cur.vol < 1) {
         this.cur.vol = Math.min(1, this.cur.vol + step);
-        try { this.cur.p.volume = this.cur.vol * MUSIC_MASTER; } catch { /* ok */ }
+        try { this.cur.p.volume = this.cur.vol * MUSIC_MASTER * this.vol; } catch { /* ok */ }
       }
       this.fading = this.fading.filter((m) => {
         m.vol = Math.max(0, m.vol - step * 1.4);
-        try { m.p.volume = m.vol * MUSIC_MASTER; } catch { /* ok */ }
+        try { m.p.volume = m.vol * MUSIC_MASTER * this.vol; } catch { /* ok */ }
         if (m.vol <= 0) { try { m.p.pause(); m.p.remove(); } catch { /* ok */ } return false; }
         return true;
       });
