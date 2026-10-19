@@ -25,6 +25,8 @@ export type GameCanvasProps = {
   onPauseKey?: () => void;
   /** Modo leve escolhido pelo usuário: começa (e fica) no nível mínimo de desenho. */
   lite?: boolean;
+  /** O desenho ficou lento e o jogo foi para o nível mínimo (a tela guarda isso como modo leve). */
+  onSlow?: () => void;
 };
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -55,9 +57,9 @@ export default function GameCanvas(p: GameCanvasProps) {
   // Erro dentro do laço de quadros (fora do React): reenvia para o ErrorBoundary da tela em vez de derrubar o app.
   const [, setFatal] = useState(0);
   // Qualidade adaptativa: aparelho lento desenha mais simples, a 30 quadros/s e numa resolução menor (a simulação segue exata).
-  const quality = useRef(new Quality(p.lite ? 2 : 0));
+  const quality = useRef(new Quality(p.lite ? 2 : Platform.OS === 'web' ? 0 : 1));
   const [qLevel, setQLevel] = useState<QLevel>(quality.current.level);
-  useEffect(() => { quality.current.setFloor(p.lite ? 2 : 0); setQLevel(quality.current.level); }, [p.lite]);
+  useEffect(() => { quality.current.setFloor(p.lite ? 2 : Platform.OS === 'web' ? 0 : 1); setQLevel(quality.current.level); }, [p.lite]);
   const blank = useMemo(() => createPicture(() => {}, {width: 1, height: 1}), []);
   const picture = useSharedValue<SkPicture>(blank);
   const props = useRef(p);
@@ -114,7 +116,10 @@ export default function GameCanvas(p: GameCanvasProps) {
           publish(createPicture((canvas) => { drawScene(canvas, {session, hero, width: w, height: h, sprites, quality: q.level}, now); }, {width: w, height: h}));
           const dt = now() - t0;
           recordDraw(session.perf, dt);
-          if (q.feed(dt, lastDraw < 0 ? 17 : ts - lastDraw, ts)) setQLevel(q.level);
+          if (q.feed(dt, lastDraw < 0 ? 17 : ts - lastDraw, ts)) {
+            setQLevel(q.level);
+            if (q.escalated) props.current.onSlow?.(); // aparelho lento: o jogo guarda o modo leve para as próximas partidas
+          }
           lastDraw = ts;
           drawFails = 0;
         } catch (e) {

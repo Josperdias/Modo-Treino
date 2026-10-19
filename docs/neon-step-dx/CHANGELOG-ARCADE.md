@@ -144,3 +144,13 @@ Inimigos, poderes, portais e os outros universos (M2), checkpoint na Cidade Neon
 ## 1.4.10 — Erros isolados
 - `GameCanvas`: o desenho, os eventos (som/vibração/diário) e o HUD têm try/catch próprios; falha de desenho → `resetRenderCaches()` + nível mínimo e pula o quadro (6 falhas seguidas = erro fatal para o ErrorBoundary). Só erro da simulação (`session.frame`) é fatal direto. `ArcadeAudio` engole qualquer erro nos métodos públicos; intervalos de música/diário/autosave têm try/catch. O `ArcadeBoundary` mostra a mensagem do erro, grava em `arcade.lasterr` e oferece TENTAR DE NOVO.
 - Hipótese do "fechou sozinho" das 1.4.7/1.4.8: uma exceção JS no laço (som/eventos) — na 1.4.7 era fatal e fechava o app; na 1.4.8 vira a tela de aviso. A causa exata ainda não foi vista (o aviso agora mostra o texto do erro).
+
+## 1.4.11 — Desenho em partes isoladas
+- O aviso real do aparelho (1.4.10): `Value is undefined, expected an Object` (erro do JSI/Skia nativo: algum desenho recebeu `undefined` onde precisa de objeto), ao entrar no portal Cristal, no portal de atalho e ao passar a linha de recorde — todos eventos que criam anéis, texto de pop ('+150', 'NOVO RECORDE'), partículas e clarão. Na web não reproduz (CanvasKit é permissivo).
+- `drawScene` roda cada parte dentro de `guard()` (save/`restoreToCount` + try/catch): fundo, transição, zona, marcos, plataformas, itens, inimigos, balas, partículas, herói, anéis, textos, teto, clarão, placar, botão. Erros ficam em `globalThis.__ARCADE_RENDER_ERRS__` e aparecem no menu de pausa. A causa exata ainda precisa do nome da parte que falhou.
+
+## 1.4.12 — Leve por padrão
+- Medido no aparelho do dono (print do medidor, 1.4.10): 41,7 fps, quadro p50 21 ms / p95 46 ms, mas **desenho em JS só 3 ms** → o gargalo é a rasterização/GPU, não o JS (aninhar Pictures não reduz o custo de rasterização: as operações são reexecutadas). O modo leve (sem brilhos, 75 % de resolução, 30 qps) "roda mais" segundo o dono.
+- `Quality`: piso 1 no app (0 na web), sobe para 2 quando o tempo entre quadros passa de 20 ms (`Q_UP_FRAME_MS`), nunca desce; `onSlow` grava `settings.lite = true`. Limite de quadros `MIN_DRAW_GAP_MS` [15, 15, 28] ms (60 qps; 120 Hz não dobra a carga).
+- Nível ≥ 1 também pula: meio-tom em tela cheia, a camada com transparência da skyline e a transição (crossfade com `saveLayer` do mundo anterior) do portal.
+- Erro dos portais (Cristal e Atalho) e da linha de recorde no aparelho: `Value is undefined, expected an Object` (JSI). Não reproduz na web; `guard()` isola cada parte do desenho e a pausa/aviso mostram qual falhou.

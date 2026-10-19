@@ -151,3 +151,36 @@ test('rampa: um jogador humano comum vai bem mais longe que no começo e ainda a
   assert.ok(deaths[0] > 150, `ninguém morre no começo: ${deaths[0]}`);
   assert.ok(deaths.filter((m) => m < 99999).length >= 10, 'a maioria cai em 6 min');
 });
+
+const {Quality, MIN_DRAW_GAP_MS} = await A('perf.ts');
+
+test('qualidade adaptativa: começa no piso, sobe para o mínimo se o quadro demora (GPU lenta), nunca desce e limita os quadros por segundo', () => {
+  // Aparelho bom: 60 fps com desenho curto → fica no piso.
+  const ok = new Quality(1);
+  let ts = 0;
+  for (let i = 0; i < 600; i++) { ts += 16.7; ok.feed(2, 16.7, ts); }
+  assert.equal(ok.level, 1);
+  assert.equal(ok.escalated, false);
+  // Aparelho lento: desenho em JS curto (3 ms) mas 40 fps de verdade (25 ms entre quadros) → vai para o nível 2 e avisa.
+  const slow = new Quality(1);
+  ts = 0;
+  let changed = 0;
+  for (let i = 0; i < 400; i++) { ts += 25; if (slow.feed(3, 25, ts)) changed++; }
+  assert.equal(slow.level, 2);
+  assert.equal(slow.escalated, true);
+  assert.equal(changed, 1, 'sobe uma vez só');
+  assert.equal(slow.scale, 0.75);
+  // Depois que melhora, continua no mínimo (sem oscilar).
+  for (let i = 0; i < 2000; i++) { ts += 33; slow.feed(1, 33, ts); }
+  assert.equal(slow.level, 2);
+  // Limite de quadros: 60 fps nos níveis 0–1, 30 fps no 2 (telas de 120 Hz não dobram o trabalho).
+  assert.equal(ok.skipDraw(8.3, 0), true);
+  assert.equal(ok.skipDraw(16.7, 0), false);
+  assert.equal(slow.skipDraw(16.7, 0), true);
+  assert.equal(slow.skipDraw(33, 0), false);
+  assert.deepEqual([...MIN_DRAW_GAP_MS], [15, 15, 28]);
+  // Modo leve escolhido: já começa no mínimo.
+  assert.equal(new Quality(2).level, 2);
+  const lite = new Quality(0); lite.setFloor(2);
+  assert.equal(lite.level, 2);
+});

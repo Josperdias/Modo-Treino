@@ -93,6 +93,25 @@ export type SceneInput = {
 /** Qualidade do quadro em desenho (lida por todas as funções abaixo). */
 let Q = 0;
 
+/**
+ * Cada parte do quadro (fundo, plataformas, herói, efeitos...) roda isolada: se uma falhar (o Skia nativo é mais rígido que o da web),
+ * só ela some naquele quadro e o resto continua. O erro fica em `renderErrors()` (aparece no menu de pausa para diagnóstico).
+ */
+const stageErrors: Record<string, string> = ((globalThis as any).__ARCADE_RENDER_ERRS__ = {});
+export const renderErrors = (): Record<string, string> => stageErrors;
+export const clearRenderErrors = () => { for (const k of Object.keys(stageErrors)) delete stageErrors[k]; };
+function guard(canvas: SkCanvas, name: string, fn: () => void) {
+  const n = canvas.save();
+  try { fn(); } catch (e) {
+    if (!stageErrors[name]) {
+      stageErrors[name] = String((e as any)?.message ?? e).slice(0, 140);
+      try { console.warn('[arcade] erro de desenho em', name, stageErrors[name]); } catch { /* sem console */ }
+    }
+  }
+  try { canvas.restoreToCount(n); } catch { /* pilha já equilibrada */ }
+  try { if (paint) { paint.setStyle(0); paint.setShader(null); } } catch { /* ok */ }
+}
+
 /** Quadro da animação a partir da fase do salto (mesmo mapeamento do protótipo, sem faixas duplicadas). */
 export function frameIndex(p: Pick<Player, 'landTimer' | 'vy'>, over: boolean): number {
   if (over) return 7;
@@ -229,7 +248,7 @@ function drawNeonBackground(canvas: SkCanvas, cam: number, viewH: number, meters
     });
     canvas.save();
     canvas.translate(0, base);
-    drawPicAlpha(canvas, pic, city);
+    if (Q >= 1) { if (city > 0.45) canvas.drawPicture(pic); } else drawPicAlpha(canvas, pic, city);
     canvas.restore();
   }
 
@@ -240,8 +259,10 @@ function drawNeonBackground(canvas: SkCanvas, cam: number, viewH: number, meters
   rect(canvas, '#f74192', 0, 250, 8, 90, 0.085);
   rect(canvas, '#f74192', FIELD_W - 8, 400, 8, 120, 0.085);
   // Meio-tom (bolinhas) rosa embaixo e roxo em cima: o mesmo pontilhado dos cartões do app.
-  fillPattern(canvas, halftone(), '#ff4dac', 0.07, 0, viewH * 0.55, FIELD_W, viewH * 0.45, 0, (cam * 0.1) % 16);
-  fillPattern(canvas, halftone(), '#8e6bff', 0.05, 0, 0, FIELD_W, viewH * 0.4, 0, (cam * 0.05) % 16);
+  if (Q < 1) {
+    fillPattern(canvas, halftone(), '#ff4dac', 0.07, 0, viewH * 0.55, FIELD_W, viewH * 0.45, 0, (cam * 0.1) % 16);
+    fillPattern(canvas, halftone(), '#8e6bff', 0.05, 0, 0, FIELD_W, viewH * 0.4, 0, (cam * 0.05) % 16);
+  }
   // Faixas diagonais de obra nas bordas laterais + xadrez de fita.
   fillPattern(canvas, stripes(), '#ffd369', 0.07, 0, 0, 10, viewH, 0, (cam * 0.3) % 24);
   fillPattern(canvas, stripes(), '#ffd369', 0.07, FIELD_W - 10, 0, 10, viewH, 0, (cam * 0.3) % 24);
@@ -1228,17 +1249,21 @@ function drawBullets(canvas: SkCanvas, S: SceneInput, time: number, sy: (y: numb
 
 function drawRingsAndPops(canvas: SkCanvas, S: SceneInput, sy: (y: number) => number) {
   const fx = S.session.fx;
-  for (const r of fx.rings) {
-    const t = r.age / r.max;
-    const p = P();
-    p.setShader(null); p.setColor(col(r.color)); p.setAlphaf(1 - t); p.setStyle(1); p.setStrokeWidth(4 * (1 - t) + 1);
-    canvas.drawCircle(r.x, sy(r.y), r.r * (0.15 + 0.85 * Math.sqrt(t)), p);
-    p.setStyle(0);
-  }
-  for (const q of fx.pops) {
-    const t = q.age / q.max;
-    drawPixelText(canvas, q.text, q.x, sy(q.y), 2, {top: '#ffffff', low: q.color, shadow: '#3b1a52', alpha: t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3});
-  }
+  guard(canvas, 'aneis', () => {
+    for (const r of fx.rings) {
+      const t = r.age / r.max;
+      const p = P();
+      p.setShader(null); p.setColor(col(r.color)); p.setAlphaf(1 - t); p.setStyle(1); p.setStrokeWidth(4 * (1 - t) + 1);
+      canvas.drawCircle(r.x, sy(r.y), r.r * (0.15 + 0.85 * Math.sqrt(t)), p);
+      p.setStyle(0);
+    }
+  });
+  guard(canvas, 'textos', () => {
+    for (const q of fx.pops) {
+      const t = q.age / q.max;
+      drawPixelText(canvas, q.text, q.x, sy(q.y), 2, {top: '#ffffff', low: q.color, shadow: '#3b1a52', alpha: t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3});
+    }
+  });
 }
 
 /** Vidas, escudos, bandeira de recuperação e barras dos poderes (canto superior esquerdo, abaixo do cartão de pontos). */
@@ -1295,35 +1320,42 @@ const otherHero = (h: Hero): Hero => (h === 'josperd' ? 'camila' : 'josperd');
 function drawEntities(canvas: SkCanvas, S: SceneInput, sy: (y: number) => number, viewH: number, time: number, text: boolean) {
   const sim = S.session.sim;
   const fx = S.session.fx;
-  drawBonusZone(canvas, sim, sy, viewH, time);
-  drawLava(canvas, sim, sy, viewH, time);
-  drawMarkers(canvas, S, sy, viewH, time, text);
-  for (const pl of sim.platforms) {
-    if (pl.broken) continue;
-    const y = sy(pl.y);
-    if (y < -40 || y > viewH + 45) continue;
-    drawPlatform(canvas, pl, platformX(pl, time), y, time, sim.world);
-  }
-  for (const it of sim.items) {
-    if (it.hit) continue;
-    const y = sy(it.y);
-    if (y < -80 || y > viewH + 80) continue;
-    drawItem(canvas, it, it.x, y, time, text);
-  }
-  for (const e of sim.enemies) {
-    if (!e.alive) continue;
-    const y = sy(e.y);
-    if (y < -60 || y > viewH + 60) continue;
-    drawEnemy(canvas, e, time, sy, text);
-  }
-  drawBullets(canvas, S, time, sy);
-  const skip = Q >= 2 ? 3 : Q >= 1 ? 2 : 1; // aparelho lento: desenha só 1 de cada 2–3 partículas
-  for (let i = 0; i < fx.list.length; i += skip) {
-    const p = fx.list[i];
-    const f = Math.max(0, Math.min(1, p.life / p.max));
-    if (p.size > 4) pixelStar(canvas, p.color, p.x, sy(p.y), 1.4, f);
-    else rect(canvas, p.color, p.x, sy(p.y), p.size, p.size, f);
-  }
+  guard(canvas, 'zona', () => { drawBonusZone(canvas, sim, sy, viewH, time); drawLava(canvas, sim, sy, viewH, time); });
+  guard(canvas, 'marcos', () => drawMarkers(canvas, S, sy, viewH, time, text));
+  guard(canvas, 'plataformas', () => {
+    for (const pl of sim.platforms) {
+      if (pl.broken) continue;
+      const y = sy(pl.y);
+      if (y < -40 || y > viewH + 45) continue;
+      drawPlatform(canvas, pl, platformX(pl, time), y, time, sim.world);
+    }
+  });
+  guard(canvas, 'itens', () => {
+    for (const it of sim.items) {
+      if (it.hit) continue;
+      const y = sy(it.y);
+      if (y < -80 || y > viewH + 80) continue;
+      drawItem(canvas, it, it.x, y, time, text);
+    }
+  });
+  guard(canvas, 'inimigos', () => {
+    for (const e of sim.enemies) {
+      if (!e.alive) continue;
+      const y = sy(e.y);
+      if (y < -60 || y > viewH + 60) continue;
+      drawEnemy(canvas, e, time, sy, text);
+    }
+  });
+  guard(canvas, 'balas', () => drawBullets(canvas, S, time, sy));
+  guard(canvas, 'particulas', () => {
+    const skip = Q >= 2 ? 3 : Q >= 1 ? 2 : 1; // aparelho lento: desenha só 1 de cada 2–3 partículas
+    for (let i = 0; i < fx.list.length; i += skip) {
+      const p = fx.list[i];
+      const f = Math.max(0, Math.min(1, p.life / p.max));
+      if (p.size > 4) pixelStar(canvas, p.color, p.x, sy(p.y), 1.4, f);
+      else rect(canvas, p.color, p.x, sy(p.y), p.size, p.size, f);
+    }
+  });
 }
 
 /** Marcos de altitude a cada 100 m (tracejado fraco) e a linha dourada do recorde pessoal. */
@@ -1399,87 +1431,87 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const sh = fx.shake;
   if (sh > 0) canvas.translate((Math.sin(sim.tick * 7.3) * sh * 22) | 0, (Math.cos(sim.tick * 5.1) * sh * 14) | 0);
 
-  drawWorldBackground(canvas, sim.world, cam, viewH, meters, time);
-  if (fx.worldFade > 0 && fx.worldFrom && fx.worldFrom !== sim.world) {
+  guard(canvas, 'fundo', () => drawWorldBackground(canvas, sim.world, cam, viewH, meters, time));
+  if (Q < 1 && fx.worldFade > 0 && fx.worldFrom && fx.worldFrom !== sim.world) {
     // Mundo anterior some por cima do novo (transição do portal).
-    const lp = P();
-    lp.setAlphaf(Math.min(1, fx.worldFade * 1.2));
-    canvas.saveLayer(lp);
-    drawWorldBackground(canvas, fx.worldFrom, cam, viewH, meters, time);
-    canvas.restore();
+    guard(canvas, 'transicao', () => {
+      const lp = P();
+      lp.setAlphaf(Math.min(1, fx.worldFade * 1.2));
+      canvas.saveLayer(lp);
+      drawWorldBackground(canvas, fx.worldFrom!, cam, viewH, meters, time);
+      canvas.restore();
+    });
   }
 
   const paper = sim.world === 'paper';
   const twinWorld = paper || sim.world === 'sketch';
   const half = FIELD_W / 2;
   if (paper) {
-    canvas.save(); canvas.clipRect(Skia.XYWHRect(0, 0, half, viewH), ClipOp.Intersect, false);
-    drawEntities(canvas, S, sy, viewH, time, true);
-    canvas.restore();
-    canvas.save(); canvas.translate(FIELD_W, 0); canvas.scale(-1, 1); canvas.clipRect(Skia.XYWHRect(0, 0, half, viewH), ClipOp.Intersect, false);
-    drawEntities(canvas, S, sy, viewH, time, false);
-    canvas.restore();
+    guard(canvas, 'papel-a', () => { canvas.clipRect(Skia.XYWHRect(0, 0, half, viewH), ClipOp.Intersect, false); drawEntities(canvas, S, sy, viewH, time, true); });
+    guard(canvas, 'papel-b', () => { canvas.translate(FIELD_W, 0); canvas.scale(-1, 1); canvas.clipRect(Skia.XYWHRect(0, 0, half, viewH), ClipOp.Intersect, false); drawEntities(canvas, S, sy, viewH, time, false); });
   } else drawEntities(canvas, S, sy, viewH, time, true);
 
-  // Herói (interpolado entre o passo anterior e o atual; sem interpolar ao atravessar a lateral).
-  const pl = sim.player;
-  const jump = Math.abs(pl.x - pl.px) > 200;
-  const px = jump ? pl.x : lerp(pl.px, pl.x, a);
-  const py = lerp(pl.py, pl.y, a);
-  const fi = frameIndex(desc ? {landTimer: pl.landTimer, vy: -pl.vy} : pl, sim.mode === 'over');
-  const foot = sy(py) + 6;
-  const main: Hero = sim.swapped ? otherHero(S.hero) : S.hero;
-  drawShadow(canvas, S, px, py, time, sy);
-  // Aura na cor do personagem (cresce com o combo) e rastro quando a velocidade é alta.
-  drawGlow(canvas, HERO_COLOR[main], 66, px, foot - 52, 0.24 + Math.min(4, sim.combo) * 0.035);
-  if (sim.boost > 0) drawGlow(canvas, '#ffe36c', 44, px, foot - 4, 0.3 + 0.1 * Math.sin(time * 14));
-  if (sim.magnet > 0) {
-    const q = P();
-    q.setShader(null); q.setColor(col('#ff5a7a')); q.setStyle(1); q.setStrokeWidth(2);
-    const ph = (time * 1.4) % 1;
-    q.setAlphaf(0.22 * (1 - ph)); canvas.drawCircle(px, foot - 52, POWER.MAGNET_R * (1 - ph * 0.5), q);
-    q.setStyle(0);
-  }
-  if (Math.abs(pl.vy) > 520 && sim.mode === 'playing') {
-    for (let k = 2; k >= 1; k--) drawHero(canvas, S, main, pl.facing, px - pl.vx * 0.012 * k, foot + (desc ? -pl.vy : pl.vy) * 0.03 * k, fi, 0.2 / k);
-  }
-  // Invencível: pisca (exceto com a hélice).
-  const blink = sim.invuln > 0 && sim.jet <= 0 && Math.floor(time * 14) % 2 === 0;
-  const heroAlpha = blink ? 0.35 : 1;
-  if (sim.jet > 0 && !desc) {
-    // Chama sob os pés.
-    for (let i = 0; i < 4; i++) rect(canvas, i % 2 ? '#ffd36b' : '#ff6a3d', px - 6 + (i % 2) * 2 + ((Math.floor(time * 30) + i) % 3), foot + i * 5, 4 + (i % 2) * 2, 6, 0.9 - i * 0.18);
-  }
-  drawHero(canvas, S, main, pl.facing, px, foot, fi, heroAlpha);
-  if (twinWorld) {
-    // As DUAS personagens estão sempre em cena: a outra é o espelho na dobra (W − x) e faz o movimento espelhado.
-    const twin = otherHero(main);
-    drawGlow(canvas, HERO_COLOR[twin], 66, FIELD_W - px, foot - 52, 0.22);
-    drawHero(canvas, S, twin, pl.facing === 1 ? -1 : 1, FIELD_W - px, foot, fi, heroAlpha);
-    // Quem está na metade ESQUERDA tem o controle normal (seta ciano); a da direita fica com o controle invertido (seta amarela).
-    const leftX = Math.min(px, FIELD_W - px), rightX = Math.max(px, FIELD_W - px);
-    const tri = (cx: number, color: string) => { for (let r = 0; r < 4; r++) rect(canvas, color, cx - (4 - r) * 3, foot - 132 + r * 3 + Math.sin(time * 6) * 2, (4 - r) * 6, 3, 0.95); };
-    tri(leftX, '#62fff1');
-    if (sim.world === 'sketch') tri(rightX, '#ffd36b');
-  } else {
-    const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
-    if (px < 50) drawHero(canvas, S, main, pl.facing, px + span, foot, fi, heroAlpha);
-    else if (px > FIELD_W - 50) drawHero(canvas, S, main, pl.facing, px - span, foot, fi, heroAlpha);
-  }
-  if (sim.jet > 0) drawPix(canvas, JET[Math.floor(time * 30) % 2], px, foot - 102, 2);
-  if (sim.shields > 0) {
-    // Bolha de escudo.
-    const q = P();
-    q.setShader(null); q.setColor(col('#51ecff')); q.setAlphaf(0.5 + 0.2 * Math.sin(time * 8)); q.setStyle(1); q.setStrokeWidth(3);
-    canvas.drawCircle(px, foot - 50, 48, q);
-    q.setStyle(0); q.setAlphaf(0.07);
-    canvas.drawCircle(px, foot - 50, 48, q);
-  }
-  if (sim.boost > 0 && Math.floor(time * 12) % 2 === 0) { rect(canvas, '#ffe36c', px - 14, foot + 2, 4, 4); rect(canvas, '#fff9c5', px + 10, foot + 4, 4, 4); }
+  guard(canvas, 'heroi', () => {
+    // Herói (interpolado entre o passo anterior e o atual; sem interpolar ao atravessar a lateral).
+    const pl = sim.player;
+    const jump = Math.abs(pl.x - pl.px) > 200;
+    const px = jump ? pl.x : lerp(pl.px, pl.x, a);
+    const py = lerp(pl.py, pl.y, a);
+    const fi = frameIndex(desc ? {landTimer: pl.landTimer, vy: -pl.vy} : pl, sim.mode === 'over');
+    const foot = sy(py) + 6;
+    const main: Hero = sim.swapped ? otherHero(S.hero) : S.hero;
+    drawShadow(canvas, S, px, py, time, sy);
+    // Aura na cor do personagem (cresce com o combo) e rastro quando a velocidade é alta.
+    drawGlow(canvas, HERO_COLOR[main], 66, px, foot - 52, 0.24 + Math.min(4, sim.combo) * 0.035);
+    if (sim.boost > 0) drawGlow(canvas, '#ffe36c', 44, px, foot - 4, 0.3 + 0.1 * Math.sin(time * 14));
+    if (sim.magnet > 0) {
+      const q = P();
+      q.setShader(null); q.setColor(col('#ff5a7a')); q.setStyle(1); q.setStrokeWidth(2);
+      const ph = (time * 1.4) % 1;
+      q.setAlphaf(0.22 * (1 - ph)); canvas.drawCircle(px, foot - 52, POWER.MAGNET_R * (1 - ph * 0.5), q);
+      q.setStyle(0);
+    }
+    if (Math.abs(pl.vy) > 520 && sim.mode === 'playing') {
+      for (let k = 2; k >= 1; k--) drawHero(canvas, S, main, pl.facing, px - pl.vx * 0.012 * k, foot + (desc ? -pl.vy : pl.vy) * 0.03 * k, fi, 0.2 / k);
+    }
+    // Invencível: pisca (exceto com a hélice).
+    const blink = sim.invuln > 0 && sim.jet <= 0 && Math.floor(time * 14) % 2 === 0;
+    const heroAlpha = blink ? 0.35 : 1;
+    if (sim.jet > 0 && !desc) {
+      // Chama sob os pés.
+      for (let i = 0; i < 4; i++) rect(canvas, i % 2 ? '#ffd36b' : '#ff6a3d', px - 6 + (i % 2) * 2 + ((Math.floor(time * 30) + i) % 3), foot + i * 5, 4 + (i % 2) * 2, 6, 0.9 - i * 0.18);
+    }
+    drawHero(canvas, S, main, pl.facing, px, foot, fi, heroAlpha);
+    if (twinWorld) {
+      // As DUAS personagens estão sempre em cena: a outra é o espelho na dobra (W − x) e faz o movimento espelhado.
+      const twin = otherHero(main);
+      drawGlow(canvas, HERO_COLOR[twin], 66, FIELD_W - px, foot - 52, 0.22);
+      drawHero(canvas, S, twin, pl.facing === 1 ? -1 : 1, FIELD_W - px, foot, fi, heroAlpha);
+      // Quem está na metade ESQUERDA tem o controle normal (seta ciano); a da direita fica com o controle invertido (seta amarela).
+      const leftX = Math.min(px, FIELD_W - px), rightX = Math.max(px, FIELD_W - px);
+      const tri = (cx: number, color: string) => { for (let r = 0; r < 4; r++) rect(canvas, color, cx - (4 - r) * 3, foot - 132 + r * 3 + Math.sin(time * 6) * 2, (4 - r) * 6, 3, 0.95); };
+      tri(leftX, '#62fff1');
+      if (sim.world === 'sketch') tri(rightX, '#ffd36b');
+    } else {
+      const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
+      if (px < 50) drawHero(canvas, S, main, pl.facing, px + span, foot, fi, heroAlpha);
+      else if (px > FIELD_W - 50) drawHero(canvas, S, main, pl.facing, px - span, foot, fi, heroAlpha);
+    }
+    if (sim.jet > 0) drawPix(canvas, JET[Math.floor(time * 30) % 2], px, foot - 102, 2);
+    if (sim.shields > 0) {
+      // Bolha de escudo.
+      const q = P();
+      q.setShader(null); q.setColor(col('#51ecff')); q.setAlphaf(0.5 + 0.2 * Math.sin(time * 8)); q.setStyle(1); q.setStrokeWidth(3);
+      canvas.drawCircle(px, foot - 50, 48, q);
+      q.setStyle(0); q.setAlphaf(0.07);
+      canvas.drawCircle(px, foot - 50, 48, q);
+    }
+    if (sim.boost > 0 && Math.floor(time * 12) % 2 === 0) { rect(canvas, '#ffe36c', px - 14, foot + 2, 4, 4); rect(canvas, '#fff9c5', px + 10, foot + 4, 4, 4); }
 
-  if (sim.jet > 0 && sim.jetSpeed >= 800) drawSpeedLines(canvas, viewH, time);
-  drawRingsAndPops(canvas, S, sy);
-  if (desc) drawCeiling(canvas, S, viewH, time);
+    if (sim.jet > 0 && sim.jetSpeed >= 800) drawSpeedLines(canvas, viewH, time);
+  });
+  guard(canvas, 'efeitos', () => drawRingsAndPops(canvas, S, sy));
+  if (desc) guard(canvas, 'teto', () => drawCeiling(canvas, S, viewH, time));
   canvas.restore(); // fim do tremor
 
   if (sim.slow > 0) {
@@ -1499,9 +1531,9 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
       pp.setShader(null);
     }
   }
-  if (fx.flash > 0) rect(canvas, fx.flashColor, 0, 0, FIELD_W, viewH, Math.min(0.3, fx.flash * 0.5));
-  if (sim.mode === 'playing') drawStatus(canvas, S, scale, time);
+  if (fx.flash > 0) guard(canvas, 'clarao', () => rect(canvas, fx.flashColor, 0, 0, FIELD_W, viewH, Math.min(0.3, fx.flash * 0.5)));
+  if (sim.mode === 'playing') guard(canvas, 'placar', () => drawStatus(canvas, S, scale, time));
   canvas.restore();
-  if (sim.mode === 'playing') drawFireButton(canvas, S, time);
+  if (sim.mode === 'playing') guard(canvas, 'botao', () => drawFireButton(canvas, S, time));
   return nowMs() - t0;
 }

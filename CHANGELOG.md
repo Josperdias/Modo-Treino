@@ -2,6 +2,17 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.12] — 2026-10-19
+
+### Mais leve de verdade no celular 🕹️
+- O jogo agora **começa no modo leve** no app (sem brilhos, sem a transição pesada de portal, menos partículas e fundo mais simples) e, se o celular ainda não der conta, passa **sozinho** para o nível mínimo e guarda isso como Modo leve. Telas de 90/120 Hz deixam de desenhar mais de 60 quadros por segundo.
+- A tela de erro mostra mais detalhes (qual parte do desenho falhou) para eu corrigir de vez o erro dos portais e da linha de recorde.
+
+## [1.4.11] — 2026-10-19
+
+### O jogo não para mais num erro de desenho 🕹️
+- O desenho do jogo agora é feito em **partes isoladas** (fundo, plataformas, itens, inimigos, herói, efeitos, textos...). Se uma delas der erro no seu aparelho (o motor de desenho do Android é mais rígido que o do navegador), só ela some naquele quadro e a partida **continua**. A pausa mostra qual parte falhou, para eu poder corrigir de vez.
+
 ## [1.4.10] — 2026-10-19
 
 ### O segredo não cai mais por erro de som, desenho ou diário 🕹️

@@ -62,23 +62,26 @@ export function summarize(p: Perf): PerfSummary {
 const round = (v: number) => Math.round(v * 100) / 100;
 
 /**
- * Qualidade adaptativa do desenho: 0 completo · 1 leve (sem brilhos, menos partículas, fundo simples) ·
- * 2 mínimo (além disso desenha a 30 quadros/s e numa resolução menor). Sobe depressa quando o quadro pesa
- * e só desce depois de um bom tempo folgado (cada recaída dobra a espera: sem ficar oscilando).
+ * Qualidade adaptativa do desenho: 0 completo · 1 leve (sem brilhos, sem transição de portal, menos partículas e fundo simples) ·
+ * 2 mínimo (além disso 30 quadros/s e canvas a 75 %). O celular decide: começa no piso (1 no app, 0 na web) e sobe para 2 quando
+ * o tempo entre quadros passa de `Q_UP_FRAME_MS` (o desenho em JS pode ser rápido e a GPU ainda assim não dar conta).
+ * Nunca desce sozinho: oscilar entre níveis é pior que ficar no leve.
  */
 export type QLevel = 0 | 1 | 2;
 export const Q_UP_DRAW_MS = 8;
-export const Q_UP_FRAME_MS = 26;
-export const Q_DOWN_DRAW_MS = 3;
+export const Q_UP_FRAME_MS = 20;
+/** Tempo mínimo entre quadros desenhados: telas de 90/120 Hz não precisam de mais que ~60 quadros/s (metade da carga da GPU). */
+export const MIN_DRAW_GAP_MS = [15, 15, 28] as const;
 
 export class Quality {
   level: QLevel;
-  /** Piso escolhido pelo usuário (modo leve = 2). */
+  /** Piso escolhido pelo usuário/aparelho (modo leve = 2; app = 1). */
   floor: QLevel;
+  /** Subiu para o nível 2 por lentidão medida (o jogo guarda isso como modo leve). */
+  escalated = false;
   private drawEma = 0;
   private frameEma = 17;
   private lastChange = 0;
-  private downWait = 8000;
   private seen = 0;
   constructor(floor: QLevel = 0) { this.floor = floor; this.level = floor; }
 
@@ -87,29 +90,25 @@ export class Quality {
   /** Registra um quadro desenhado. Devolve true quando o nível mudou. */
   feed(drawMs: number, frameMs: number, ts: number): boolean {
     this.seen++;
-    const a = this.seen < 8 ? 0.4 : 0.08;
+    const a = this.seen < 8 ? 0.4 : 0.06;
     this.drawEma += (drawMs - this.drawEma) * a;
     this.frameEma += (frameMs - this.frameEma) * a;
-    if (this.seen < 20) return false; // aquecimento (compilação de shaders/caches não conta)
+    if (this.seen < 30) return false; // aquecimento (compilação de shaders/caches não conta)
     const heavy = this.drawEma > Q_UP_DRAW_MS || (this.level < 2 && this.frameEma > Q_UP_FRAME_MS);
-    if (heavy && this.level < 2 && ts - this.lastChange > 700) {
-      if (this.level >= this.floor && ts - this.lastChange < 30000 && this.lastChange > 0) this.downWait = Math.min(120000, this.downWait * 2);
+    if (heavy && this.level < 2 && ts - this.lastChange > 1500) {
       this.level = (this.level + 1) as QLevel;
       this.lastChange = ts;
-      this.drawEma = Q_UP_DRAW_MS * 0.6; // reavalia do zero no nível novo
+      this.escalated = this.level === 2;
+      this.drawEma = Q_UP_DRAW_MS * 0.5; // reavalia do zero no nível novo
       this.frameEma = 17;
-      return true;
-    }
-    if (this.level > this.floor && this.drawEma < Q_DOWN_DRAW_MS && ts - this.lastChange > this.downWait) {
-      this.level = (this.level - 1) as QLevel;
-      this.lastChange = ts;
+      this.seen = 10;
       return true;
     }
     return false;
   }
 
-  /** Nível 2 desenha a no máximo ~30 quadros/s. */
-  skipDraw(ts: number, lastDraw: number): boolean { return this.level >= 2 && ts - lastDraw < 28; }
+  /** Pula o desenho deste quadro (limite de quadros por segundo do nível). */
+  skipDraw(ts: number, lastDraw: number): boolean { return ts - lastDraw < MIN_DRAW_GAP_MS[this.level]; }
   /** Resolução relativa do canvas. */
   get scale(): number { return this.level >= 2 ? 0.75 : 1; }
 }

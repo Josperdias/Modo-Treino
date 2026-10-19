@@ -35,14 +35,16 @@ function newSeed(): number {
 const pad = (n: number, w = 4) => String(Math.max(0, Math.floor(n))).padStart(w, '0');
 
 /** Se o jogo der erro, o app NÃO fecha: mostra um aviso e volta para o app. */
-class ArcadeBoundary extends React.Component<{onClose: () => void; children: React.ReactNode}, {failed: boolean; msg: string}> {
-  state = {failed: false, msg: ''};
-  static getDerivedStateFromError(e: unknown) { return {failed: true, msg: String((e as any)?.message ?? e).slice(0, 300)}; }
+class ArcadeBoundary extends React.Component<{onClose: () => void; children: React.ReactNode}, {failed: boolean; msg: string; detail: string}> {
+  state = {failed: false, msg: '', detail: ''};
+  static getDerivedStateFromError(e: unknown) { return {failed: true, msg: String((e as any)?.message ?? e).slice(0, 300), detail: ''}; }
   componentDidCatch(error: unknown, info?: {componentStack?: string | null}) {
     try {
       const e = error as any;
       const txt = `${e?.message ?? e}\n${String(e?.stack ?? '').split('\n').slice(0, 8).join('\n')}\n${String(info?.componentStack ?? '').split('\n').slice(0, 4).join('\n')}`;
       (globalThis as any).__ARCADE_LAST_ERR__ = txt;
+      const errs = Object.entries(((globalThis as any).__ARCADE_RENDER_ERRS__ ?? {}) as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n');
+      this.setState({detail: `${txt}\n${errs}`.slice(0, 700)});
       AsyncStorage.setItem('arcade.lasterr', txt.slice(0, 2000)).catch(() => {});
       console.warn('[arcade] erro no jogo:', txt);
     } catch { /* sem console */ }
@@ -53,8 +55,8 @@ class ArcadeBoundary extends React.Component<{onClose: () => void; children: Rea
       <View style={[S.root, {alignItems: 'center', justifyContent: 'center', padding: 24}]} testID="arcade-error">
         <Text style={S.modalT}>O JOGO TEVE UM PROBLEMA</Text>
         <Text style={[S.modalS, {textAlign: 'center', marginBottom: 10}]}>Nada do seu app foi perdido. Sua partida está guardada.</Text>
-        <Text selectable style={[S.perfT, {textAlign: 'center', marginBottom: 16}]} testID="arcade-error-msg">{this.state.msg}</Text>
-        <Btn text="TENTAR DE NOVO" icon="refresh" onPress={() => this.setState({failed: false, msg: ''})} style={{marginBottom: 10}} />
+        <Text selectable style={[S.perfT, {textAlign: "left", marginBottom: 16, fontSize: 9}]} testID="arcade-error-msg">{this.state.msg}{this.state.detail ? `\n${this.state.detail}` : ''}</Text>
+        <Btn text="TENTAR DE NOVO" icon="refresh" onPress={() => this.setState({failed: false, msg: '', detail: ''})} style={{marginBottom: 10}} />
         <Btn text="VOLTAR AO APP" icon="exit-outline" kind="ghost" onPress={this.props.onClose} />
       </View>
     );
@@ -289,6 +291,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
           control={save.settings.control}
           tiltInvert={save.settings.tiltInvert}
           lite={save.settings.lite}
+          onSlow={() => { if (!getArcade().settings.lite) updateArcade((a) => ({...a, settings: {...a.settings, lite: true}})); }}
           onHud={setHud}
           onEvents={onEvents}
           onOver={onOver}
@@ -361,6 +364,11 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
             <Text style={S.modalT}>PAUSA</Text>
             <Text style={S.modalS}>Seu recorde está esperando.</Text>
             <Btn text="CONTINUAR" icon="play" onPress={resume} style={{marginTop: 12}} />
+            {(() => {
+              const errs = Object.entries(((globalThis as any).__ARCADE_RENDER_ERRS__ ?? {}) as Record<string, string>);
+              if (!errs.length) return null;
+              return <Text selectable style={[S.perfT, {marginTop: 8}]} testID="arcade-render-errs">{errs.map(([k, v]) => `${k}: ${v}`).join('\n')}</Text>;
+            })()}
             <View style={S.settings}>
               <Chips options={['touch', 'tilt'] as const} value={save.settings.control} onChange={(v) => set({control: v})} format={(v) => (v === 'touch' ? 'TOQUE' : 'INCLINAR')} label={(v) => (v === 'touch' ? 'Controle por toque' : 'Controle por inclinação')} />
               {save.settings.control === 'tilt' && <Switch value={save.settings.tiltInvert} onChange={(v) => set({tiltInvert: v})} title="Inverter a inclinação" desc="Use se o personagem andar para o lado contrário." />}
