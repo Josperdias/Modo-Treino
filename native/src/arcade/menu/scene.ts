@@ -27,6 +27,8 @@ export type MenuFrame = {
   lunge?: number;
   /** Carregando: quando presente, desenha a tela de carregamento em vez do menu. */
   load?: LoadFrame;
+  /** Segundos desde que o jogador apertou PRESS START (a animação de saída); indefinido = ainda não apertou. */
+  press?: number;
   /** Reduzir movimento: nada de respiração, deriva nem brilhos piscando. */
   still: boolean;
 };
@@ -281,7 +283,7 @@ export function drawMenu(canvas: SkCanvas, f: MenuFrame): void {
   }
 
   drawLogo(canvas, f, bx.logo);
-  drawPressStart(canvas, s, f.t < 0 ? 'josperd' : 'camila', time, f.still, p.chosen * a * (1 - lg));
+  drawPressStart(canvas, s, f.t < 0 ? 'josperd' : 'camila', time, f.still, p.chosen * a, f.press, W, H);
 
   // Botão de setas no centro (acompanha o raio) e dica de deslizar.
   const sz = bx.swapSize;

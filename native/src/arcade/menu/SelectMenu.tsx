@@ -26,6 +26,7 @@ export type SelectMenuProps = {
   onControl: (c: Control) => void;
 };
 
+const PRESS_MS = 760; // pisca + pixels se espalhando antes do carregando
 const LUNGE_MS = 360; // o personagem avança para a tela antes do carregando
 const LOAD_BG: Record<Choice, number> = {josperd: require('../../../assets/arcade/menu/bg_josperd.webp'), camila: require('../../../assets/arcade/menu/bg_camila.webp')};
 const LOAD_HERO: Record<Choice, number> = {josperd: require('../../../assets/arcade/menu/hero_josperd.webp'), camila: require('../../../assets/arcade/menu/hero_camila.webp')};
@@ -53,6 +54,7 @@ export default function SelectMenu(p: SelectMenuProps) {
     opened: now(),
     glintAt: -1,
     lungeAt: -1,
+    pressAt: -1,
     loadAt: -1,
     sprites: null as (SkImage | null)[] | null,
   });
@@ -157,7 +159,7 @@ export default function SelectMenu(p: SelectMenuProps) {
         return {hero: (s.t < 0 ? 'josperd' : 'camila') as Choice, time: el, progress: u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2, sprites: s.sprites};
       })();
       publish(createPicture((canvas) => {
-        drawMenu(canvas, {t: s.t, time: reduce ? 0 : sec, intro: 1 - Math.pow(1 - intro, 3), glint, lunge: s.lungeAt < 0 ? 0 : (t0 - s.lungeAt) / LUNGE_MS, W: size.w, H: size.h, stage, images, still: !!reduce, load});
+        drawMenu(canvas, {t: s.t, time: reduce ? 0 : sec, intro: 1 - Math.pow(1 - intro, 3), glint, lunge: s.lungeAt < 0 ? 0 : (t0 - s.lungeAt) / LUNGE_MS, press: s.pressAt < 0 ? undefined : (t0 - s.pressAt) / 1000, W: size.w, H: size.h, stage, images, still: !!reduce, load});
       }, rect));
     };
     raf = requestAnimationFrame(tick);
@@ -187,9 +189,10 @@ export default function SelectMenu(p: SelectMenuProps) {
     startedRef.current = true;
     if (props.current.haptics && Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setPhase('flash');
-    const lunge = reduce ? 0 : LUNGE_MS;
+    const lunge = reduce ? 0 : PRESS_MS;
     st.current.lungeAt = reduce ? -1 : now();
-    flash.value = withDelay(Math.max(0, lunge - 90), withSequence(withTiming(1, {duration: 110}), withTiming(0, {duration: 220})));
+    st.current.pressAt = reduce ? -1 : now();
+    flash.value = withDelay(Math.max(0, lunge - 110), withSequence(withTiming(1, {duration: 110}), withTiming(0, {duration: 220})));
     const t0 = now();
     setTimeout(() => {
       // 15 % das vezes aparece o carregando clássico; o resto é o de pixels. (Os testes podem forçar um dos dois.)

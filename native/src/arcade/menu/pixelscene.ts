@@ -97,25 +97,173 @@ export function blinkCycle(time: number): {reveal: number; alpha: number} {
   return {reveal: 1, alpha: 0};
 }
 
-/** PRESS START: letreiro de pixels no rodapé, com setas que piscam em contratempo. */
-export function drawPressStart(canvas: SkCanvas, stage: Stage, hero: Hero, time: number, still: boolean, appear: number) {
+/* ------------------------------------------------------------------ */
+/* Letreiro "grosso" de fliperama (PRESS START e CARREGANDO)           */
+/* ------------------------------------------------------------------ */
+
+const hash = (i: number) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
+
+type Chunk = {cols: number; cells: [number, number][]; rows: SkPath[]; all: SkPath; edge: SkPath};
+const chunks = new Map<string, Chunk>();
+/** Caminhos por linha (para o degradê), todos juntos e o contorno de 1 célula; em unidades de célula. */
+function chunk(text: string): Chunk {
+  let c = chunks.get(text);
+  if (c) return c;
+  const {cells, cols} = pixelText(text);
+  const rows = Array.from({length: 7}, () => Skia.Path.Make());
+  const all = Skia.Path.Make(), edge = Skia.Path.Make();
+  const lit = new Set(cells.map(([x, y]) => x + ',' + y));
+  const ring = new Set<string>();
+  for (const [x, y] of cells) {
+    rows[y].addRect(Skia.XYWHRect(x, y, 1, 1));
+    all.addRect(Skia.XYWHRect(x, y, 1, 1));
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const k = x + dx + ',' + (y + dy);
+      if (!lit.has(k) && !ring.has(k)) { ring.add(k); edge.addRect(Skia.XYWHRect(x + dx, y + dy, 1, 1)); }
+    }
+  }
+  c = {cols, cells, rows, all, edge};
+  chunks.set(text, c);
+  return c;
+}
+
+/** Degradê do letreiro, linha a linha: branco no alto → amarelo → cor do personagem embaixo. */
+const rowColors = (ac: {main: string; light: string}) => ['#ffffff', '#ffffff', '#fff7b8', '#ffe36c', ac.light, ac.light, ac.main];
+
+export type ChunkStyle = {
+  rows: string[];
+  /** Cor da extrusão (lado do "bloco 3D") e quantas células ela desce. */
+  depth: string;
+  extrude?: number;
+  alpha?: number;
+  reveal?: number;
+  /** 0 → 1: brilho diagonal passando pelas letras. */
+  glint?: number;
+};
+
+export function drawChunkText(canvas: SkCanvas, text: string, cx: number, cy: number, cell: number, st: ChunkStyle) {
+  const c = chunk(text);
+  const a = st.alpha ?? 1;
+  if (a <= 0.01) return;
+  const ext = st.extrude ?? 2;
+  canvas.save();
+  canvas.translate(Math.round(cx - (c.cols * cell) / 2), Math.round(cy - (7 * cell) / 2));
+  canvas.scale(cell, cell);
+  if ((st.reveal ?? 1) < 1) canvas.clipRect(Skia.XYWHRect(-2, -3, c.cols * (st.reveal ?? 1) + 2, 14 + ext), ClipOp.Intersect, false);
+  // extrusão: cópias deslocadas para baixo/direita
+  for (let d = ext; d >= 1; d--) {
+    canvas.save();
+    canvas.translate(d * 0.6, d);
+    canvas.drawPath(c.edge, Q('#07031a', a));
+    canvas.drawPath(c.all, Q(st.depth, a));
+    canvas.restore();
+  }
+  canvas.drawPath(c.edge, Q('#07031a', a));
+  for (let r = 0; r < 7; r++) canvas.drawPath(c.rows[r], Q(st.rows[r], a));
+  if (st.glint !== undefined && st.glint > 0 && st.glint < 1) {
+    // faixa diagonal clara que passa da esquerda para a direita
+    const pos = st.glint * (c.cols + 16) - 8;
+    for (const [x, y] of c.cells) {
+      const d = x + y * 1.4 - pos;
+      if (d > -1.5 && d < 2.5) canvas.drawRect(Skia.XYWHRect(x, y, 1, 1), Q('#ffffff', a * (d > 0 && d < 1.6 ? 0.9 : 0.5)));
+    }
+  }
+  canvas.restore();
+}
+
+/** Estrelinhas de pixel (+) que piscam em volta do letreiro. */
+function sparkles(canvas: SkCanvas, cx: number, cy: number, w: number, h: number, cell: number, time: number, color: string, alpha: number) {
+  for (let i = 0; i < 9; i++) {
+    const ph = (time * 1.3 + hash(i) * 3) % 1;
+    const tw = ph < 0.5 ? ph * 2 : (1 - ph) * 2;
+    if (tw < 0.2) continue;
+    const x = cx + (hash(i + 7) - 0.5) * (w + cell * 8);
+    const y = cy + (hash(i + 31) - 0.5) * (h + cell * 5);
+    const k = Math.max(2, Math.round(cell * 0.5 * (0.5 + tw)));
+    const c = i % 3 === 0 ? '#ffffff' : color;
+    canvas.drawRect(Skia.XYWHRect(Math.round(x - k / 2), Math.round(y - k * 1.5), k, k * 3), Q(c, alpha * tw));
+    canvas.drawRect(Skia.XYWHRect(Math.round(x - k * 1.5), Math.round(y - k / 2), k * 3, k), Q(c, alpha * tw));
+  }
+}
+
+/** Os pixels do texto se espalham (explodem) — `t` ∈ [0,1]. */
+function shatterText(canvas: SkCanvas, text: string, cx: number, cy: number, cell: number, rows: string[], t: number, W: number, H: number) {
+  const c = chunk(text);
+  const x0 = cx - (c.cols * cell) / 2, y0 = cy - (7 * cell) / 2;
+  const e = 1 - Math.pow(1 - t, 3);
+  c.cells.forEach(([x, y], i) => {
+    const vx = (hash(i) - 0.5) * W * 1.1;
+    const vy = (hash(i + 101) - 0.65) * H * 0.55;
+    const px = x0 + x * cell + vx * e;
+    const py = y0 + y * cell + vy * e - 40 * e * e;
+    const k = cell * (1 - 0.55 * t);
+    canvas.drawRect(Skia.XYWHRect(Math.round(px), Math.round(py), k + 2, k + 2), Q('#07031a', 1 - t));
+    canvas.drawRect(Skia.XYWHRect(Math.round(px) + 1, Math.round(py) + 1, k, k), Q(rows[y], 1 - t));
+  });
+}
+
+/** O texto se monta a partir de pixels que voam de longe até o lugar — `t` ∈ [0,1]. */
+export function assembleText(canvas: SkCanvas, text: string, cx: number, cy: number, cell: number, rows: string[], t: number, W: number, H: number, fromY: number) {
+  const c = chunk(text);
+  const x0 = cx - (c.cols * cell) / 2, y0 = cy - (7 * cell) / 2;
+  c.cells.forEach(([x, y], i) => {
+    const stag = (x / c.cols) * 0.35;
+    const u = Math.min(1, Math.max(0, (t - stag) / 0.65));
+    const e = 1 - Math.pow(1 - u, 3);
+    const sx = x0 + x * cell + (hash(i) - 0.5) * W * 0.9;
+    const sy = fromY + (hash(i + 55) - 0.5) * H * 0.18;
+    const px = sx + (x0 + x * cell - sx) * e, py = sy + (y0 + y * cell - sy) * e;
+    canvas.drawRect(Skia.XYWHRect(Math.round(px) - 1, Math.round(py) - 1, cell + 2, cell + 2), Q('#07031a', 0.5 + 0.5 * u));
+    canvas.drawRect(Skia.XYWHRect(Math.round(px), Math.round(py), cell, cell), Q(rows[y], 0.3 + 0.7 * u));
+  });
+}
+
+/** Quanto tempo (s) dura a animação do PRESS START depois do toque: pisca rápido e se despedaça. */
+export const PRESS_ANIM = {blink: 0.42, total: 0.76};
+
+/**
+ * PRESS START: letreiro grosso de pixels (contorno, degradê, bloco 3D, brilho passando e estrelinhas).
+ * `press` = segundos desde que o jogador apertou (pisca rápido e depois os pixels se espalham).
+ */
+export function drawPressStart(canvas: SkCanvas, stage: Stage, hero: Hero, time: number, still: boolean, appear: number, press?: number, W = 0, H = 0) {
   if (appear <= 0.01) return;
   const text = 'PRESS START';
-  const cell = Math.max(2, Math.floor((0.84 * stage.w) / (11 * (GLYPH_W + 1) - 1 + 2 * (GLYPH_W + 3))));
+  const cell = Math.max(3, Math.floor((0.9 * stage.w) / 66));
   const cx = stage.x + stage.w / 2;
-  const cy = stage.y + stage.h * 0.925 + (1 - appear) * cell * 6;
+  const cy = stage.y + stage.h * 0.918 + (1 - appear) * cell * 6;
   const ac = ACCENT[hero];
+  const rows = rowColors(ac);
+  const textW = 65 * cell;
+
+  if (press !== undefined) {
+    if (press >= PRESS_ANIM.total) return;
+    if (press < PRESS_ANIM.blink) {
+      // pisca rápido: alterna o degradê claro com o escuro e dá um "soco" de escala
+      const on = Math.floor(press / 0.06) % 2 === 0;
+      const pop = 1 + 0.12 * Math.sin((press / PRESS_ANIM.blink) * Math.PI);
+      canvas.save();
+      canvas.translate(cx, cy); canvas.scale(pop, pop); canvas.translate(-cx, -cy);
+      glow(canvas, '#ffffff', stage.w * 0.5, cx, cy, on ? 0.45 : 0.15, 1, 0.3);
+      drawChunkText(canvas, text, cx, cy, cell, {rows: on ? rows.map(() => '#ffffff') : rows, depth: on ? '#ffe36c' : ac.main, extrude: 2, alpha: 1});
+      canvas.restore();
+    } else {
+      shatterText(canvas, text, cx, cy, cell, rows, (press - PRESS_ANIM.blink) / (PRESS_ANIM.total - PRESS_ANIM.blink), W || stage.w, H || stage.h);
+    }
+    return;
+  }
+
   const b = still ? {reveal: 1, alpha: 1} : blinkCycle(time);
   const a = appear * b.alpha;
-  glow(canvas, ac.main, stage.w * 0.42, cx, cy, 0.32 * a * (still ? 1 : 0.6 + 0.4 * Math.sin(time * 5)), 1, 0.28);
-  drawPixelText(canvas, text, cx, cy, cell, {top: '#ffffff', low: ac.light, shadow: ac.main, alpha: appear, reveal: b.alpha ? b.reveal : 1});
-  // as setas piscam alternadas e "empurram" para dentro
-  const tw = textWidth(text, cell);
+  glow(canvas, ac.main, stage.w * 0.5, cx, cy, 0.38 * a * (still ? 1 : 0.65 + 0.35 * Math.sin(time * 5)), 1, 0.3);
+  const glint = still ? undefined : ((time * 0.7) % 1.7) / 1;
+  drawChunkText(canvas, text, cx, cy, cell, {rows, depth: ac.main, extrude: 2, alpha: appear, reveal: b.alpha ? b.reveal : 1, glint: glint !== undefined && glint < 1 ? glint : undefined});
+  if (!still) sparkles(canvas, cx, cy, textW, cell * 7, cell, time, ac.light, a);
+  // setas pixel nos lados, alternando e "empurrando" para dentro
   const step = still ? 0 : Math.floor(time * 4) % 2;
-  const nudge = step * cell;
   const arrowA = still ? 1 : step === 0 ? 1 : 0.35;
-  drawPixelText(canvas, '>', cx - tw / 2 - cell * 5 + nudge, cy, cell, {top: ac.light, low: ac.main, alpha: appear * arrowA * b.alpha});
-  drawPixelText(canvas, '<', cx + tw / 2 + cell * 5 - nudge, cy, cell, {top: ac.light, low: ac.main, alpha: appear * arrowA * b.alpha});
+  const gap = cell * 4;
+  drawChunkText(canvas, '>', cx - textW / 2 - gap + step * cell, cy, cell, {rows: [ac.light, ac.light, ac.light, ac.light, ac.main, ac.main, ac.main], depth: '#3b1a52', extrude: 1, alpha: appear * arrowA * b.alpha});
+  drawChunkText(canvas, '<', cx + textW / 2 + gap - step * cell, cy, cell, {rows: [ac.light, ac.light, ac.light, ac.light, ac.main, ac.main, ac.main], depth: '#3b1a52', extrude: 1, alpha: appear * arrowA * b.alpha});
 }
 
 /* ------------------------------------------------------------------ */
@@ -209,11 +357,13 @@ export function drawLoading(canvas: SkCanvas, W: number, H: number, stage: Stage
   canvas.drawRect(Skia.XYWHRect(0, H * 0.72, W, H * 0.28), shade);
 
   // "CARREGANDO..." em pixels, com pontinhos que contam.
-  const bigCell = Math.max(2, Math.floor((0.7 * s.w) / 66));
+  const bigCell = Math.max(3, Math.floor((0.84 * s.w) / 77));
   const dots = still ? 3 : Math.floor(t * 3) % 4;
   const label = 'CARREGANDO' + '.'.repeat(dots);
   const ly = s.y + s.h * 0.775;
-  drawPixelText(canvas, label.padEnd(13, ' '), s.x + s.w / 2, ly, bigCell, {top: '#ffffff', low: ac.light, shadow: ac.main});
+  const lrows = rowColors(ac);
+  if (!still && t < 0.7) assembleText(canvas, 'CARREGANDO...', s.x + s.w / 2, ly, bigCell, lrows, t / 0.7, W, H, s.y + s.h * 0.918);
+  else drawChunkText(canvas, label.padEnd(13, ' '), s.x + s.w / 2, ly, bigCell, {rows: lrows, depth: ac.main, extrude: 2, glint: still ? undefined : ((t * 0.9) % 1.8) < 1 ? (t * 0.9) % 1.8 : undefined});
 
   // Barra de blocos + percentual.
   const bw = s.w * 0.74, bh = Math.max(16, s.h * 0.026);
