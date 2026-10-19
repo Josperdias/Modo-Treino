@@ -480,18 +480,47 @@ function decorate(g: Gen, out: Out, from: number, name: PatternName, d: number) 
   }
 }
 
+/**
+ * Rascunho: o mundo é simétrico em torno da dobra. Tudo que o padrão criou na metade esquerda ganha um clone espelhado na
+ * direita (plataformas, fitas, inimigos, portal). Os clones entram ANTES da última plataforma, que continua sendo a ponta
+ * da corrente (a próxima plataforma é sempre calculada a partir dela).
+ */
+function mirrorPattern(g: Gen, out: Out, from: number, itemsFrom: number, enemiesFrom: number) {
+  const mx = (x: number) => FIELD_W - x;
+  const clones: Platform[] = [];
+  for (let i = from; i < out.platforms.length; i++) {
+    const p = out.platforms[i];
+    if (Math.abs(p.x - FIELD_W / 2) < 6) continue;
+    // movente: a fase some meio ciclo (seno invertido) para o clone andar ao contrário, como num espelho
+    clones.push({...p, id: g.nextId++, x: mx(p.x), phase: p.type === 'moving' ? p.phase + Math.PI : p.phase, dir: -p.dir});
+  }
+  if (clones.length) out.platforms.splice(out.platforms.length - 1, 0, ...clones);
+  const n = out.items.length;
+  for (let i = itemsFrom; i < n; i++) {
+    const it = out.items[i];
+    if (Math.abs(it.x - FIELD_W / 2) < 6) continue;
+    out.items.push({...it, id: g.nextId++, x: mx(it.x)});
+  }
+  const m = out.enemies.length;
+  for (let i = enemiesFrom; i < m; i++) {
+    const e = out.enemies[i];
+    out.enemies.push({...e, id: g.nextId++, x0: mx(e.x0), x: mx(e.x)});
+  }
+}
+
 /** Gera UM padrão acima do topo atual. */
 export function generatePattern(g: Gen, out: Out): PatternName {
   const d = intensityAt(g.y);
   // Humor do acaso: mais tenso quanto mais difícil.
   g.mood = weighted(g.rng, [[0, 1.4 - d], [1, 1], [2, 0.3 + 1.3 * d]] as const);
   const name = choosePattern(g, d) as Exclude<PatternName, 'start' | 'labExit'>;
-  const from = out.platforms.length;
+  const from = out.platforms.length, itemsFrom = out.items.length, enemiesFrom = out.enemies.length;
   PATTERNS[name](g, d, out);
   g.repeat = name === g.last ? g.repeat + 1 : 0;
   g.last = name;
   g.count++;
   decorate(g, out, from, name, d);
+  if (g.world === 'sketch') mirrorPattern(g, out, from, itemsFrom, enemiesFrom);
   return name;
 }
 

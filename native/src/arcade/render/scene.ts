@@ -1330,6 +1330,7 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   }
 
   const paper = sim.world === 'paper';
+  const twinWorld = paper || sim.world === 'sketch';
   const half = FIELD_W / 2;
   if (paper) {
     canvas.save(); canvas.clipRect(Skia.XYWHRect(0, 0, half, viewH), ClipOp.Intersect, false);
@@ -1347,7 +1348,7 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const py = lerp(pl.py, pl.y, a);
   const fi = frameIndex(desc ? {landTimer: pl.landTimer, vy: -pl.vy} : pl, sim.mode === 'over');
   const foot = sy(py) + 6;
-  const main: Hero = sim.swapped !== sim.inverted ? otherHero(S.hero) : S.hero;
+  const main: Hero = sim.swapped ? otherHero(S.hero) : S.hero;
   drawShadow(canvas, S, px, py, time, sy);
   // Aura na cor do personagem (cresce com o combo) e rastro quando a velocidade é alta.
   drawGlow(canvas, HERO_COLOR[main], 66, px, foot - 52, 0.24 + Math.min(4, sim.combo) * 0.035);
@@ -1370,11 +1371,16 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
     for (let i = 0; i < 4; i++) rect(canvas, i % 2 ? '#ffd36b' : '#ff6a3d', px - 6 + (i % 2) * 2 + ((Math.floor(time * 30) + i) % 3), foot + i * 5, 4 + (i % 2) * 2, 6, 0.9 - i * 0.18);
   }
   drawHero(canvas, S, main, pl.facing, px, foot, fi, heroAlpha);
-  if (paper) {
-    // O outro personagem, espelhado na dobra: faz o mesmo movimento (e é quem entra no seu lugar na volta).
+  if (twinWorld) {
+    // As DUAS personagens estão sempre em cena: a outra é o espelho na dobra (W − x) e faz o movimento espelhado.
     const twin = otherHero(main);
     drawGlow(canvas, HERO_COLOR[twin], 66, FIELD_W - px, foot - 52, 0.22);
     drawHero(canvas, S, twin, pl.facing === 1 ? -1 : 1, FIELD_W - px, foot, fi, heroAlpha);
+    // Quem está na metade ESQUERDA tem o controle normal (seta ciano); a da direita fica com o controle invertido (seta amarela).
+    const leftX = Math.min(px, FIELD_W - px), rightX = Math.max(px, FIELD_W - px);
+    const tri = (cx: number, color: string) => { for (let r = 0; r < 4; r++) rect(canvas, color, cx - (4 - r) * 3, foot - 132 + r * 3 + Math.sin(time * 6) * 2, (4 - r) * 6, 3, 0.95); };
+    tri(leftX, '#62fff1');
+    if (sim.world === 'sketch') tri(rightX, '#ffd36b');
   } else {
     const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
     if (px < 50) drawHero(canvas, S, main, pl.facing, px + span, foot, fi, heroAlpha);

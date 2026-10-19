@@ -282,6 +282,7 @@ function takePortal(sim: Sim, portal: Item) {
   const lane = world === 'paper' ? ([PAPER.LANE_MIN, PAPER.LANE_MAX] as [number, number]) : world === 'sketch' ? ([SKETCH.LANE_MIN, SKETCH.LANE_MAX] as [number, number]) : null;
   const sx = lane ? (lane[0] + lane[1]) / 2 : Math.max(92, Math.min(328, p.x));
   const safe: Platform = {id: g.nextId++, x: sx, y: p.y - 62, w: lane && lane[1] - lane[0] < 200 ? 84 : 132, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'start', dir: 0};
+  if (world === 'sketch') sim.platforms.push({...safe, id: g.nextId++, x: FIELD_W - safe.x}); // Rascunho: o chão também é espelhado (antes, para `safe` continuar sendo a ponta da corrente)
   sim.platforms.push(safe);
   sim.invuln = LIFE.AFTER_WORLD;
   if (variant !== 'bonus') sim.revive = 1;

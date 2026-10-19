@@ -779,14 +779,17 @@ test('Rascunho: pousar do outro lado da dobra inverte o controle e troca o perso
   assert.ok(s.player.x > x1 + 5, `x ${x1} -> ${s.player.x}, inv ${s.inverted}, drift ${s.player.drift}`);
 });
 
-test('Rascunho: sem volta pela lateral (paredes), campo inteiro, alcance garantido sem contar a volta, portal de volta no fim (150 m)', () => {
+test('Rascunho: mundo SIMÉTRICO em torno da dobra (as duas personagens sempre têm chão), sem volta pela lateral, alcance garantido, portal de volta no fim (150 m)', () => {
   for (let seed = 1; seed <= 30; seed++) {
     const g = makeGen(seed); g.world = 'sketch'; g.lane = [SKETCH.LANE_MIN, SKETCH.LANE_MAX]; g.returnWorld = 'neon'; g.portalY = 90 + 1500; g.worldY0 = 90;
     const out = {platforms: [], items: [], enemies: []};
     generateUntil(g, out, 90 + 6000);
-    let right = 0;
-    for (const p of out.platforms) { assert.ok(p.x >= SKETCH.LANE_MIN - 1 && p.x <= SKETCH.LANE_MAX + 1); if (p.x > SKETCH.FOLD) right++; }
-    assert.ok(right > out.platforms.length * 0.25 && right < out.platforms.length * 0.75, 'plataformas dos dois lados da dobra');
+    const key = (p) => `${Math.round(p.y)}:${p.type}:${p.w}`;
+    const left = out.platforms.filter(p => p.x < SKETCH.FOLD), right = out.platforms.filter(p => p.x > SKETCH.FOLD);
+    assert.ok(left.length > 20 && Math.abs(left.length - right.length) <= 1, `${left.length} à esquerda × ${right.length} à direita`);
+    // cada plataforma tem a gêmea em W − x, à mesma altura e do mesmo tipo
+    for (const p of left) assert.ok(right.some(q => Math.abs(q.x - (FIELD_W - p.x)) < 1e-6 && key(q) === key(p)), `sem gêmea para ${key(p)} em x=${p.x}`);
+    for (const p of out.platforms) assert.ok((p.x >= SKETCH.LANE_MIN - 1 && p.x <= SKETCH.LANE_MAX + 1) || (p.x >= FIELD_W - SKETCH.LANE_MAX - 1 && p.x <= FIELD_W - SKETCH.LANE_MIN + 1));
     // sem a volta pela lateral: cada plataforma é alcançável da anterior pelo caminho direto
     const sorted = [...out.platforms].sort((a, b) => a.y - b.y);
     for (let i = 1; i < sorted.length; i++) {
@@ -795,8 +798,11 @@ test('Rascunho: sem volta pela lateral (paredes), campo inteiro, alcance garanti
       for (let j = i - 1; j >= 0 && b.y - sorted[j].y < 330; j--) if (canReach(sorted[j], b, 1, false)) { ok = true; break; }
       assert.ok(ok, `seed ${seed}: plataforma ${b.id} inalcançável sem a volta pela lateral`);
     }
-    const back = out.items.find(i => i.kind === 'portal');
-    assert.deepEqual([back.variant, back.target], ['back', 'neon']);
+    // inimigos e fitas também têm gêmeos
+    const eL = out.enemies.filter(e => e.x0 < SKETCH.FOLD).length, eR = out.enemies.filter(e => e.x0 > SKETCH.FOLD).length;
+    assert.equal(eL, eR);
+    const backs = out.items.filter(i => i.kind === 'portal');
+    assert.ok(backs.length >= 2 && backs.every(i => i.variant === 'back' && i.target === 'neon'), 'um portal de volta de cada lado');
   }
 });
 
@@ -840,7 +846,7 @@ test('Queda livre: portal leva ao mundo "inverse" (mesma física), dura 180 m, v
 });
 
 /* ---------- Queda livre = descida de verdade ---------- */
-const {DESC} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
+const {DESC, FIELD_W} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
 const {canDrop} = await C('validate.ts');
 
 function descent(extra = {}) {

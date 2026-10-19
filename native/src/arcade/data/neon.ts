@@ -263,8 +263,12 @@ export const PORTAL = {
   TIME_SCALE: 0.35,
 } as const;
 
-/** Rascunho: a dobra do Papel se rasgou — campo inteiro jogável; ao POUSAR do outro lado da dobra o controle inverte e o personagem troca. */
-export const SKETCH = {LENGTH_M: 150, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MAX: 376, OFFER_AT_M: 110} as const;
+/**
+ * Rascunho: a dobra do Papel se rasgou. As DUAS personagens continuam em cena (uma em x, a outra espelhada em W − x) e o campo
+ * inteiro é jogável: o gerador cria só a metade esquerda (LANE) e CLONA tudo espelhado na direita, então o mundo é simétrico.
+ * Quem pousa do lado direito da dobra fica com o controle invertido; a personagem do lado esquerdo tem o controle normal.
+ */
+export const SKETCH = {LENGTH_M: 150, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MAX: 160, OFFER_AT_M: 110} as const;
 /**
  * Queda livre: descida de verdade. O herói continua de pé, mas o mundo desce: a gravidade puxa para baixo, cada
  * pouso é só um saltinho (HOP) e o objetivo é cair de plataforma em plataforma. Um teto desce sozinho atrás de você
