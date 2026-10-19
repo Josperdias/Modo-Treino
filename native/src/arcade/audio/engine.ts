@@ -177,3 +177,11 @@ export class ArcadeAudio {
     this.modeSet = false;
   }
 }
+
+// Som é opcional: qualquer erro do player (liberado, sem áudio, falha do sistema) é engolido aqui e nunca chega ao jogo.
+for (const k of ['configure', 'setVolume', 'play', 'ui', 'setMusic', 'pause', 'resume', 'dispose'] as const) {
+  const orig = (ArcadeAudio.prototype as any)[k] as (...a: unknown[]) => unknown;
+  (ArcadeAudio.prototype as any)[k] = function (this: unknown, ...a: unknown[]) {
+    try { return orig.apply(this, a); } catch { return undefined; }
+  };
+}

@@ -9,7 +9,7 @@ import type {Control, Hero} from './save';
 import {Quality, recordDraw, type QLevel} from './perf.ts';
 import {FIELD_W} from './data/neon.ts';
 import {loadSprites, type SpriteSet} from './render/assets';
-import {drawScene} from './render/scene';
+import {drawScene, resetRenderCaches} from './render/scene';
 import {inFireZone} from './render/layout.ts';
 
 export type GameCanvasProps = {
@@ -97,24 +97,41 @@ export default function GameCanvas(p: GameCanvasProps) {
         setFatal(() => { throw e; });
       }
     };
+    // Um erro de DESENHO ou de efeito (som, vibração, diário) não derruba a partida: o quadro é pulado, os caches de desenho
+    // recomeçam do zero e o jogo cai para o nível mínimo. Só a simulação quebrada ou 6 quadros seguidos sem desenhar viram erro fatal.
+    let drawFails = 0;
+    const note = (where: string, e: unknown) => {
+      try { (globalThis as any).__ARCADE_LAST_ERR__ = `${where}: ${(e as any)?.message ?? e}\n${String((e as any)?.stack ?? '').split('\n').slice(0, 6).join('\n')}`; console.warn('[arcade]', (globalThis as any).__ARCADE_LAST_ERR__); } catch { /* sem console */ }
+    };
     const frame = (ts: number) => {
       const {session, hero, onHud, onEvents, onOver} = props.current;
       const changed = session.frame(ts);
       if (changed && !q.skipDraw(ts, lastDraw)) {
-        const t0 = now();
-        const sc = q.scale;
-        const w = size.w * sc, h = size.h * sc;
-        publish(createPicture((canvas) => { drawScene(canvas, {session, hero, width: w, height: h, sprites, quality: q.level}, now); }, {width: w, height: h}));
-        const dt = now() - t0;
-        recordDraw(session.perf, dt);
-        if (q.feed(dt, lastDraw < 0 ? 17 : ts - lastDraw, ts)) setQLevel(q.level);
-        lastDraw = ts;
+        try {
+          const t0 = now();
+          const sc = q.scale;
+          const w = size.w * sc, h = size.h * sc;
+          publish(createPicture((canvas) => { drawScene(canvas, {session, hero, width: w, height: h, sprites, quality: q.level}, now); }, {width: w, height: h}));
+          const dt = now() - t0;
+          recordDraw(session.perf, dt);
+          if (q.feed(dt, lastDraw < 0 ? 17 : ts - lastDraw, ts)) setQLevel(q.level);
+          lastDraw = ts;
+          drawFails = 0;
+        } catch (e) {
+          note('desenho', e);
+          if (++drawFails > 5) throw e;
+          resetRenderCaches();
+          q.setFloor(2);
+          setQLevel(q.level);
+        }
       }
       if (changed) {
         const ev = session.drain();
-        if (ev.length) onEvents(ev);
-        if (ts - lastHud > 100 || ev.length) { lastHud = ts; onHud(session.hud()); }
-        if (session.over && !overSent) { overSent = true; onHud(session.hud()); onOver(); }
+        try {
+          if (ev.length) onEvents(ev);
+          if (ts - lastHud > 100 || ev.length) { lastHud = ts; onHud(session.hud()); }
+        } catch (e) { note('eventos', e); }
+        if (session.over && !overSent) { overSent = true; try { onHud(session.hud()); } catch (e) { note('hud', e); } onOver(); }
       }
     };
     raf = requestAnimationFrame(tick);

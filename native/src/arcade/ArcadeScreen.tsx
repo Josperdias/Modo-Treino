@@ -35,17 +35,27 @@ function newSeed(): number {
 const pad = (n: number, w = 4) => String(Math.max(0, Math.floor(n))).padStart(w, '0');
 
 /** Se o jogo der erro, o app NÃO fecha: mostra um aviso e volta para o app. */
-class ArcadeBoundary extends React.Component<{onClose: () => void; children: React.ReactNode}, {failed: boolean}> {
-  state = {failed: false};
-  static getDerivedStateFromError() { return {failed: true}; }
-  componentDidCatch(error: unknown) { try { console.warn('[arcade] erro no jogo:', error); } catch { /* sem console */ } }
+class ArcadeBoundary extends React.Component<{onClose: () => void; children: React.ReactNode}, {failed: boolean; msg: string}> {
+  state = {failed: false, msg: ''};
+  static getDerivedStateFromError(e: unknown) { return {failed: true, msg: String((e as any)?.message ?? e).slice(0, 300)}; }
+  componentDidCatch(error: unknown, info?: {componentStack?: string | null}) {
+    try {
+      const e = error as any;
+      const txt = `${e?.message ?? e}\n${String(e?.stack ?? '').split('\n').slice(0, 8).join('\n')}\n${String(info?.componentStack ?? '').split('\n').slice(0, 4).join('\n')}`;
+      (globalThis as any).__ARCADE_LAST_ERR__ = txt;
+      AsyncStorage.setItem('arcade.lasterr', txt.slice(0, 2000)).catch(() => {});
+      console.warn('[arcade] erro no jogo:', txt);
+    } catch { /* sem console */ }
+  }
   render() {
     if (!this.state.failed) return this.props.children;
     return (
       <View style={[S.root, {alignItems: 'center', justifyContent: 'center', padding: 24}]} testID="arcade-error">
         <Text style={S.modalT}>O JOGO TEVE UM PROBLEMA</Text>
-        <Text style={[S.modalS, {textAlign: 'center', marginBottom: 16}]}>Nada do seu app foi perdido. Dá para tentar de novo.</Text>
-        <Btn text="VOLTAR AO APP" icon="exit-outline" onPress={this.props.onClose} />
+        <Text style={[S.modalS, {textAlign: 'center', marginBottom: 10}]}>Nada do seu app foi perdido. Sua partida está guardada.</Text>
+        <Text selectable style={[S.perfT, {textAlign: 'center', marginBottom: 16}]} testID="arcade-error-msg">{this.state.msg}</Text>
+        <Btn text="TENTAR DE NOVO" icon="refresh" onPress={() => this.setState({failed: false, msg: ''})} style={{marginBottom: 10}} />
+        <Btn text="VOLTAR AO APP" icon="exit-outline" kind="ghost" onPress={this.props.onClose} />
       </View>
     );
   }
@@ -82,8 +92,10 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   const saveRun = useCallback(() => {
     const s = session.current;
     if (!s || s.over) return;
-    const raw = snapshotOf(s.sim, getArcade().settings.hero, metersOf(s.sim), Date.now());
-    if (raw) AsyncStorage.setItem(RUN_KEY, raw).catch(() => {});
+    try {
+      const raw = snapshotOf(s.sim, getArcade().settings.hero, metersOf(s.sim), Date.now());
+      if (raw) AsyncStorage.setItem(RUN_KEY, raw).catch(() => {});
+    } catch { /* guardar a partida é opcional */ }
   }, []);
   const clearRun = useCallback(() => { setSaved(null); AsyncStorage.removeItem(RUN_KEY).catch(() => {}); }, []);
 
@@ -154,8 +166,10 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   useEffect(() => {
     if (phase !== 'play') return;
     const id = setInterval(() => {
-      const s = session.current;
-      if (s) discover(fromState(s.sim, metersOf(s.sim)));
+      try {
+        const s = session.current;
+        if (s) discover(fromState(s.sim, metersOf(s.sim)));
+      } catch { /* o Diário é opcional */ }
     }, 1500);
     return () => clearInterval(id);
   }, [phase, discover]);
@@ -206,11 +220,13 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
     audio.current.resume();
     if (phase !== 'play') { audio.current.setMusic(phase === 'select' ? 'menu' : null); return; }
     const tick = () => {
-      const s = session.current;
-      if (!s || !audio.current) return;
-      const m = s.sim;
-      audio.current.setMusic(musicFor({phase: 'play', world: m.world, y: m.player.y, bonusY0: m.bonusY0, bonusY1: m.bonusY1}));
-      if (lavaClose(m.world, m.player.y, m.lava)) audio.current.play([{id: 'lava_warn', gain: 0.8}]);
+      try {
+        const s = session.current;
+        if (!s || !audio.current) return;
+        const m = s.sim;
+        audio.current.setMusic(musicFor({phase: 'play', world: m.world, y: m.player.y, bonusY0: m.bonusY0, bonusY1: m.bonusY1}));
+        if (lavaClose(m.world, m.player.y, m.lava)) audio.current.play([{id: 'lava_warn', gain: 0.8}]);
+      } catch { /* som é opcional: nunca derruba o jogo */ }
     };
     tick();
     const id = setInterval(tick, 350);

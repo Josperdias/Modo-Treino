@@ -140,3 +140,7 @@ Inimigos, poderes, portais e os outros universos (M2), checkpoint na Cidade Neon
 - **Rampa**: `RAMP_M` 2400, `RAMP_POW` 1.4, aquecimento 100 m, móveis 140 m, frágeis 300 m, 1º inimigo 220 m (espaçamento 420→100 m), guardião 900 m. Robôs: DESCUIDADO morre ~2300–6000 m, BAGUNCEIRO ~1200–3800 m, IDEAL/HUMANO sobrevivem 10 min.
 - **Diário** (`discovery.ts`, catálogo de 51 itens, `save.found` = id → nº da partida): eventos (`fromEvent`) e estado (`fromState`, a cada 1,5 s) viram descobertas salvas na hora. Sem texto de fase dentro da partida; o fim de jogo lista as novas.
 - **Partida guardada** (`runsave.ts`, chave `arcade.run.v1`): JSON da `Sim` a cada 10 s e ao pausar; apagada ao começar outra e ao morrer; CONTINUAR no menu restaura PAUSADA. Testado: restaurar e seguir 30 s dá o MESMO estado que a partida original.
+
+## 1.4.10 — Erros isolados
+- `GameCanvas`: o desenho, os eventos (som/vibração/diário) e o HUD têm try/catch próprios; falha de desenho → `resetRenderCaches()` + nível mínimo e pula o quadro (6 falhas seguidas = erro fatal para o ErrorBoundary). Só erro da simulação (`session.frame`) é fatal direto. `ArcadeAudio` engole qualquer erro nos métodos públicos; intervalos de música/diário/autosave têm try/catch. O `ArcadeBoundary` mostra a mensagem do erro, grava em `arcade.lasterr` e oferece TENTAR DE NOVO.
+- Hipótese do "fechou sozinho" das 1.4.7/1.4.8: uma exceção JS no laço (som/eventos) — na 1.4.7 era fatal e fechava o app; na 1.4.8 vira a tela de aviso. A causa exata ainda não foi vista (o aviso agora mostra o texto do erro).

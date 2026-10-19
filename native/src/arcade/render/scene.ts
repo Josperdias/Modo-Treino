@@ -760,6 +760,12 @@ function ghostAlpha(pl: Platform, time: number): number {
 }
 
 const platPics = new Map<string, SkPicture>();
+/** Esvazia os caches de desenho (pictures/shaders/pincéis): usado depois de um erro de desenho, para recomeçar do zero. */
+export function resetRenderCaches() {
+  platPics.clear(); gearPics.clear(); tapePic = null;
+  layers.clear(); layersFor = 0; tiles.clear(); glows.clear(); solids.clear();
+  paint = null; spritePaint = null; alphaPaint = null; bgShader = null; bgFor = 0;
+}
 /** Passo da animação do corpo (moving: 16 passos; conveyor: 14), para o quadro bater com um Picture já guardado. */
 function platformStep(pl: Platform, time: number): number {
   if (pl.type === 'moving') return Math.floor(time * 9) % 16;

@@ -2,6 +2,11 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.10] — 2026-10-19
+
+### O segredo não cai mais por erro de som, desenho ou diário 🕹️
+- Erros de **som, vibração, desenho e diário** agora são isolados: o quadro com problema é pulado, o desenho recomeça do zero em modo leve e a partida **continua** (antes qualquer um desses erros derrubava o jogo). Se ainda assim o jogo parar, a tela de aviso mostra o motivo, tem **TENTAR DE NOVO** e a partida guardada continua disponível.
+
 ## [1.4.9] — 2026-10-19
 
 ### O segredo roda em aparelho fraco e vicia mais 🕹️

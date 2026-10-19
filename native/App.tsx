@@ -33,7 +33,7 @@ import {C, R, useNarrow} from './src/theme';
 // O fliperama (Skia) só é carregado quando o jogador o abre: nada disso pesa na abertura do app.
 const ArcadeScreen = React.lazy(() => import('./src/arcade/ArcadeScreen'));
 
-const APP_VERSION='1.4.9';
+const APP_VERSION='1.4.10';
 
 type Tab = 'home' | 'music' | 'search' | 'progress';
 const TABS: {key: Tab; label: string; icon: IconName; on: IconName}[] = [
