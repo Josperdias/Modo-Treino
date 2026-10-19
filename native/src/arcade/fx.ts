@@ -53,7 +53,7 @@ const LAND_COLOR: Record<string, string> = {spring: '#ffdc7b', fragile: '#ff5b9e
 const KIND_COLOR: Record<string, string> = {shield: '#51ecff', boost: '#ffe36c', jet: '#ff7a95', heart: '#ff3d6e', flag: '#ffe36c', tape: '#ffe48a', magnet: '#ff5a7a', star: '#ffe36c'};
 const ENEMY_COLOR: Record<string, string> = {drone: '#d889ff', zigzag: '#7aa0ff', turret: '#f5b15e', orb: '#28d8fd', guardian: '#ff4dac', ufo: '#7ff6ff', meteor: '#ff9d4a', clip: '#d5dcee', blackhole: '#8e3fff', jelly: '#ff7ad9', ember: '#ff7a3a'};
 
-const PORTAL_FX: Record<string, [string, string]> = {world: ['#88fffd', '#c58cff'], paper: ['#fff1c9', '#2d2a40'], bonus: ['#ffd369', '#fff3b0'], warp: ['#ff4fd8', '#ffd0f7'], back: ['#fff1c9', '#ff7ad9'], time: ['#7fd8ff', '#effbff'], leap: ['#b6ff6b', '#f0ffd0']};
+const PORTAL_FX: Record<string, [string, string]> = {world: ['#88fffd', '#c58cff'], paper: ['#fff1c9', '#2d2a40'], bonus: ['#ffd369', '#fff3b0'], warp: ['#ff4fd8', '#ffd0f7'], back: ['#fff1c9', '#ff7ad9'], time: ['#7fd8ff', '#effbff'], leap: ['#b6ff6b', '#f0ffd0'], flip: ['#b86bff', '#f0dcff'], sketch: ['#ffd36b', '#2f62b8'], tele: ['#3aa0ff', '#ff9a3d'], exit: ['#ff9a3d', '#3aa0ff']};
 
 function ring(fx: Fx, x: number, y: number, color: string, r = 70, max = 0.5) {
   if (fx.rings.length < MAX_RINGS) fx.rings.push({x, y, age: 0, max, color, r});
@@ -96,6 +96,14 @@ export function onEvents(fx: Fx, events: readonly SimEvent[], world?: WorldId) {
       burst(fx, e.x, e.y, c2, 12, 140);
       fx.worldFrom = world ?? null; fx.worldFade = 1;
       pop(fx, e.x, e.y + 40, '+150', c1);
+    } else if (e.t === 'press') {
+      ring(fx, e.x, e.y + 10, '#4dff90', 90, 0.6);
+      burst(fx, e.x, e.y + 14, '#4dff90', 14, 120);
+      pop(fx, e.x, e.y + 46, 'ABERTO', '#4dff90');
+      fx.flash = 0.2; fx.flashColor = '#b8ffd2';
+    } else if (e.t === 'bonk') {
+      burst(fx, e.x, e.y, '#ff3d5a', 8, 80);
+      fx.shake = Math.max(fx.shake, 0.12);
     } else if (e.t === 'swap') {
       // Os dois heróis trocam de lugar: anéis nas duas cores e uma explosão de pétalas e estrelas.
       ring(fx, e.x, e.y, '#ff4dac', 130, 0.8);

@@ -21,6 +21,11 @@ Pedido do dono: "muito mais aleatório, desorganizado e difícil; portais longe 
 - **Portal Cronos**: câmera lenta (35 %) para inimigos e tiros por 8 s (relógio `sim.etime`). **Portal Salto**: pula um mundo inteiro (só depois do primeiro portal).
 - Visual: fundos, plataformas e portais de cada lugar; sprites novos (água-viva, fagulha); tom azul-gelo e barra no Cronos.
 
+### Ideias do dono (queda livre, rascunho e sala do portal)
+- **Queda livre (portal INVERSO)**: a física é a mesma, mas o mundo é desenhado de cabeça para baixo — você *desce* pela tela, o herói fica de ponta-cabeça e o tiro vai para baixo. Morrer: não pousar a tempo faz o herói "cair para cima" e sair da tela (o mesmo teto de queda de sempre, espelhado). Dura 180 m e volta pelo portal VOLTAR (sem trocar de personagem).
+- **Rascunho (dentro do Papel)**: aos ~110 m do Papel aparece o portal RASCUNHO, que rasga a dobra: campo inteiro jogável (sem volta pela lateral). **Pousar do outro lado da dobra troca o personagem e INVERTE o controle** (direita anda para a esquerda); pousar de volta desinverte. No ar nada muda (senão segurar a direção prenderia o herói na dobra). Ao sair, você continua sendo o personagem em que terminou.
+- **Sala do portal (estilo Portal 2)**: botão (plataforma vermelha) no caminho → pisar nele destranca o **portal azul** e abre a **barreira** de laser; o portal azul leva ao **portal laranja** do outro lado. Sem o botão, a barreira bloqueia a subida (o herói bate e desce); a hélice atravessa. O gerador garante que o botão nunca fica coberto pela plataforma do portal (senão seria inalcançável) e o robô de teste resolve a sala.
+
 ### Visual e desempenho
 - Fundos novos (Cosmos: nebulosas, planeta com anel, estrela cadente; Papel: caderno pautado com dobra, furos e rabiscos), plataformas por mundo, buraco negro procedural, clipe de papel, meteoro com cauda de fogo, ímã, estrela, marcos de 100 m, **linha dourada do recorde** e aviso "NOVO RECORDE" ao passar dele, riscos de velocidade no atalho, anéis/explosões por tipo de portal.
 - Camadas estáticas (estrelas, skyline) viram `Picture` uma vez e rolam com 1–2 comandos; caminhos e shaders reaproveitados (sem alocar por quadro).

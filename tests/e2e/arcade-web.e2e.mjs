@@ -420,6 +420,43 @@ test('portais novos: Papel espelha os dois personagens e a volta troca de herói
   await shot(page, '15-vulcao');
   await throughPortal(page, 'leap', 'clock');
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'clock');
+  // Queda livre: o mundo vira de cabeça para baixo e volta pelo portal VOLTAR.
+  await throughPortal(page, 'flip', 'inverse');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'inverse');
+  await page.waitForTimeout(1000);
+  await shot(page, '16-queda-livre');
+  await throughPortal(page, 'back', 'clock');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'clock');
+  // Papel → Rascunho (dobra rasgada): pousar do outro lado inverte o controle.
+  await throughPortal(page, 'paper');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'paper');
+  await throughPortal(page, 'sketch', 'sketch');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'sketch');
+  await page.evaluate(() => {
+    const sim = globalThis.__MODO_ARCADE_SESSION__.sim, p = sim.player;
+    sim.platforms.push({id: 8800, x: 330, y: p.y + 140, w: 90, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'chaos', dir: 0});
+    p.x = 330; p.y = p.py = p.y + 200; p.vy = -200; sim.invuln = 99;
+  });
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.inverted === true, null, {timeout: 8000});
+  await page.waitForTimeout(500);
+  await shot(page, '17-rascunho-invertido');
+  await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim; sim.world = 'neon'; sim.gen.world = 'neon'; sim.gen.lane = null; sim.inverted = false; });
+  // Sala do portal: botão destranca o portal azul e a barreira.
+  await page.evaluate(() => {
+    const sim = globalThis.__MODO_ARCADE_SESSION__.sim, cam = sim.camera;
+    const P = (x, dy, w, type, extra = {}) => { const pl = {id: 9100 + sim.platforms.length, x, y: cam + dy, w, type, phase: 0, speed: 0, shift: 0, broken: false, pattern: 'lab', dir: 0, ...extra}; sim.platforms.push(pl); return pl; };
+    const sw = P(110, 190, 64, 'switch'), pad = P(270, 280, 110, 'normal'), gy = pad.y + 170, q = P(120, gy - cam + 56, 132, 'normal', {pattern: 'labExit'});
+    sim.items.push({id: 9200, kind: 'portal', variant: 'tele', x: 270, y: pad.y + 74, phase: 0, hit: false, lock: sw.id, open: false, dx: 120, dy: q.y + 30});
+    sim.items.push({id: 9201, kind: 'gate', x: 210, y: gy, phase: 0, hit: false, lock: sw.id, open: false});
+    sim.items.push({id: 9202, kind: 'portal', variant: 'exit', x: 120, y: q.y + 74, phase: 0, hit: false, lock: sw.id});
+    sim.player.x = 110; sim.player.y = sim.player.py = sw.y + 60; sim.player.vy = -200; sim.invuln = 99;
+  });
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.items.find(i => i.variant === 'tele')?.open === true, null, {timeout: 8000});
+  await page.waitForTimeout(400);
+  await shot(page, '18-sala-do-portal-aberta');
+  await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim, a = sim.items.find(i => i.variant === 'tele'); sim.player.x = a.x; sim.player.y = sim.player.py = a.y - 45; sim.player.vy = 0; });
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.items.find(i => i.variant === 'tele')?.hit === true, null, {timeout: 8000});
+  assert.ok((await page.evaluate(() => globalThis.__MODO_ARCADE_SESSION__.sim.player.x)) < 160, 'teletransportado para o portal laranja');
   // Bônus: zona dourada.
   await throughPortal(page, 'bonus');
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.bonusY1 > 0);

@@ -11,7 +11,7 @@ import type {Hero} from '../save';
 import type {SpriteSet} from './assets';
 import {drawPix} from './pixelbake.ts';
 import {ARROW_UP, BOOST, BULLET_ENEMY, BULLET_OWN, ENEMY_SPRITES, FLAG, HEART, HEART_EMPTY, JET, MAGNET, SHIELD, STAR} from './pixelart.ts';
-import {drawPixelText} from '../menu/pixelscene.ts';
+import {drawPixelText as drawPixelTextRaw} from '../menu/pixelscene.ts';
 import {HUD_ROW_Y, fireZone} from './layout.ts';
 
 /**
@@ -25,6 +25,18 @@ function col(hex: string): SkColor {
   let c = colors.get(hex);
   if (!c) { c = Skia.Color(hex); colors.set(hex, c); }
   return c;
+}
+
+/** Queda livre: o mundo é desenhado de cabeça para baixo; o texto desvira (espelha de volta em torno da própria linha). */
+let flipped = false;
+function drawPixelText(canvas: SkCanvas, text: string, x: number, y: number, k: number, o: Parameters<typeof drawPixelTextRaw>[5]) {
+  if (!flipped) { drawPixelTextRaw(canvas, text, x, y, k, o); return; }
+  canvas.save();
+  canvas.translate(0, y);
+  canvas.scale(1, -1);
+  canvas.translate(0, -y);
+  drawPixelTextRaw(canvas, text, x, y, k, o);
+  canvas.restore();
 }
 
 let paint: SkPaint | null = null;
@@ -566,6 +578,68 @@ function drawLava(canvas: SkCanvas, sim: Sim, sy: (y: number) => number, viewH: 
   }
 }
 
+/** Queda livre: crepúsculo violeta com cortinas de aurora e pétalas (aparece de cabeça para baixo). */
+function drawInverseBackground(canvas: SkCanvas, cam: number, viewH: number, time: number) {
+  const p = P();
+  p.setShader(grad('inverse', viewH, '#2a1066', '#0b2a55'));
+  p.setAlphaf(1);
+  canvas.drawRect(Skia.XYWHRect(0, 0, FIELD_W, viewH), p);
+  p.setShader(null);
+  // Cortinas de aurora ondulando.
+  const cols: [string, number][] = [['#3dffb0', 0.1], ['#ff5fd2', 0.09], ['#58a8ff', 0.1]];
+  for (let b = 0; b < 3; b++) {
+    const baseY = ((((b * 311) + cam * (0.05 + b * 0.03)) % (viewH + 200)) + viewH + 200) % (viewH + 200) - 100;
+    for (let x = 0; x < FIELD_W; x += 14) {
+      const w = Math.sin(time * 0.9 + x * 0.025 + b * 2) * 26 + Math.sin(time * 0.4 + x * 0.06) * 12;
+      rect(canvas, cols[b][0], x, baseY + w, 14, 90 + 40 * Math.sin(x * 0.04 + b), cols[b][1]);
+    }
+  }
+  // Lua grande e estrelas.
+  const my = ((((60 + cam * 0.04) % (viewH + 300)) + viewH + 300) % (viewH + 300)) - 150;
+  drawGlow(canvas, '#cfd8ff', 110, 320, my, 0.2);
+  const q = P(); q.setShader(null); q.setColor(col('#e8ecff')); q.setAlphaf(0.9);
+  canvas.drawCircle(320, my, 34, q);
+  q.setColor(col('#b4bdf0')); q.setAlphaf(0.6); canvas.drawCircle(331, my + 7, 8, q); canvas.drawCircle(308, my - 10, 6, q);
+  for (let g = 0; g < 3; g++) {
+    const pic = layerPic('inv-stars' + g, viewH, 0, viewH, (c) => {
+      for (let i = g; i < 45; i += 3) rect(c, i % 4 === 0 ? '#ffd0f4' : '#ffffff', (i * 71 + 9) % FIELD_W, (i * 139) % viewH, 2, 2, 0.7);
+    });
+    drawScrolling(canvas, pic, viewH, cam * (0.06 + g * 0.05));
+  }
+  // Pétalas caindo (para cima, no mundo de cabeça para baixo).
+  for (let i = 0; i < 10; i++) {
+    const t = (time * 0.12 + i * 0.1) % 1;
+    pixelFlower(canvas, '#ff9bd6', '#ffe08a', (i * 83 + Math.sin(time + i) * 12) % FIELD_W, t * viewH, 3, 0.45);
+  }
+}
+
+/** Rascunho: metade lápis em papel, metade planta azul a giz, com a dobra rasgada no meio. */
+function drawSketchBackground(canvas: SkCanvas, cam: number, viewH: number, time: number) {
+  const c = FIELD_W / 2;
+  rect(canvas, '#efe6d0', 0, 0, c, viewH);
+  rect(canvas, '#1d3f7a', c, 0, c, viewH);
+  // Pauta e grade.
+  for (let y = (cam * 0.9) % 28 - 28; y < viewH; y += 28) { rect(canvas, '#a89d80', 0, y, c, 1, 0.5); rect(canvas, '#9cc0ff', c, y, c, 1, 0.35); }
+  for (let x = 0; x < c; x += 28) { rect(canvas, '#a89d80', x, 0, 1, viewH, 0.25); rect(canvas, '#9cc0ff', c + x, 0, 1, viewH, 0.2); }
+  // Rabiscos: lápis (esquerda) e giz branco (direita).
+  for (let i = 0; i < 10; i++) {
+    const depth = 0.16 + (i % 3) * 0.07;
+    const y = ((((i * 173) + cam * depth) % (viewH + 100)) + viewH + 100) % (viewH + 100) - 50;
+    const xl = 30 + ((i * 59) % 150);
+    if (i % 2) pixelStar(canvas, '#5a5a66', xl, y, 3, 0.4); else pixelFlower(canvas, '#7a6a5a', '#d9a066', xl, y, 4, 0.4);
+    if (i % 2) pixelStar(canvas, '#ffffff', FIELD_W - xl, y, 3, 0.5); else pixelFlower(canvas, '#cfe4ff', '#ffe08a', FIELD_W - xl, y, 4, 0.5);
+  }
+  // Dobra rasgada: borda serrilhada com sombra e fibras de papel.
+  for (let y = ((cam * 0.9) % 14) - 14; y < viewH; y += 14) {
+    const j = ((Math.floor((y - cam * 0.9) / 14) * 7919) % 5) * 2 - 4;
+    rect(canvas, '#efe6d0', c - 10 + j, y, 16, 14);
+    rect(canvas, '#b8a98a', c - 12 + j, y, 3, 14, 0.7);
+    rect(canvas, '#ffffff', c + 4 + j, y + 2, 3, 3, 0.8);
+  }
+  rect(canvas, '#000000', c + 6, 0, 8, viewH, 0.14);
+  drawGlow(canvas, '#ffd36b', 60, c, (time * 90) % (viewH + 100) - 20, 0.14);
+}
+
 function drawWorldBackground(canvas: SkCanvas, world: WorldId, cam: number, viewH: number, meters: number, time: number) {
   if (world === 'crystal') drawCrystalBackground(canvas, cam, viewH, time);
   else if (world === 'clock') drawClockBackground(canvas, cam, viewH, time);
@@ -573,12 +647,14 @@ function drawWorldBackground(canvas: SkCanvas, world: WorldId, cam: number, view
   else if (world === 'paper') drawPaperBackground(canvas, cam, viewH, time);
   else if (world === 'ocean') drawOceanBackground(canvas, cam, viewH, time);
   else if (world === 'volcano') drawVolcanoBackground(canvas, cam, viewH, time);
+  else if (world === 'inverse') drawInverseBackground(canvas, cam, viewH, time);
+  else if (world === 'sketch') drawSketchBackground(canvas, cam, viewH, time);
   else drawNeonBackground(canvas, cam, viewH, meters);
 }
 
 type Skin = {
-  top: Record<Platform['type'], string>;
-  accent: Record<Platform['type'], string>;
+  top: Record<string, string>;
+  accent: Record<string, string>;
   body: string;
   bodyDark: string;
   ink: string;
@@ -618,6 +694,16 @@ const SKINS: Record<WorldId, Skin> = {
     accent: {normal: '#ff7a3a', moving: '#ffb04a', fragile: '#ff6a6a', spring: '#ffd36b', start: '#ff7a3a', conveyor: '#ff7a3a', ghost: '#ffd9c8'},
     body: '#4a2a2e', bodyDark: '#2e181c', ink: '#0e0508', glint: '#ffd9b0', dots: '#ff9a5a', glass: false,
   },
+  inverse: {
+    top: {normal: '#ff9be0', moving: '#7fe8ff', fragile: '#ffb3b3', spring: '#ffe08a', start: '#ffc4ee', conveyor: '#ff9be0', ghost: '#f4e6ff'},
+    accent: {normal: '#ff5fd2', moving: '#49e6ff', fragile: '#ff7b8a', spring: '#ffd369', start: '#ff8ee0', conveyor: '#ff5fd2', ghost: '#f4e6ff'},
+    body: '#4a2a8a', bodyDark: '#2e1a63', ink: '#0c0626', glint: '#ffeaff', dots: '#ffb8ee', glass: false,
+  },
+  sketch: {
+    top: {normal: '#fff4d6', moving: '#9fe0d4', fragile: '#ff9b9b', spring: '#ffd36b', start: '#fff9e6', conveyor: '#fff4d6', ghost: '#d9e6ff'},
+    accent: {normal: '#8a7a5a', moving: '#5fc0b0', fragile: '#e06a6a', spring: '#ffb347', start: '#8a7a5a', conveyor: '#8a7a5a', ghost: '#9bb8ff'},
+    body: '#d9c9a4', bodyDark: '#b8a67e', ink: '#4a3f2e', glint: '#ffffff', dots: '#6a5a3a', glass: false,
+  },
   paper: {
     top: {normal: '#fff4d6', moving: '#9fe0d4', fragile: '#ff9b9b', spring: '#ffd36b', start: '#fff9e6', conveyor: '#fff4d6', ghost: '#d9e6ff'},
     accent: {normal: '#d9a66a', moving: '#5fc0b0', fragile: '#e06a6a', spring: '#ffb347', start: '#d9a66a', conveyor: '#d9a66a', ghost: '#9bb8ff'},
@@ -644,8 +730,15 @@ function drawPlatform(canvas: SkCanvas, pl: Platform, x: number, y: number, time
 }
 
 /** Plataforma "adesivo": contorno de tinta, chapa colorida, brilho por baixo e um padrão por tipo (e por mundo). */
+/** Rascunho, lado da planta azul (a giz). */
+const SKETCH_R: Skin = {
+  top: {normal: '#ffffff', moving: '#9fe0ff', fragile: '#ff9b9b', spring: '#ffe08a', start: '#ffffff', conveyor: '#ffffff', ghost: '#cfe4ff'},
+  accent: {normal: '#9cc0ff', moving: '#49e6ff', fragile: '#ff7b8a', spring: '#ffd369', start: '#9cc0ff', conveyor: '#9cc0ff', ghost: '#cfe4ff'},
+  body: '#2f62b8', bodyDark: '#1b3f85', ink: '#071a3d', glint: '#ffffff', dots: '#cfe4ff', glass: false,
+};
+
 function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, time: number, world: WorldId) {
-  const sk = SKINS[world];
+  const sk = world === 'sketch' && x > FIELD_W / 2 ? SKETCH_R : SKINS[world];
   const w = pl.w;
   const left = x - w / 2;
   const acc = sk.accent[pl.type];
@@ -666,6 +759,17 @@ function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, 
     rect(canvas, '#ffd9a0', left + 4, y + 5, 3, 3); rect(canvas, '#ffd9a0', left + w - 7, y + 5, 3, 3);
   }
   switch (pl.type) {
+    case 'switch': {
+      // Botão: placa com um botão redondo (vermelho; verde e afundado depois de pisado).
+      const on = !!pl.pressed;
+      rect(canvas, sk.ink, x - 22, y - 12, 44, 14);
+      rect(canvas, '#8c95b8', x - 20, y - 10, 40, 10);
+      rect(canvas, on ? '#1f8a4a' : '#8a1c2c', x - 15, y - (on ? 9 : 17), 30, on ? 7 : 9);
+      rect(canvas, on ? '#4dff90' : '#ff4d5e', x - 13, y - (on ? 10 : 20), 26, on ? 6 : 9);
+      rect(canvas, '#ffffff', x - 9, y - (on ? 9 : 18), 8, 2, on ? 0.5 : 0.8);
+      if (!on) drawGlow(canvas, '#ff4d5e', 36, x, y - 14, 0.28 + 0.12 * Math.sin(time * 6));
+      break;
+    }
     case 'ghost':
       for (let dx = left + 8; dx < left + w - 10; dx += 12) rect(canvas, '#ffffff', dx, y + 5, 6, 2, 0.8);
       break;
@@ -878,12 +982,18 @@ const WORLD_LOOK: Record<WorldId, PortalLook> = {
   paper: {c1: '#e8d9ae', c2: '#ffffff', core: '#fff1c9', name: 'PAPEL'},
   ocean: {c1: '#49c8ff', c2: '#d4f6ff', core: '#04304f', name: 'MAR'},
   volcano: {c1: '#ff7a3a', c2: '#ffe0b0', core: '#3a0c0c', name: 'VULCAO'},
+  inverse: {c1: '#b86bff', c2: '#f0dcff', core: '#1a0a3a', name: 'INVERSO'},
+  sketch: {c1: '#ffd36b', c2: '#fff3c9', core: '#1d3f7a', name: 'RASCUNHO'},
 };
 function portalLook(it: Item): PortalLook {
   switch (it.variant) {
     case 'paper': return WORLD_LOOK.paper;
     case 'bonus': return {c1: '#ffd369', c2: '#fff3b0', core: '#4a3200', name: 'BONUS'};
     case 'warp': return {c1: '#ff4fd8', c2: '#ffd0f7', core: '#3a0a40', name: 'ATALHO'};
+    case 'flip': return WORLD_LOOK.inverse;
+    case 'sketch': return WORLD_LOOK.sketch;
+    case 'tele': return it.open ? {c1: '#3aa0ff', c2: '#bfe2ff', core: '#06284a', name: 'PORTAL'} : {c1: '#8a9bb5', c2: '#cfd8ea', core: '#141b26', name: 'TRANCADO'};
+    case 'exit': return {c1: '#ff9a3d', c2: '#ffe0b8', core: '#3a1a06', name: 'SAIDA'};
     case 'time': return {c1: '#7fd8ff', c2: '#effbff', core: '#0a2a4a', name: 'CRONOS'};
     case 'leap': return {c1: '#b6ff6b', c2: '#f0ffd0', core: '#133a10', name: 'SALTO ' + WORLD_LOOK[it.target ?? 'neon'].name};
     case 'back': return {...WORLD_LOOK[it.target ?? 'neon'], name: 'VOLTAR'};
@@ -911,6 +1021,33 @@ function drawPortal(canvas: SkCanvas, it: Item, x: number, y: number, time: numb
       rect(canvas, '#ffffff', x, cy, 12, 4, 1 - Math.abs(t - 0.5));
       rect(canvas, c2, x - 18, cy + 4, 8, 4, 1 - Math.abs(t - 0.5));
       rect(canvas, c2, x + 10, cy + 4, 8, 4, 1 - Math.abs(t - 0.5));
+    }
+  } else if (variant === 'flip') {
+    // Setas para cima e para baixo: a tela vai virar.
+    for (let k = 0; k < 4; k++) {
+      const up = k < 2;
+      const t = (time * 1.3 + k * 0.25) % 1;
+      const cy = up ? y - ry * 0.1 - t * ry * 0.7 : y + ry * 0.1 + t * ry * 0.7;
+      const a = 1 - t;
+      for (let r = 0; r < 4; r++) rect(canvas, '#ffffff', x - (3 - r) * 3, cy + (up ? r * 3 : -r * 3), (3 - r) * 6 + 3, 3, a);
+    }
+  } else if (variant === 'sketch') {
+    // Meio papel, meio planta azul, com a rasgadura no meio.
+    rect(canvas, '#fff1c9', x - rx * 0.7, y - ry * 0.55, rx * 0.7, ry * 1.1, 0.9);
+    rect(canvas, '#2f62b8', x, y - ry * 0.55, rx * 0.7, ry * 1.1, 0.9);
+    for (let k = 0; k < 6; k++) rect(canvas, k % 2 ? '#7a6a4a' : '#ffffff', x - 2 + (k % 2) * 3 - 2, y - ry * 0.55 + k * (ry * 1.1 / 6), 4, 5, 1);
+  } else if (variant === 'tele' || variant === 'exit') {
+    // Anéis concêntricos girando (estilo portal de laboratório); fechado = quase parado e com cadeado.
+    const sp = variant === 'tele' && !it.open ? 0.15 : 1;
+    for (let r = 0; r < 3; r++) {
+      const q2 = P(); q2.setShader(null); q2.setStyle(1); q2.setStrokeWidth(3); q2.setColor(col(r % 2 ? c2 : c1)); q2.setAlphaf(0.85 - r * 0.2);
+      canvas.save(); canvas.translate(x, y); canvas.rotate(time * 60 * sp * (r % 2 ? -1 : 1), 0, 0);
+      canvas.drawOval(Skia.XYWHRect(-rx * (0.8 - r * 0.22), -ry * (0.8 - r * 0.22), rx * 2 * (0.8 - r * 0.22), ry * 2 * (0.8 - r * 0.22)), q2);
+      canvas.restore(); q2.setStyle(0);
+    }
+    if (variant === 'tele' && !it.open) {
+      rect(canvas, '#cfd8ea', x - 8, y - 2, 16, 14, 1); rect(canvas, '#3a4658', x - 2, y + 4, 4, 5, 1);
+      rect(canvas, '#cfd8ea', x - 6, y - 12, 3, 12, 1); rect(canvas, '#cfd8ea', x + 3, y - 12, 3, 12, 1); rect(canvas, '#cfd8ea', x - 6, y - 14, 12, 3, 1);
     }
   } else if (variant === 'time') {
     // Relógio: ponteiros girando (o rápido é rápido, o lento é lento) e marcas das horas.
@@ -953,6 +1090,26 @@ function drawPortal(canvas: SkCanvas, it: Item, x: number, y: number, time: numb
   if (text) drawPixelText(canvas, name, x, y + ry + 18, 2, {top: '#ffffff', low: c2, shadow: variant === 'paper' ? '#7a5a38' : c1});
 }
 
+/** Barreira da sala do portal: feixe de laser de ponta a ponta com dois emissores; aberta, vira pontilhado verde. */
+function drawGate(canvas: SkCanvas, it: Item, y: number, time: number, text: boolean) {
+  const open = !!it.open;
+  const c1 = open ? '#4dff90' : '#ff3d5a';
+  const beatA = open ? 0.25 : 0.7 + 0.25 * Math.sin(time * 20);
+  rect(canvas, '#10091f', -4, y - 14, 22, 28); rect(canvas, '#5a4c7a', 0, y - 10, 16, 20);
+  rect(canvas, '#10091f', FIELD_W - 18, y - 14, 26, 28); rect(canvas, '#5a4c7a', FIELD_W - 16, y - 10, 16, 20);
+  rect(canvas, c1, 8, y - 5, 6, 10, 1); rect(canvas, c1, FIELD_W - 14, y - 5, 6, 10, 1);
+  if (open) {
+    for (let x = 22; x < FIELD_W - 22; x += 18) rect(canvas, c1, x + ((time * 30) % 18), y - 1.5, 8, 3, beatA);
+  } else {
+    drawGlow(canvas, c1, 70, FIELD_W / 2, y, 0.18);
+    rect(canvas, c1, 16, y - 4, FIELD_W - 32, 8, 0.28);
+    rect(canvas, '#ffffff', 16, y - 1.5, FIELD_W - 32, 3, beatA);
+    rect(canvas, c1, 16, y - 3, FIELD_W - 32, 6, beatA * 0.6);
+    for (let i = 0; i < 6; i++) rect(canvas, '#ffffff', 30 + ((i * 67 + time * 140) % (FIELD_W - 60)), y - 6 + (i % 2) * 8, 3, 3, 0.8);
+    if (text) drawPixelText(canvas, 'APERTE O BOTAO', FIELD_W / 2, y + 20, 2, {top: '#ffffff', low: '#ff9aa8', shadow: '#5a0c1c'});
+  }
+}
+
 function drawItem(canvas: SkCanvas, it: Item, x: number, y: number, time: number, text = true) {
   const bob = Math.sin(time * 4 + it.phase) * 3;
   const yy = y + bob;
@@ -970,6 +1127,7 @@ function drawItem(canvas: SkCanvas, it: Item, x: number, y: number, time: number
       if (Math.sin(time * 5 + x) > 0.2) pixelStar(canvas, '#ffffff', x + 16, yy - 14, 1.5, 0.9);
       break;
     }
+    case 'gate': drawGate(canvas, it, y, time, text); break;
     case 'portal': drawPortal(canvas, it, x, y, time, text); break;
   }
 }
@@ -1023,6 +1181,7 @@ function drawStatus(canvas: SkCanvas, S: SceneInput, scale: number, time: number
   };
   if (sim.boost > 0) { drawPix(canvas, BOOST, x + 12, y0 + 8, 1.3); bar(Math.min(1, sim.boost / 9), '#ffe36c', x); x += 48; }
   if (sim.jet > 0 && sim.jetSpeed < 800) { drawPix(canvas, JET[Math.floor(time * 20) % 2], x + 18, y0 + 8, 1.5); bar(Math.min(1, sim.jet / 2.1), '#ff7a95', x); x += 48; }
+  if (sim.inverted) { drawPixelText(canvas, 'INVERTIDO', x + 62, y0 + 12, 2, {top: '#ffffff', low: '#ffd36b', shadow: '#5a3a00'}); x += 128; }
   if (sim.slow > 0) { drawPixelText(canvas, 'ZZ', x + 12, y0 + 8, 2, {top: '#ffffff', low: '#7fd8ff', shadow: '#0a2a4a'}); bar(Math.min(1, sim.slow / PORTAL.TIME_SECONDS), '#7fd8ff', x); x += 48; }
   if (sim.magnet > 0) { drawPix(canvas, MAGNET, x + 12, y0 + 8, 1.2); bar(Math.min(1, sim.magnet / POWER.MAGNET_TIME), '#ff5a7a', x); x += 48; }
 }
@@ -1039,7 +1198,9 @@ function drawFireButton(canvas: SkCanvas, S: SceneInput, time: number) {
   canvas.drawCircle(z.cx, z.cy, z.r - 2, p);
   p.setStyle(0);
   const ready = S.session.sim.fireCd <= 0;
+  if (S.session.sim.world === 'inverse') { canvas.save(); canvas.translate(0, z.cy * 2); canvas.scale(1, -1); } // o tiro vai "para a frente": para baixo
   drawPix(canvas, ARROW_UP, z.cx, z.cy + (held ? 2 : 0), Math.max(3, Math.round(z.r / 9)), {alpha: ready || held ? 1 : 0.45});
+  if (S.session.sim.world === 'inverse') canvas.restore();
   void time;
 }
 
@@ -1148,6 +1309,9 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const sh = fx.shake;
   if (sh > 0) canvas.translate((Math.sin(sim.tick * 7.3) * sh * 22) | 0, (Math.cos(sim.tick * 5.1) * sh * 14) | 0);
 
+  // Queda livre: o mundo inteiro (fundo, plataformas, herói, tiros) é desenhado de cabeça para baixo.
+  const flipWorld = sim.world === 'inverse';
+  if (flipWorld) { canvas.translate(0, viewH); canvas.scale(1, -1); flipped = true; }
   drawWorldBackground(canvas, sim.world, cam, viewH, meters, time);
   if (fx.worldFade > 0 && fx.worldFrom && fx.worldFrom !== sim.world) {
     // Mundo anterior some por cima do novo (transição do portal).
@@ -1176,7 +1340,7 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const py = lerp(pl.py, pl.y, a);
   const fi = frameIndex(pl, sim.mode === 'over');
   const foot = sy(py) + 6;
-  const main: Hero = sim.swapped ? otherHero(S.hero) : S.hero;
+  const main: Hero = sim.swapped !== sim.inverted ? otherHero(S.hero) : S.hero;
   drawShadow(canvas, S, px, py, time, sy);
   // Aura na cor do personagem (cresce com o combo) e rastro quando a velocidade é alta.
   drawGlow(canvas, HERO_COLOR[main], 66, px, foot - 52, 0.24 + Math.min(4, sim.combo) * 0.035);
@@ -1222,6 +1386,7 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
 
   if (sim.jet > 0 && sim.jetSpeed >= 800) drawSpeedLines(canvas, viewH, time);
   drawRingsAndPops(canvas, S, sy);
+  flipped = false;
   canvas.restore(); // fim do tremor
 
   if (sim.slow > 0) {
