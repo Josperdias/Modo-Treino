@@ -202,6 +202,69 @@ const guardianRows = (eye: 'c' | 'r') => [
 /** Guardião (chefe de 3 vidas): cabeça grande com visor, punhos laranja; no 2º quadro o visor fica vermelho. */
 export const GUARDIAN: PixelSprite[] = [{pal: GUA_PAL, sym: true, rows: guardianRows('c')}, {pal: GUA_PAL, sym: true, rows: guardianRows('r')}];
 
+const UFO_PAL = {k: INK, g: '#7a86c8', G: '#b9c4ff', d: '#3a3f7a', c: '#7ff6ff', C: '#e6ffff', y: '#ffe36c', r: '#ff4f6d', m: '#ff7ad9'};
+const ufoRows = (lights: [string, string]) => [
+  '........kkkkkk',
+  '......kkcccCCC',
+  '.....kcccCCCCC',
+  '....kccccccCCC',
+  '..kkkkkkkkkkkk',
+  '.kGGGGGgggggdd',
+  'kGggggggggdddd',
+  'k' + 'gg' + lights[0] + 'gggg' + lights[1] + 'gg' + 'dd',
+  '.kdddddddddddd',
+  '..kkkddddkkkkk',
+  '.....kkkk.....',
+];
+/** Disco voador (Cosmos): cúpula azul, casco metálico e luzes que alternam (2 quadros). */
+export const UFO: PixelSprite[] = [{pal: UFO_PAL, sym: true, rows: ufoRows(['y', 'm'])}, {pal: UFO_PAL, sym: true, rows: ufoRows(['m', 'y'])}];
+
+const ROCK_PAL = {k: INK, C: '#e0cdb3', c: '#b09a82', b: '#76655a', n: '#4a3f3d', v: '#2d2522', w: '#fff3d6'};
+/** Meteoro: rocha com crateras (a cauda de fogo é desenhada por cima). */
+const rockRows = (() => {
+  const g = sphereRows(15, 0).map((r) => r.split(''));
+  for (const [x, y] of [[5, 8], [6, 8], [9, 5], [10, 5], [8, 10], [9, 10], [6, 11]]) if (g[y]?.[x] && g[y][x] !== 'k') g[y][x] = 'v';
+  return g.map((r) => r.join(''));
+})();
+export const METEOR_SPRITE: PixelSprite = {pal: ROCK_PAL, rows: rockRows};
+
+const MAGNET_PAL = {k: INK, r: '#ff3d5a', R: '#ff9aa8', w: '#ffffff', s: '#cfd6ee', d: '#8c95b8'};
+/** Ímã em U com pontas brancas. */
+export const MAGNET: PixelSprite = {
+  pal: MAGNET_PAL,
+  rows: [
+    '..kkkkkkkkkk..',
+    '.krrrrrrrrrrk.',
+    'krRRrrrrrrrrrk',
+    'krRrrkkkkrrrrk',
+    'krRrk....krrrk',
+    'krrrk....krrrk',
+    'krrrk....krrrk',
+    'kwwwk....kwwwk',
+    'kwswk....kwswk',
+    'kdddk....kdddk',
+    '.kkk......kkk.',
+  ],
+};
+
+const STAR_PAL = {k: INK, y: '#ffe36c', Y: '#fff7b8', o: '#ffa83d'};
+const starRows = (big: boolean) => [
+  '......kk......',
+  '.....kYYk.....',
+  '.....kYyk.....',
+  '....kYyyyk....',
+  'kkkkkYyyyykkkk',
+  'kYYyyyyyyyyYYk',
+  '.kYyyyyyyyyyk.',
+  '..kyyyyyyyyk..',
+  '...kyyoooyk...',
+  '..kyyoyyoyyk..',
+  '..kyoyk.kyok..',
+  '..kkk....kkk..',
+].map((r) => (big ? r : r));
+/** Estrela de pontos (150 pts), brilha em 2 quadros. */
+export const STAR: PixelSprite[] = [{pal: STAR_PAL, rows: starRows(true)}, {pal: {...STAR_PAL, y: '#fff0a0', Y: '#ffffff'}, rows: starRows(false)}];
+
 /* ---------- itens ---------- */
 
 const SHIELD_PAL = {k: INK, c: '#51ecff', C: '#d4ffff', b: '#2a8fb3', w: '#ffffff'};
@@ -374,4 +437,4 @@ export const ARROW_UP: PixelSprite = {
   rows: ['...k', '..kC', '.kCc', 'kCcc', 'kkCc', '.kCc', '.kCc', '.kkk'].map((r) => r.padEnd(4, '.')),
 };
 
-export const ENEMY_SPRITES = {drone: DRONE, zigzag: ZIGZAG, turret: TURRET, orb: ORB, guardian: GUARDIAN} as const;
+export const ENEMY_SPRITES = {drone: DRONE, zigzag: ZIGZAG, turret: TURRET, orb: ORB, guardian: GUARDIAN, ufo: UFO, meteor: [METEOR_SPRITE, METEOR_SPRITE]} as const;

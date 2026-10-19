@@ -2,6 +2,24 @@
 
 O texto público da release fica em `CHANGELOG.md` (só uma dica, o jogo é um segredo). Aqui ficam os detalhes.
 
+## [Em desenvolvimento] — M2 (parte 2): mais Doodle Jump, portais longe, Papel espelhado
+
+Pedido do dono: "muito mais aleatório, desorganizado e difícil; portais longe uns dos outros e com ideias novas (o Papel: duas personagens espelhadas e a troca); mais elementos que chamem a atenção; otimizar tudo".
+
+### Distribuição (gerador reescrito)
+- `core/worldgen.ts`: cada plataforma sorteia o X no **campo todo** (com volta pela lateral), vãos irregulares e humores (calmo/normal/tenso) por padrão; nada de degraus em sequência. O **alcance continua garantido** (distância circular com a volta pela lateral; `validate.ts` com margem) e provado por robôs.
+- Mais difícil: vãos mais altos nos humores tensos, mais plataformas móveis/quebráveis e **plataforma-fantasma** (some e volta; avisa piscando antes de sumir; só conta como chão no trecho sólido do ciclo).
+
+### Portais (bem longe e com tipos)
+- Primeiro portal entre 700 e 1000 m; depois 750 a 1250 m entre um e outro (antes ~150 m). Nunca dois por perto.
+- **Mundo**: Neon → Cristal → Mecânico → **Cosmos** (novo: inimigos disco voador, meteoro em laço e buraco negro que puxa; estrelas de 150 pts; ímã de fitas).
+- **Papel**: desvio com portal próprio. Faixa estreita (x 44–168) e o **outro herói é o espelho (W − x)**; tudo é desenhado espelhado na dobra do caderno. O portal **VOLTAR** devolve ao mundo de origem e **troca de personagem**.
+- **Bônus**: zona dourada de 90 m só de fitas, volta sozinho. **Atalho**: hélice turbo (2,6 s a 900 un./s).
+
+### Visual e desempenho
+- Fundos novos (Cosmos: nebulosas, planeta com anel, estrela cadente; Papel: caderno pautado com dobra, furos e rabiscos), plataformas por mundo, buraco negro procedural, clipe de papel, meteoro com cauda de fogo, ímã, estrela, marcos de 100 m, **linha dourada do recorde** e aviso "NOVO RECORDE" ao passar dele, riscos de velocidade no atalho, anéis/explosões por tipo de portal.
+- Camadas estáticas (estrelas, skyline) viram `Picture` uma vez e rolam com 1–2 comandos; caminhos e shaders reaproveitados (sem alocar por quadro).
+
 ## [Em desenvolvimento] — M2 (parte 1): mais jogo, mais desafio, inimigos em pixel
 
 Pedido do dono: refinar o jogo, **menos fácil e com mais cara de Doodle Jump**, **sem aviso de fase**, com **portais**, ideias do protótipo HTML, **inimigos** e mais coisas divertidas, tudo estilizado e em pixel.

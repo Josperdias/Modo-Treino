@@ -1,6 +1,7 @@
 import {FIELD_W, PHYS} from '../data/neon.ts';
 import {horizontalTravel, landHalfWidth, platformX} from './physics.ts';
 import {enemyAt} from './enemies.ts';
+import {ghostSolid} from './sim.ts';
 import {makeRng, next, type Rng} from './rng.ts';
 import type {Input, Sim} from './types.ts';
 
@@ -60,6 +61,7 @@ export function aim(sim: Sim): number {
     // Quando o herói chegar a essa altura (na descida), onde estará a plataforma?
     const disc = p.vy * p.vy + 2 * PHYS.G * (p.y - pl.y);
     const t = (p.vy + Math.sqrt(Math.max(0, disc))) / PHYS.G;
+    if (pl.type === 'ghost' && !(ghostSolid(pl, sim.time + t - 0.12) && ghostSolid(pl, sim.time + t + 0.12))) continue; // fantasma sumido na hora: não pousa
     const px = platformX(pl, sim.time + t);
     // Caminho mais curto, contando a volta pela lateral.
     let dx = px - p.x;

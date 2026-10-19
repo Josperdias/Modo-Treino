@@ -6,10 +6,10 @@ import {fileURLToPath} from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const C = p => import(join(ROOT, 'native/src/arcade/core', p));
-const {createSim, step, metersOf, windAt} = await C('sim.ts');
+const {createSim, step, metersOf, windAt, ghostSolid} = await C('sim.ts');
 const {enemyAt, tri} = await C('enemies.ts');
 const {makeGen, generateUntil} = await C('worldgen.ts');
-const {PHYS, LIFE, COMBAT, POWER, PORTAL, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
+const {PHYS, LIFE, COMBAT, POWER, PORTAL, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP, PAPER, BLACKHOLE, METEOR} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
 
 const plat = (o = {}) => ({id: 1, x: 210, y: 300, w: 100, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'stairs', dir: 0, ...o});
 const enemy = (o = {}) => ({id: 900 + Math.floor(Math.random() * 1e6), kind: 'drone', x0: 210, y0: 400, x: 210, y: 400, phase: 0, speed: 0, range: 0, size: ENEMIES.drone.size, hp: 1, maxHp: 1, cooldown: 99, warn: false, alive: true, ...o});
@@ -242,20 +242,41 @@ test('portal: por contato; troca o mundo, limpa à frente, cria chão seguro e d
   assert.ok(Math.abs(s.gen.worldY0 - safe.y) < 1e-9);
 });
 
-test('portal: nunca antes de 565 un. de subida nem sem plataforma de apoio; vem num mundo diferente do atual', () => {
+test('portal: bem longe (700–1000 m), um por vez, com apoio ao lado; primeiro portal nunca é o do Papel', () => {
+  const kinds = {};
   for (let seed = 1; seed <= 80; seed++) {
     const g = makeGen(seed);
     const out = {platforms: [], items: [], enemies: []};
-    generateUntil(g, out, 90 + 25000);
+    generateUntil(g, out, 90 + 12000);
     const portals = out.items.filter(i => i.kind === 'portal');
     assert.equal(portals.length, 1, `semente ${seed}: um portal por vez`);
     const p = portals[0];
-    assert.ok(p.y - 90 >= 565, `portal baixo demais: ${p.y}`);
-    assert.ok(p.y - 90 >= PORTAL.FIRST_M * 10, 'primeiro portal só a partir de 100 m');
-    assert.equal(p.target, 'crystal');
+    const m = (p.y - 90) / 10;
+    assert.ok(m >= PORTAL.FIRST_M[0] - 5 && m <= PORTAL.FIRST_M[1] + 120, `primeiro portal aos ${m} m`);
+    assert.ok(['world', 'bonus', 'warp'].includes(p.variant), `primeiro portal não é do Papel: ${p.variant}`);
+    kinds[p.variant] = (kinds[p.variant] || 0) + 1;
+    if (p.variant === 'world') assert.equal(p.target, 'crystal');
     const pad = out.platforms.find(q => q.pattern === 'portalPad');
-    assert.ok(pad && Math.abs(p.y - pad.y - PORTAL.ABOVE) < 1e-9 && Math.abs(p.x - pad.x) >= 50, 'apoio ao lado do portal');
+    assert.ok(pad && Math.abs(p.y - pad.y - PORTAL.ABOVE) < 1e-9 && Math.abs(p.x - pad.x) >= 40, 'apoio ao lado do portal');
   }
+  assert.ok(kinds.world > 15 && kinds.bonus > 3 && kinds.warp > 3, JSON.stringify(kinds));
+});
+
+test('portal: depois do primeiro, o do Papel também entra no sorteio; dentro do Papel só aparece o portal de volta', () => {
+  const seen = {};
+  for (let seed = 1; seed <= 120; seed++) {
+    const g = makeGen(seed); g.portalsMade = 1; g.portalY = 400;
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(g, out, 90 + 3000);
+    const it = out.items.find(i => i.kind === 'portal');
+    seen[it.variant] = (seen[it.variant] || 0) + 1;
+    const h = makeGen(seed); h.world = 'paper'; h.returnWorld = 'clock'; h.portalY = 400; h.lane = [44, 168];
+    const o2 = {platforms: [], items: [], enemies: []};
+    generateUntil(h, o2, 90 + 3000);
+    const back = o2.items.find(i => i.kind === 'portal');
+    assert.deepEqual([back.variant, back.target], ['back', 'clock']);
+  }
+  assert.ok(seen.paper > 8 && seen.world > 20 && seen.bonus > 5 && seen.warp > 5, JSON.stringify(seen));
 });
 
 test('portal perdido: o próximo vem mais adiante (e só um portal pendente por vez)', () => {
@@ -310,7 +331,7 @@ test('geração: inimigos só depois de 38 m, fora das plataformas, com poderes 
       }
       assert.ok(e.x0 - e.range - e.size >= 0 && e.x0 + e.range + e.size <= 420, 'dentro do campo');
     }
-    const powers = out.items.filter(i => ['shield', 'boost', 'jet', 'heart'].includes(i.kind)).map(i => i.y);
+    const powers = out.items.filter(i => ['shield', 'boost', 'jet', 'heart', 'magnet'].includes(i.kind)).map(i => i.y);
     assert.ok(powers.length >= 8 && powers[0] - 90 >= SPAWN.POWER_FROM_M * 10 - 600, `poderes ${powers.length}`);
     for (let i = 1; i < powers.length; i++) assert.ok(powers[i] - powers[i - 1] >= SPAWN.POWER_GAP_M[0] * 10 - 900, 'poder em cascata');
     const flags = out.items.filter(i => i.kind === 'flag').map(i => i.y);
@@ -323,12 +344,13 @@ test('geração: inimigos só depois de 38 m, fora das plataformas, com poderes 
 });
 
 test('geração: tipos por mundo (neon: drone/zigue-zague/torre; cristal: orbe e zigue-zague; mecânico: torre)', () => {
-  for (const [world, expect] of [['neon', ['drone', 'zigzag', 'turret']], ['crystal', ['zigzag', 'orb', 'drone']], ['clock', ['turret', 'drone', 'orb']]]) {
+  for (const [world, expect] of [['neon', ['drone', 'zigzag', 'turret', 'blackhole']], ['crystal', ['zigzag', 'orb', 'drone', 'blackhole']], ['clock', ['turret', 'drone', 'orb', 'blackhole']], ['cosmos', ['meteor', 'ufo', 'orb', 'blackhole', 'drone']]]) {
     const seen = new Set();
     for (let seed = 1; seed <= 30; seed++) {
       const g = makeGen(seed); g.world = world; g.worldY0 = 90;
       const out = {platforms: [], items: [], enemies: []};
       g.portalPlaced = true; // sem portal neste teste
+      g.portalY = 1e12;
       generateUntil(g, out, 90 + 20000);
       for (const e of out.enemies) if (e.kind !== 'guardian') seen.add(e.kind);
     }
@@ -357,4 +379,186 @@ test('sem avisos de fase: o motor não emite mais evento de nível', () => {
   const s = createSim(3);
   for (let i = 0; i < 120 * 60; i++) { step(s, {axis: Math.sin(i / 90)}); if (s.mode !== 'playing') break; }
   assert.ok(!s.events.some(e => e.t === 'level'));
+});
+
+/* ---------- tipos de portal ---------- */
+const portalAt = (s, variant, target, extra = {}) => { const p = s.player; s.items.push({id: 6000 + s.items.length, kind: 'portal', x: p.x, y: p.y + 55, phase: 0, hit: false, target, variant, ...extra}); };
+
+test('portal: o próximo só vem muito depois (750–1250 m) e o perdido recomeça mais adiante (420 m)', () => {
+  for (const variant of ['world', 'bonus', 'paper']) {
+    const s = bare({platforms: [plat({y: 100, w: 600})]});
+    put(s, 210, 600, 300);
+    portalAt(s, variant, variant === 'world' ? 'crystal' : variant === 'paper' ? 'paper' : 'neon');
+    steps(s, 1);
+    const base = variant === 'paper' ? s.gen.paperExitY : s.gen.portalY;
+    if (variant === 'paper') assert.ok(base - s.gen.worldY0 === PAPER.LENGTH_M * 10);
+    else {
+      const from = variant === 'bonus' ? s.gen.bonusEndY : s.gen.worldY0;
+      const gap = (s.gen.portalY - from) / 10;
+      assert.ok(gap >= PORTAL.GAP_M[0] - 1 && gap <= PORTAL.GAP_M[1] + 1, `${variant}: próximo portal a ${gap} m`);
+    }
+  }
+});
+
+test('portal de bônus: continua no mesmo mundo, chuva de fitas sem inimigos, volta sozinho', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  s.world = 'crystal'; s.gen.world = 'crystal';
+  put(s, 210, 600, 300);
+  portalAt(s, 'bonus', 'crystal');
+  steps(s, 1);
+  assert.equal(s.world, 'crystal');
+  assert.ok(s.gen.bonusEndY > s.gen.y);
+  assert.ok(Math.abs(s.bonusY1 - s.bonusY0 - PORTAL.BONUS_M * 10) < 1e-6);
+  assert.equal(s.revive, 0, 'bônus não dá recuperação');
+  const zone = s.platforms.filter(p => p.pattern === 'bonus');
+  assert.ok(zone.length >= 6 && zone.every(p => p.w >= 110 && p.type === 'normal'));
+  const tapes = s.items.filter(i => i.kind === 'tape').length;
+  assert.ok(tapes >= zone.length * 3 - 3, `fitas ${tapes}`);
+  assert.equal(s.enemies.filter(e => e.alive && e.y0 < s.gen.bonusEndY).length, 0, 'sem inimigos na fase bônus');
+  assert.ok(s.platforms.every(p => p.broken || p.type === 'normal' || p.pattern !== 'bonus'));
+});
+
+test('portal de atalho: hélice turbo (900) por 2,6 s, invencível, sobe centenas de metros', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  put(s, 210, 600, 300);
+  portalAt(s, 'warp', 'neon');
+  const y0 = s.player.y;
+  steps(s, 1);
+  assert.ok(s.jet > PORTAL.WARP_TIME - 0.05 && s.jetSpeed === PORTAL.WARP_SPEED);
+  assert.ok(s.invuln > PORTAL.WARP_TIME);
+  s.gen.y = 1e9;
+  steps(s, Math.round(PORTAL.WARP_TIME / PHYS.STEP) + 5);
+  assert.ok(s.player.y - y0 > 2000, `subiu só ${s.player.y - y0}`);
+  assert.equal(s.jetSpeed, POWER.JET_SPEED, 'volta à hélice normal');
+});
+
+test('Universo de Papel: faixa estreita, sem volta pela lateral, plataformas só dentro da faixa; o portal de volta troca os heróis', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  s.world = 'clock'; s.gen.world = 'clock';
+  put(s, 210, 600, 300);
+  portalAt(s, 'paper', 'paper');
+  steps(s, 1);
+  assert.equal(s.world, 'paper');
+  assert.equal(s.gen.returnWorld, 'clock');
+  assert.deepEqual(s.gen.lane, [PAPER.LANE_MIN, PAPER.LANE_MAX]);
+  assert.equal(s.swapped, false);
+  s.gen.y = s.gen.y; // a geração está liberada neste mundo
+  const ahead = s.platforms.filter(p => p.y > s.player.y);
+  assert.ok(ahead.length > 5);
+  for (const p of ahead) assert.ok(p.x - p.shift >= PAPER.LANE_MIN - 1 && p.x + p.shift <= PAPER.LANE_MAX + 1, `plataforma fora da faixa: x ${p.x} sh ${p.shift}`);
+  for (const e of s.enemies) assert.ok(e.x0 >= 0 && e.x0 <= PAPER.WALL_MAX + 30, 'inimigo do Papel perto da faixa');
+  // physics: empurra para a direita sem parar e fica preso na parede
+  for (let i = 0; i < 400 && s.mode === 'playing'; i++) { s.invuln = 9; step(s, {axis: 1}); s.player.y = Math.max(s.player.y, 500); s.player.vy = Math.max(s.player.vy, 100); }
+  assert.ok(s.player.x <= PAPER.WALL_MAX + 1e-9 && s.player.x > PAPER.WALL_MAX - 5, `x ${s.player.x}`);
+  for (let i = 0; i < 400; i++) { s.invuln = 9; step(s, {axis: -1}); s.player.vy = Math.max(s.player.vy, 100); }
+  assert.ok(s.player.x >= PAPER.WALL_MIN - 1e-9 && s.player.x < PAPER.WALL_MIN + 5);
+  // portal de volta
+  portalAt(s, 'back', 'clock');
+  s.items[s.items.length - 1].y = s.player.y + 55; s.items[s.items.length - 1].x = s.player.x;
+  steps(s, 1);
+  assert.equal(s.world, 'clock');
+  assert.equal(s.swapped, true, 'os heróis trocam');
+  assert.equal(s.gen.lane, null);
+  assert.ok(s.events.some(e => e.t === 'swap'));
+});
+
+test('Papel: o portal de volta aparece no fim do trecho (260 m) e o gerador pede um só', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  s.world = 'neon';
+  put(s, 210, 600, 300);
+  portalAt(s, 'paper', 'paper');
+  steps(s, 1);
+  generateUntil(s.gen, {platforms: s.platforms, items: s.items, enemies: s.enemies}, s.gen.paperExitY + 1500);
+  const back = s.items.filter(i => i.kind === 'portal' && i.variant === 'back');
+  assert.equal(back.length, 1);
+  assert.equal(back[0].target, 'neon');
+  assert.ok(back[0].y >= s.gen.paperExitY);
+});
+
+/* ---------- novos elementos ---------- */
+test('plataforma-fantasma: sólida só em parte do ciclo; o herói atravessa quando ela some', () => {
+  const g = plat({type: 'ghost', y: 200, w: 300, speed: 1, phase: 0});
+  let on = 0, n = 0;
+  for (let t = 0; t < 6.3; t += 0.01) { n++; if (ghostSolid(g, t)) on++; }
+  assert.ok(on / n > 0.55 && on / n < 0.7, `fração sólida ${on / n}`);
+  const s = bare({platforms: [g]});
+  // t=0 → sólida: pousa
+  put(s, 210, 210, -100);
+  steps(s, 30);
+  assert.ok(s.events.some(e => e.t === 'land'));
+  // fase em que está sumida: atravessa
+  const h = bare({platforms: [plat({type: 'ghost', y: 200, w: 300, speed: 0, phase: Math.PI * 1.6})]});
+  assert.equal(ghostSolid(h.platforms[0], 0), false);
+  put(h, 210, 210, -300);
+  steps(h, 20);
+  assert.ok(!h.events.some(e => e.t === 'land') && h.player.y < 200);
+});
+
+test('ímã puxa fitas e estrelas num raio; estrela dá 150 pontos', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  put(s, 210, 300, 0);
+  s.magnet = POWER.MAGNET_TIME;
+  s.items.push({id: 1, kind: 'tape', x: 210 + 120, y: 300 + 64, phase: 0, hit: false}, {id: 2, kind: 'tape', x: 210 + 300, y: 300 + 64, phase: 0, hit: false}, {id: 3, kind: 'star', x: 210 - 100, y: 300 + 64, phase: 0, hit: false});
+  for (let i = 0; i < 40; i++) { s.player.y = 300; s.player.vy = 0; step(s, {axis: 0}); }
+  assert.equal(s.tapes, 1, 'só a fita dentro do raio');
+  assert.equal(s.items.find(i => i.id === 2).x, 510, 'a de longe não se mexe');
+  assert.equal(s.bonus, SCORE_M2.STAR);
+  const t2 = bare({platforms: [plat({y: 100, w: 600})]});
+  put(t2, 210, 300, 0);
+  t2.items.push({id: 1, kind: 'magnet', x: 210, y: 300 + PICKUP.BODY_Y, phase: 0, hit: false});
+  steps(t2, 1);
+  assert.ok(t2.magnet > POWER.MAGNET_TIME - 0.1);
+});
+
+test('buraco negro: puxa de longe, machuca no centro, indestrutível (tiro e pisada não adiantam); hélice passa', () => {
+  const bh = enemy({kind: 'blackhole', x0: 300, y0: 400, x: 300, y: 400, size: ENEMIES.blackhole.size, hp: 99, maxHp: 99});
+  const s = bare({enemies: [bh], platforms: [plat({y: 100, w: 600})]});
+  put(s, 240, 360, 0);
+  const x0 = s.player.x;
+  for (let i = 0; i < 30; i++) { put(s, 240, 360, 0); step(s, {axis: 0}); }
+  assert.ok(s.player.drift > 0, 'puxa para o lado do buraco');
+  // contato
+  const t = bare({enemies: [enemy({kind: 'blackhole', x0: 210, y0: 400, x: 210, y: 400, size: 20, hp: 99, maxHp: 99})], platforms: [plat({y: 100, w: 600})]});
+  put(t, 210, 360, 0); steps(t, 3);
+  assert.equal(t.lives, LIFE.START - 1);
+  // tiro passa
+  const u = bare({enemies: [enemy({kind: 'blackhole', x0: 210, y0: 500, x: 210, y: 500, size: 20, hp: 99, maxHp: 99})], platforms: [plat({y: 100, w: 600})]});
+  u.bullets.push({id: 1, x: 210, y: 470, vx: 0, vy: 600, own: true, alive: true});
+  for (let i = 0; i < 20; i++) { put(u, 60, 200, 0); u.invuln = 9; step(u, {axis: 0}); }
+  assert.ok(u.enemies[0].alive && u.enemies[0].hp === 99);
+  // hélice atravessa
+  const j = bare({enemies: [enemy({kind: 'blackhole', x0: 210, y0: 420, x: 210, y: 420, size: 20, hp: 99, maxHp: 99})], platforms: [plat({y: 100, w: 600})]});
+  put(j, 210, 380, 100); j.jet = 1.5;
+  for (let i = 0; i < 60; i++) step(j, {axis: 0});
+  assert.equal(j.lives, LIFE.START);
+  assert.ok(j.enemies[0].alive);
+  void x0;
+});
+
+test('disco voador atira em leque (3 tiros); meteoro cai em laço; clipe sobe e desce', () => {
+  const u = enemy({kind: 'ufo', x0: 210, y0: 520, x: 210, y: 520, size: 22, hp: 2, maxHp: 2, cooldown: 0.001});
+  const s = bare({enemies: [u], platforms: [plat({y: 100, w: 600})], meters: 80});
+  put(s, 100, 300, 0);
+  for (let i = 0; i < 10; i++) { put(s, 100, 300, 0); s.invuln = 9; step(s, {axis: 0}); }
+  assert.ok(s.bullets.filter(b => !b.own).length >= 3, `balas ${s.bullets.length}`);
+  const m = {kind: 'meteor', x0: 200, y0: 500, phase: 0.8, speed: 1, range: 90};
+  let lo = Infinity, hi = -Infinity;
+  for (let t = 0; t < METEOR.LOOP * 3; t += 0.02) { const q = enemyAt(m, t); lo = Math.min(lo, q.y); hi = Math.max(hi, q.y); }
+  assert.ok(hi - lo > METEOR.SPAN * 0.97 && Math.abs(enemyAt(m, 0.5).y - enemyAt(m, 0.5 + METEOR.LOOP).y) < 1e-6, 'laço periódico');
+  const c = {kind: 'clip', x0: 100, y0: 600, phase: 0, speed: 1.5, range: 60};
+  let cl = Infinity, ch = -Infinity;
+  for (let t = 0; t < 8; t += 0.02) { const q = enemyAt(c, t); cl = Math.min(cl, q.y); ch = Math.max(ch, q.y); }
+  assert.ok(ch - cl > 110 && ch - cl <= 120.5);
+});
+
+test('Papel e Cosmos: inimigos do mundo (clipe no Papel; meteoro/disco no Cosmos) e tudo dentro da faixa no Papel', () => {
+  const kindsPaper = new Set();
+  for (let seed = 1; seed <= 30; seed++) {
+    const g = makeGen(seed); g.world = 'paper'; g.lane = [PAPER.LANE_MIN, PAPER.LANE_MAX]; g.returnWorld = 'neon'; g.portalY = 1e12; g.portalPlaced = true;
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(g, out, 90 + 12000);
+    for (const e of out.enemies) { kindsPaper.add(e.kind); assert.ok(e.x0 >= PAPER.LANE_MIN - 25 && e.x0 <= PAPER.LANE_MAX + 25, `${e.kind} em ${e.x0}`); }
+    for (const p of out.platforms) assert.ok(p.x >= PAPER.LANE_MIN - 1 && p.x <= PAPER.LANE_MAX + 1, `plat ${p.x}`);
+  }
+  assert.ok(kindsPaper.has('clip'));
 });

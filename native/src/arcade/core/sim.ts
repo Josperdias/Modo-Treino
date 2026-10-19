@@ -1,9 +1,9 @@
-import {COMBAT, ENEMIES, GEN, LEVELS, LIFE, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
+import {BLACKHOLE, COMBAT, ENEMIES, GEN, LEVELS, LIFE, PAPER, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
 import {enemyAt} from './enemies.ts';
 import {jumpSpeed, landHalfWidth, platformX, vxMax, wrapX} from './physics.ts';
-import {makeRng, next, range} from './rng.ts';
+import {makeRng, range} from './rng.ts';
 import {generateUntil, makeGen, metersAt, type Out} from './worldgen.ts';
-import type {Enemy, Input, Item, Platform, Sim} from './types.ts';
+import type {Enemy, Input, Item, Platform, PortalVariant, Sim, WorldId} from './types.ts';
 
 /** Fração da altura da tela, a partir de baixo, onde fica a plataforma inicial. */
 const START_SCREEN_FRAC = 0.14;
@@ -74,6 +74,11 @@ export function createSim(seed: number, viewH = 690): Sim {
     hits: 0,
     portals: 0,
     bonus: 0,
+    magnet: 0,
+    jetSpeed: POWER.JET_SPEED,
+    swapped: false,
+    bonusY0: 0,
+    bonusY1: 0,
     score: 0,
     maxY: PHYS.START_Y,
     tapes: 0,
@@ -115,7 +120,7 @@ function compact(sim: Sim) {
     const it = sim.items[i];
     if (!it.hit && it.y >= floor) sim.items[n++] = it;
     else if (!it.hit && it.kind === 'portal') {
-      // Portal que ficou para trás: o próximo vem um pouco mais adiante.
+      // Portal que ficou para trás: o próximo vem mais adiante (não fica dois perto um do outro).
       sim.gen.portalPlaced = false;
       sim.gen.portalY = sim.gen.y + PORTAL.MISS_RETRY_M * 10;
     }
@@ -211,37 +216,91 @@ function tryRevive(sim: Sim): boolean {
   return true;
 }
 
-/** Atravessa o portal: novo mundo, chão seguro, tela limpa, uma recuperação de graça. */
-function enterWorld(sim: Sim, portal: Item) {
-  const p = sim.player;
-  const target = portal.target ?? 'neon';
+/** Plataforma-fantasma: sólida só numa parte do ciclo (função pura do tempo). */
+export function ghostSolid(pl: Pick<Platform, 'phase' | 'speed'>, time: number): boolean {
+  const k = (((time * pl.speed + pl.phase) / (Math.PI * 2)) % 1 + 1) % 1;
+  return k < 0.62;
+}
+
+function scheduleNextPortal(sim: Sim, from: number) {
   const g = sim.gen;
+  g.portalPlaced = false;
+  g.portalY = from + range(g.rng, PORTAL.GAP_M[0], PORTAL.GAP_M[1]) * 10;
+}
+
+/**
+ * Atravessa o portal. Quatro tipos:
+ * mundo (próximo universo) · papel (dois heróis espelhados; ao voltar, os heróis trocam) ·
+ * bônus (chuva de fitas, volta sozinho) · atalho (hélice turbo que sobe centenas de metros).
+ * Os três primeiros limpam o que estava à frente e criam um chão seguro; o jogo continua daí.
+ */
+function takePortal(sim: Sim, portal: Item) {
+  const p = sim.player;
+  const variant: PortalVariant = portal.variant ?? 'world';
+  const target: WorldId = portal.target ?? sim.world;
+  const g = sim.gen;
+  sim.portals++;
+  g.portalsMade++;
+  sim.bonus += SCORE_M2.PORTAL;
+  const world: WorldId = variant === 'back' ? (g.returnWorld ?? 'neon') : variant === 'paper' ? 'paper' : variant === 'world' ? target : sim.world;
+  sim.events.push({t: 'portal', world, variant, x: portal.x, y: portal.y});
+
+  if (variant === 'warp') {
+    // Atalho: voa invencível; o que tocar vira fumaça. Não limpa nada.
+    portal.hit = true;
+    sim.jet = PORTAL.WARP_TIME;
+    sim.jetSpeed = PORTAL.WARP_SPEED;
+    sim.invuln = Math.max(sim.invuln, PORTAL.WARP_TIME + 1);
+    scheduleNextPortal(sim, p.y + PORTAL.WARP_SPEED * PORTAL.WARP_TIME);
+    return;
+  }
+
   const keep = p.y - 150;
   sim.platforms = sim.platforms.filter(pl => pl.y <= keep);
   sim.items = sim.items.filter(it => it.y <= keep && it !== portal);
   sim.enemies = sim.enemies.filter(e => e.y <= keep);
   sim.bullets.length = 0;
-  const safe: Platform = {id: g.nextId++, x: Math.max(92, Math.min(328, p.x)), y: p.y - 62, w: 132, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'start', dir: 0};
+  const lane = world === 'paper' ? ([PAPER.LANE_MIN, PAPER.LANE_MAX] as [number, number]) : null;
+  const sx = lane ? (lane[0] + lane[1]) / 2 : Math.max(92, Math.min(328, p.x));
+  const safe: Platform = {id: g.nextId++, x: sx, y: p.y - 62, w: lane ? 84 : 132, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'start', dir: 0};
   sim.platforms.push(safe);
-  sim.world = target;
-  sim.portals++;
-  sim.bonus += SCORE_M2.PORTAL;
   sim.invuln = LIFE.AFTER_WORLD;
-  sim.revive = 1;
-  g.world = target;
-  g.worldY0 = safe.y;
+  if (variant !== 'bonus') sim.revive = 1;
   g.x = safe.x;
   g.y = safe.y;
   g.last = 'start';
   g.repeat = 0;
-  g.portalPlaced = false;
-  g.portalY = safe.y + PORTAL.TRAVEL_M * 10;
+  g.lane = lane;
   g.nextEnemyY = safe.y + 360;
   g.nextPowerY = Math.max(g.nextPowerY, safe.y + 700);
   g.nextFlagY = Math.max(g.nextFlagY, safe.y + 1600);
   p.vy = Math.max(p.vy, 520);
   p.drift = 0;
-  sim.events.push({t: 'portal', world: target, x: portal.x, y: portal.y});
+  if (variant === 'bonus') {
+    g.bonusEndY = safe.y + PORTAL.BONUS_M * 10;
+    sim.bonusY0 = safe.y;
+    sim.bonusY1 = g.bonusEndY;
+    scheduleNextPortal(sim, g.bonusEndY);
+  } else if (variant === 'paper') {
+    g.returnWorld = sim.world;
+    g.paperExitY = safe.y + PAPER.LENGTH_M * 10;
+    sim.world = 'paper';
+    g.world = 'paper';
+    g.worldY0 = safe.y;
+    g.portalPlaced = false;
+    g.portalY = g.paperExitY;
+    p.x = Math.max(PAPER.WALL_MIN, Math.min(PAPER.WALL_MAX, p.x));
+  } else {
+    if (variant === 'back') {
+      sim.swapped = !sim.swapped;
+      g.returnWorld = null;
+      sim.events.push({t: 'swap', x: portal.x, y: portal.y});
+    }
+    sim.world = world;
+    g.world = world;
+    g.worldY0 = safe.y;
+    scheduleNextPortal(sim, safe.y);
+  }
   ensureWorld(sim);
 }
 
@@ -262,6 +321,11 @@ function enemyShoot(sim: Sim, e: Enemy) {
   if (e.kind === 'guardian') {
     const a = Math.atan2(dy, dx) + 0.23;
     mk(Math.cos(a) * v, Math.sin(a) * v);
+  } else if (e.kind === 'ufo') {
+    for (const da of [-0.32, 0.32]) {
+      const a = Math.atan2(dy, dx) + da;
+      mk(Math.cos(a) * v, Math.sin(a) * v);
+    }
   }
   sim.events.push({t: 'shoot', own: false, x: e.x, y: e.y});
 }
@@ -286,6 +350,16 @@ function combat(sim: Sim, input: Input, dt: number) {
     e.x = pos.x;
     e.y = pos.y;
     const spec = ENEMIES[e.kind];
+    if (e.kind === 'blackhole') {
+      // Indestrutível: puxa de longe e machuca no centro. A hélice passa por ele.
+      if (sim.jet <= 0) {
+        const bx = e.x - p.x, by = e.y - (p.y + 42);
+        const dist = Math.hypot(bx, by);
+        if (dist < BLACKHOLE.PULL_R) p.drift += Math.sign(bx || 1) * BLACKHOLE.PULL * (1 - dist / BLACKHOLE.PULL_R) * dt;
+        if (dist < e.size + 16) { hurt(sim, p.x, p.y + 42, e.x); if (sim.mode !== 'playing') return; }
+      }
+      continue;
+    }
     const visible = onScreen(sim, e.y);
     if (spec.shoots && visible && meters >= COMBAT.SHOOT_FROM_M) {
       e.cooldown -= dt;
@@ -331,7 +405,7 @@ function combat(sim: Sim, input: Input, dt: number) {
     if (b.y < bottom || b.y > top || b.x < -30 || b.x > 450) { b.alive = false; continue; }
     if (b.own) {
       for (const e of sim.enemies) {
-        if (!e.alive) continue;
+        if (!e.alive || e.kind === 'blackhole') continue;
         if (Math.abs(b.x - e.x) < e.size + 6 && Math.abs(b.y - e.y) < e.size + 8) {
           b.alive = false;
           e.hp--;
@@ -367,9 +441,10 @@ export function step(sim: Sim, input: Input): void {
   sim.invuln = Math.max(0, sim.invuln - dt);
   sim.fireCd = Math.max(0, sim.fireCd - dt);
   sim.boost = Math.max(0, sim.boost - dt);
+  sim.magnet = Math.max(0, sim.magnet - dt);
   if (sim.jet > 0) {
     sim.jet = Math.max(0, sim.jet - dt);
-    if (sim.jet === 0) sim.invuln = Math.max(sim.invuln, 0.8); // sai da hélice protegido por um instante
+    if (sim.jet === 0) { sim.invuln = Math.max(sim.invuln, 0.8); sim.jetSpeed = POWER.JET_SPEED; } // sai da hélice protegido por um instante
   }
 
   // Horizontal: resposta exponencial ao alvo (independente do dt), mais vento do mundo e empurrão de esteira.
@@ -378,7 +453,12 @@ export function step(sim: Sim, input: Input): void {
   const target = axis * vxMax(sim.level) + windAt(sim.world, sim.time) + p.drift;
   p.drift *= Math.exp(-WORLD_FX.CLOCK_DECAY * dt);
   p.vx += (target - p.vx) * (1 - Math.exp(-PHYS.ACCEL_K * dt));
-  p.x = wrapX(p.x + p.vx * dt);
+  if (sim.world === 'paper') {
+    // Universo de Papel: não dá a volta pela lateral; a dobra e a parede seguram o herói.
+    p.x = p.x + p.vx * dt;
+    if (p.x <= PAPER.WALL_MIN) { p.x = PAPER.WALL_MIN; if (p.vx < 0) p.vx = 0; }
+    else if (p.x >= PAPER.WALL_MAX) { p.x = PAPER.WALL_MAX; if (p.vx > 0) p.vx = 0; }
+  } else p.x = wrapX(p.x + p.vx * dt);
 
   // Vertical: integração exata para aceleração constante (a altura do salto não depende do dt).
   const y0 = p.y;
@@ -387,7 +467,7 @@ export function step(sim: Sim, input: Input): void {
   let vy1: number;
   if (sim.jet > 0) {
     // Hélice: sobe em velocidade constante, sem gravidade.
-    vy1 = POWER.JET_SPEED;
+    vy1 = sim.jetSpeed;
     y1 = y0 + vy1 * dt;
   } else {
     y1 = y0 + vy0 * dt - 0.5 * PHYS.G * dt * dt;
@@ -401,6 +481,7 @@ export function step(sim: Sim, input: Input): void {
     for (let i = 0; i < sim.platforms.length; i++) {
       const pl = sim.platforms[i];
       if (pl.broken) continue;
+      if (pl.type === 'ghost' && !ghostSolid(pl, sim.time)) continue;
       if (y0 >= pl.y && y1 <= pl.y && Math.abs(p.x - platformX(pl, sim.time)) < landHalfWidth(pl)) {
         if (!hit || pl.y > hit.y) hit = pl;
       }
@@ -421,6 +502,17 @@ export function step(sim: Sim, input: Input): void {
     }
   }
 
+  // Ímã: puxa fitas e estrelas que estiverem perto.
+  if (sim.magnet > 0) {
+    for (let i = 0; i < sim.items.length; i++) {
+      const it = sim.items[i];
+      if (it.hit || (it.kind !== 'tape' && it.kind !== 'star')) continue;
+      const mx = p.x - it.x, my = p.y + PICKUP.BODY_Y - it.y;
+      const md = Math.hypot(mx, my);
+      if (md > 1 && md < POWER.MAGNET_R) { const k = Math.min(md, 560 * dt) / md; it.x += mx * k; it.y += my * k; }
+    }
+  }
+
   // Itens.
   for (let i = 0; i < sim.items.length; i++) {
     const it: Item = sim.items[i];
@@ -428,7 +520,7 @@ export function step(sim: Sim, input: Input): void {
     if (it.kind === 'portal') {
       if (Math.abs(p.x - it.x) < PORTAL.HALF_W && Math.abs(p.y + 45 - it.y) < PORTAL.HALF_H) {
         it.hit = true;
-        enterWorld(sim, it);
+        takePortal(sim, it);
         break; // a lista mudou
       }
       continue;
@@ -443,7 +535,9 @@ export function step(sim: Sim, input: Input): void {
       } else {
         if (it.kind === 'shield') sim.shields = Math.min(LIFE.SHIELD_MAX, sim.shields + 1);
         else if (it.kind === 'boost') sim.boost = POWER.BOOST_TIME;
-        else if (it.kind === 'jet') { sim.jet = POWER.JET_TIME; sim.bonus += SCORE_M2.POWER; }
+        else if (it.kind === 'jet') { sim.jet = POWER.JET_TIME; sim.jetSpeed = POWER.JET_SPEED; sim.bonus += SCORE_M2.POWER; }
+        else if (it.kind === 'magnet') sim.magnet = POWER.MAGNET_TIME;
+        else if (it.kind === 'star') sim.bonus += SCORE_M2.STAR;
         else if (it.kind === 'heart') { if (sim.lives < LIFE.MAX) sim.lives++; else sim.bonus += SCORE_M2.HEART; }
         else if (it.kind === 'flag') { if (sim.revive < 1) sim.revive = 1; else sim.bonus += SCORE_M2.FLAG; }
         sim.events.push({t: 'pickup', kind: it.kind, x: it.x, y: it.y});
@@ -502,6 +596,8 @@ export function hashSim(sim: Sim): string {
   mix(sim.bullets.length);
   mix(sim.kills);
   mix(sim.portals);
+  mix(sim.world.length + (sim.swapped ? 7 : 0));
+  mix(sim.magnet);
   for (const pl of sim.platforms) { mix(pl.x); mix(pl.y); mix(pl.w); }
   for (const e of sim.enemies) { mix(e.x); mix(e.y); mix(e.hp); }
   return (h >>> 0).toString(16).padStart(8, '0');

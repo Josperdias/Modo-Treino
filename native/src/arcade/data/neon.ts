@@ -133,6 +133,9 @@ export const LIFE = {
 } as const;
 
 export const POWER = {
+  /** Ímã: puxa as fitas num raio por este tempo (s). */
+  MAGNET_TIME: 9,
+  MAGNET_R: 170,
   /** Sapatos de mola: pulos com BOOST durante este tempo (s). */
   BOOST_TIME: 9,
   /** Hélice: sobe sozinho e destrói o que tocar (s). */
@@ -158,7 +161,7 @@ export const COMBAT = {
   KNOCKBACK_VX: 170,
 } as const;
 
-export const SCORE_M2 = {KILL: 60, GUARDIAN: 240, HEART: 40, FLAG: 40, POWER: 20, PORTAL: 150} as const;
+export const SCORE_M2 = {KILL: 60, GUARDIAN: 240, HEART: 40, FLAG: 40, POWER: 20, PORTAL: 150, STAR: 150} as const;
 
 /** Inimigos: caixa de colisão (meia-largura/altura = size), vida e movimento. */
 export const ENEMIES = {
@@ -167,7 +170,18 @@ export const ENEMIES = {
   turret: {size: 24, hp: 2, shoots: true},
   orb: {size: 18, hp: 1, shoots: false},
   guardian: {size: 27, hp: 3, shoots: true},
+  /** Cosmos: disco voador (2 vidas, tiro em leque), meteoro que cai em laço, buraco negro (puxa; indestrutível). */
+  ufo: {size: 22, hp: 2, shoots: true},
+  meteor: {size: 17, hp: 1, shoots: false},
+  blackhole: {size: 20, hp: 99, shoots: false},
+  /** Papel: clipe de papel que sobe e desce. */
+  clip: {size: 17, hp: 1, shoots: false},
 } as const;
+
+/** Buraco negro: raio da atração e força (un./s² somadas ao empurrão lateral). */
+export const BLACKHOLE = {PULL_R: 120, PULL: 380} as const;
+/** Meteoro: altura do laço (un.) e quanto leva uma volta (s). */
+export const METEOR = {SPAN: 760, LOOP: 3.6} as const;
 
 export const SPAWN = {
   /** Primeiro inimigo (m) e espaçamento médio (m) no começo e no fim da rampa. */
@@ -187,34 +201,49 @@ export const SPAWN = {
 
 /** Pesos por mundo: [tipo, peso, a partir de que altitude no mundo (m)]. */
 export const ENEMY_TABLE = {
-  neon: [['drone', 3, 0], ['zigzag', 2, 40], ['turret', 1.5, 70]],
-  crystal: [['zigzag', 3, 0], ['orb', 3, 0], ['drone', 2, 20]],
-  clock: [['turret', 3, 0], ['drone', 2, 0], ['orb', 1.5, 30]],
+  neon: [['drone', 3, 0], ['zigzag', 2, 40], ['turret', 1.5, 70], ['blackhole', 0.6, 160]],
+  crystal: [['zigzag', 3, 0], ['orb', 3, 0], ['drone', 2, 20], ['blackhole', 0.5, 140]],
+  clock: [['turret', 3, 0], ['drone', 2, 0], ['orb', 1.5, 30], ['blackhole', 0.6, 140]],
+  cosmos: [['meteor', 3, 0], ['ufo', 2.4, 10], ['orb', 1.5, 0], ['blackhole', 1.4, 60], ['drone', 1, 30]],
+  paper: [['clip', 3, 0], ['drone', 1.6, 10], ['zigzag', 2, 20]],
 } as const;
 
-export const POWER_TABLE = [['shield', 4], ['boost', 3], ['jet', 2], ['heart', 1.2]] as const;
+export const POWER_TABLE = [['shield', 4], ['boost', 3], ['jet', 2], ['heart', 1.2], ['magnet', 2.4]] as const;
 
-export type WorldId = 'neon' | 'crystal' | 'clock';
-export const WORLD_ORDER: readonly WorldId[] = ['neon', 'crystal', 'clock'];
+export type WorldId = 'neon' | 'crystal' | 'clock' | 'cosmos' | 'paper';
+/** Ordem dos portais comuns. O Papel é um desvio especial (portal próprio) e fica fora do ciclo. */
+export const WORLD_ORDER: readonly WorldId[] = ['neon', 'crystal', 'clock', 'cosmos'];
 
 export const WORLDS = {
   neon: {name: 'CIDADE NEON'},
   crystal: {name: 'DIMENSÃO CRISTAL'},
   clock: {name: 'MUNDO MECÂNICO'},
+  cosmos: {name: 'COSMOS'},
+  paper: {name: 'UNIVERSO DE PAPEL'},
 } as const;
 
+/** Universo de Papel: faixa jogável (x) à esquerda da dobra; o outro herói é o espelho (W − x). */
+export const PAPER = {LANE_MIN: 44, LANE_MAX: 168, WALL_MIN: 34, WALL_MAX: 176, LENGTH_M: 260} as const;
+
 export const PORTAL = {
-  /** Primeiro portal (m de altitude) e distância mínima entre portais (m) dentro de cada mundo. */
-  FIRST_M: 100,
-  TRAVEL_M: 130,
+  /** Primeiro portal (m de altitude): bem longe; sorteado entre os dois valores. */
+  FIRST_M: [700, 1000],
+  /** Entre um portal e o próximo (m): sorteado. Nunca dois por perto. */
+  GAP_M: [750, 1250],
   /** Depois de um portal perdido, o próximo vem tantos metros adiante. */
-  MISS_RETRY_M: 90,
+  MISS_RETRY_M: 420,
   /** Caixa de contato (igual ao protótipo). */
   HALF_W: 34,
   HALF_H: 47,
   /** Altura do centro do portal sobre a plataforma de apoio e afastamento lateral. */
   ABOVE: 74,
   SIDE: 82,
+  /** Tipos de portal e peso (o do Papel só depois do primeiro portal e fora do próprio Papel). */
+  KINDS: [['world', 5], ['paper', 2.2], ['bonus', 1.6], ['warp', 1.6]],
+  /** Fase bônus: comprimento (m) e atalho: segundos de voo e velocidade. */
+  BONUS_M: 90,
+  WARP_TIME: 2.6,
+  WARP_SPEED: 900,
 } as const;
 
 /** Efeitos de mundo na horizontal. */

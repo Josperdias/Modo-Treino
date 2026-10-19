@@ -43,6 +43,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   const start = useCallback((who?: Hero) => {
     const w = who ?? hero;
     const s = new Session(newSeed(), 690, save.best[w]);
+    s.bestMeters = save.bestMeters[w];
     session.current = s;
     // Gancho só para testes de interface (ativo quando o teste fixa a semente).
     if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') {
@@ -53,7 +54,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
     setHint(true);
     setNewRecord(false);
     setPhase('play');
-  }, [hero, save.best]);
+  }, [hero, save.best, save.bestMeters]);
 
   const pause = useCallback(() => {
     if (session.current && !session.current.over) { session.current.pause(); setPhase('pause'); }

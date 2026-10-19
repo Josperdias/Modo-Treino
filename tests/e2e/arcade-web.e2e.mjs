@@ -370,6 +370,49 @@ test('portal: encostar leva ao mundo seguinte (cristal), com chão seguro, recup
   await context.close();
 });
 
+/** Põe um portal de `variant` colado ao herói e espera a travessia. */
+async function throughPortal(page, variant, target = 'neon') {
+  await page.evaluate(({variant, target}) => {
+    const sim = globalThis.__MODO_ARCADE_SESSION__.sim, p = sim.player;
+    sim.items.push({id: 5600 + variant.length, kind: 'portal', x: p.x, y: p.y + 55, phase: 0, hit: false, target, variant});
+  }, {variant, target});
+}
+
+test('portais novos: Papel espelha os dois personagens e a volta troca de herói; bônus e atalho funcionam; Cosmos desenha', {skip}, async () => {
+  const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await startGame(page);
+  const get = () => page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__.sim; return {world: s.world, swapped: s.swapped, jet: s.jet, bonusY1: s.bonusY1, lane: s.gen.lane, mode: s.mode}; });
+  // Atalho: hélice turbo.
+  await throughPortal(page, 'warp');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.jet > 0);
+  await page.waitForTimeout(400);
+  await shot(page, '09-atalho-turbo');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.jet <= 0, null, {timeout: 8000});
+  // Papel: faixa estreita e herói espelhado.
+  await throughPortal(page, 'paper');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'paper');
+  assert.deepEqual((await get()).lane, [44, 168]);
+  await page.waitForTimeout(1500);
+  await shot(page, '10-universo-de-papel');
+  // Volta: os heróis trocam.
+  await throughPortal(page, 'back', 'cosmos');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world !== 'paper', null, {timeout: 8000});
+  assert.equal((await get()).swapped, true, 'a volta do Papel troca o herói');
+  // Cosmos.
+  await page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__.sim; s.world = 'cosmos'; s.gen.world = 'cosmos'; s.invuln = 99; });
+  await page.waitForTimeout(1200);
+  await shot(page, '11-cosmos');
+  // Bônus: zona dourada.
+  await throughPortal(page, 'bonus');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.bonusY1 > 0);
+  await page.waitForTimeout(800);
+  await shot(page, '12-bonus');
+  assert.equal((await get()).mode, 'playing');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('pausa: congela a simulação, mostra o menu e retoma sem salto de tempo', {skip}, async () => {
   const {context, page} = await open({save: {v: 1, unlocked: true}});
   await toArcade(page);

@@ -50,8 +50,10 @@ function burst(fx: Fx, x: number, y: number, color: string, count: number, sprea
 
 const LAND_COLOR: Record<string, string> = {spring: '#ffdc7b', fragile: '#ff5b9e', moving: '#59dcd6'};
 
-const KIND_COLOR: Record<string, string> = {shield: '#51ecff', boost: '#ffe36c', jet: '#ff7a95', heart: '#ff3d6e', flag: '#ffe36c', tape: '#ffe48a'};
-const ENEMY_COLOR: Record<string, string> = {drone: '#d889ff', zigzag: '#7aa0ff', turret: '#f5b15e', orb: '#28d8fd', guardian: '#ff4dac'};
+const KIND_COLOR: Record<string, string> = {shield: '#51ecff', boost: '#ffe36c', jet: '#ff7a95', heart: '#ff3d6e', flag: '#ffe36c', tape: '#ffe48a', magnet: '#ff5a7a', star: '#ffe36c'};
+const ENEMY_COLOR: Record<string, string> = {drone: '#d889ff', zigzag: '#7aa0ff', turret: '#f5b15e', orb: '#28d8fd', guardian: '#ff4dac', ufo: '#7ff6ff', meteor: '#ff9d4a', clip: '#d5dcee', blackhole: '#8e3fff'};
+
+const PORTAL_FX: Record<string, [string, string]> = {world: ['#88fffd', '#c58cff'], paper: ['#fff1c9', '#2d2a40'], bonus: ['#ffd369', '#fff3b0'], warp: ['#ff4fd8', '#ffd0f7'], back: ['#fff1c9', '#ff7ad9']};
 
 function ring(fx: Fx, x: number, y: number, color: string, r = 70, max = 0.5) {
   if (fx.rings.length < MAX_RINGS) fx.rings.push({x, y, age: 0, max, color, r});
@@ -67,11 +69,13 @@ export function onEvents(fx: Fx, events: readonly SimEvent[], world?: WorldId) {
       if (e.plat === 'spring') { fx.flash = 0.22; fx.flashColor = '#ffe59e'; }
     } else if (e.t === 'collect') {
       burst(fx, e.x, e.y, '#ffe48a', 10);
+      if (e.combo >= 3) pop(fx, e.x, e.y + 22, 'x' + e.combo, '#ffd369');
     } else if (e.t === 'break') {
       burst(fx, e.x, e.y, '#ff5b9e', 12, 90);
     } else if (e.t === 'pickup') {
       burst(fx, e.x, e.y, KIND_COLOR[e.kind] || '#ffffff', 14);
       ring(fx, e.x, e.y, KIND_COLOR[e.kind] || '#ffffff', 46, 0.4);
+      if (e.kind === 'star') { pop(fx, e.x, e.y + 26, '+150', '#ffe36c'); fx.flash = 0.18; fx.flashColor = '#fff3b0'; }
     } else if (e.t === 'hit') {
       if (e.blocked) { burst(fx, e.x, e.y, '#51ecff', 8); ring(fx, e.x, e.y, '#51ecff', 40, 0.3); }
       else { burst(fx, e.x, e.y, '#ff5470', 18); fx.shake = 0.24; fx.flash = 0.3; fx.flashColor = '#ff2d5a'; }
@@ -84,12 +88,20 @@ export function onEvents(fx: Fx, events: readonly SimEvent[], world?: WorldId) {
     } else if (e.t === 'shoot') {
       if (e.own) burst(fx, e.x, e.y - 6, '#62fff1', 3, 50);
     } else if (e.t === 'portal') {
-      fx.flash = 0.5; fx.flashColor = '#9bfbff'; fx.shake = 0.2;
-      ring(fx, e.x, e.y, '#88fffd', 220, 0.9);
-      ring(fx, e.x, e.y, '#c58cff', 150, 0.7);
-      burst(fx, e.x, e.y, '#88fffd', 28, 190);
+      const [c1, c2] = PORTAL_FX[e.variant] ?? PORTAL_FX.world;
+      fx.flash = 0.5; fx.flashColor = c1; fx.shake = 0.2;
+      ring(fx, e.x, e.y, c1, 220, 0.9);
+      ring(fx, e.x, e.y, c2, 150, 0.7);
+      burst(fx, e.x, e.y, c1, 28, 190);
+      burst(fx, e.x, e.y, c2, 12, 140);
       fx.worldFrom = world ?? null; fx.worldFade = 1;
-      pop(fx, e.x, e.y + 40, '+150', '#9bfbff');
+      pop(fx, e.x, e.y + 40, '+150', c1);
+    } else if (e.t === 'swap') {
+      // Os dois heróis trocam de lugar: anéis nas duas cores e uma explosão de pétalas e estrelas.
+      ring(fx, e.x, e.y, '#ff4dac', 130, 0.8);
+      ring(fx, e.x, e.y, '#49e6ff', 90, 0.7);
+      burst(fx, e.x, e.y, '#ff4dac', 14, 170);
+      burst(fx, e.x, e.y, '#49e6ff', 14, 170);
     } else if (e.t === 'revive') {
       fx.flash = 0.4; fx.flashColor = '#fff3b0';
       ring(fx, e.x, e.y + 40, '#ffe36c', 140, 0.7);
@@ -121,4 +133,12 @@ export function updateFx(fx: Fx, dt: number) {
   for (let i = 0; i < fx.pops.length; i++) { const q = fx.pops[i]; q.age += dt; q.y += 38 * dt; if (q.age < q.max) fx.pops[n++] = q; }
   fx.pops.length = n;
   if (fx.worldFade > 0) fx.worldFade = Math.max(0, fx.worldFade - dt / 1.1);
+}
+
+/** Passou do próprio recorde de altura: anel dourado, chuva de brilho e aviso. */
+export function onRecord(fx: Fx, x: number, y: number) {
+  fx.flash = 0.3; fx.flashColor = '#ffe9a0';
+  ring(fx, x, y, '#ffd369', 200, 0.9);
+  burst(fx, x, y, '#ffd369', 24, 200);
+  pop(fx, x, y + 50, 'NOVO RECORDE', '#ffd369');
 }

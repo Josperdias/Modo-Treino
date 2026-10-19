@@ -3,8 +3,8 @@ import type {WorldId} from '../data/neon.ts';
 
 export type {WorldId};
 
-export type PlatformType = 'start' | 'normal' | 'moving' | 'fragile' | 'spring' | 'conveyor';
-export type PatternName = 'start' | 'chaos' | 'cluster' | 'drought' | 'springPad' | 'ladder' | 'portalPad';
+export type PlatformType = 'start' | 'normal' | 'moving' | 'fragile' | 'spring' | 'conveyor' | 'ghost';
+export type PatternName = 'start' | 'chaos' | 'cluster' | 'drought' | 'springPad' | 'ladder' | 'portalPad' | 'bonus';
 
 export type Platform = {
   id: number;
@@ -23,7 +23,10 @@ export type Platform = {
   dir: number;
 };
 
-export type ItemKind = 'tape' | 'shield' | 'boost' | 'jet' | 'heart' | 'flag' | 'portal';
+export type ItemKind = 'tape' | 'shield' | 'boost' | 'jet' | 'heart' | 'flag' | 'portal' | 'magnet' | 'star';
+
+/** Portais: mundo seguinte, Papel (heróis espelhados + troca), bônus (chuva de fitas) e atalho (sobe voando). `back` = volta do Papel. */
+export type PortalVariant = 'world' | 'paper' | 'bonus' | 'warp' | 'back';
 
 export type Item = {
   id: number;
@@ -32,11 +35,12 @@ export type Item = {
   y: number;
   phase: number;
   hit: boolean;
-  /** Só portais: para onde levam. */
+  /** Só portais: para onde levam e de que tipo. */
   target?: WorldId;
+  variant?: PortalVariant;
 };
 
-export type EnemyKind = 'drone' | 'zigzag' | 'turret' | 'orb' | 'guardian';
+export type EnemyKind = 'drone' | 'zigzag' | 'turret' | 'orb' | 'guardian' | 'ufo' | 'meteor' | 'blackhole' | 'clip';
 
 export type Enemy = {
   id: number;
@@ -87,7 +91,8 @@ export type SimEvent =
   | {t: 'kill'; kind: EnemyKind; x: number; y: number; by: 'stomp' | 'shot' | 'jet'}
   | {t: 'shoot'; own: boolean; x: number; y: number}
   | {t: 'warn'; x: number; y: number}
-  | {t: 'portal'; world: WorldId; x: number; y: number}
+  | {t: 'portal'; world: WorldId; variant: PortalVariant; x: number; y: number}
+  | {t: 'swap'; x: number; y: number}
   | {t: 'revive'; x: number; y: number}
   | {t: 'over'; cause: 'fall' | 'damage'};
 
@@ -113,6 +118,15 @@ export type Gen = {
   nextFlagY: number;
   portalY: number;
   portalPlaced: boolean;
+  /** Faixa jogável do mundo atual (Papel: estreita); null = campo todo. */
+  lane: [number, number] | null;
+  /** Papel: mundo de volta, altitude em que o portal de volta aparece. */
+  returnWorld: WorldId | null;
+  paperExitY: number;
+  /** Fase bônus: até que altitude o gerador faz só plataformas largas com fitas (0 = fora). */
+  bonusEndY: number;
+  /** Quantos portais já passaram (o do Papel só depois do primeiro). */
+  portalsMade: number;
 };
 
 export type Mode = 'playing' | 'over';
@@ -150,6 +164,15 @@ export type Sim = {
   portals: number;
   /** Pontos extras (abates, bandeiras, portais). */
   bonus: number;
+  /** Ímã de fitas (s restantes). */
+  magnet: number;
+  /** Velocidade do voo atual (hélice ou atalho). */
+  jetSpeed: number;
+  /** Heróis trocados pelo portal do Papel (a arte do herói inverte). */
+  swapped: boolean;
+  /** Faixa de altitude da fase bônus (y0..y1) para o desenho; 0 = nenhuma. */
+  bonusY0: number;
+  bonusY1: number;
   score: number;
   maxY: number;
   tapes: number;

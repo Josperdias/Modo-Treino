@@ -1,7 +1,7 @@
 import {advance, makeLoop, type Loop} from './core/loop.ts';
 import {createSim, metersOf, setViewH} from './core/sim.ts';
 import type {Sim, SimEvent} from './core/types.ts';
-import {makeFx, onEvents, updateFx, type Fx} from './fx.ts';
+import {makeFx, onEvents, onRecord, updateFx, type Fx} from './fx.ts';
 import {makePerf, recordFrame, summarize, type Perf} from './perf.ts';
 
 export type Hud = {
@@ -36,6 +36,9 @@ export class Session {
   alpha = 0;
   paused = false;
   best: number;
+  /** Recorde de metros do personagem (linha dourada no mundo); 0 = sem recorde. */
+  bestMeters = 0;
+  private recordShown = false;
   /** Eventos novos desde a última leitura (HUD, vibração, avisos). */
   private pending: SimEvent[] = [];
   private lastNow = -1;
@@ -96,6 +99,10 @@ export class Session {
     }
     updateFx(this.fx, Math.min(frameMs, 50) / 1000);
     if (this.sim.score > this.best) this.best = this.sim.score;
+    if (!this.recordShown && this.bestMeters >= 50 && metersOf(this.sim) >= this.bestMeters) {
+      this.recordShown = true;
+      onRecord(this.fx, this.sim.player.x, this.sim.player.y);
+    }
     return true;
   }
 
