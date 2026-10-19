@@ -166,11 +166,13 @@ test('menu: tela neutra na 1ª vez, escolher mostra o JOGAR com o recorde, troca
   await context.close();
 });
 
-test('menu: quem já jogou volta com o último personagem já escolhido', {skip}, async () => {
+test('menu: quem já jogou também abre no centro, sem ninguém pré-selecionado (a pessoa escolhe)', {skip}, async () => {
   const {context, page} = await open({save: {v: 1, unlocked: true, plays: 3, best: {josperd: 10, camila: 500}, settings: {hero: 'camila'}}});
   await toArcade(page);
-  await chosen(page, 'CAMILA');
-  await page.getByLabel('Jogar com CAMILA').waitFor();
+  assert.equal(await page.getByTestId('arcade-indicator').getAttribute('aria-label'), '', 'nada escolhido ao abrir');
+  assert.equal(await page.getByTestId('arcade-play').getAttribute('aria-label'), 'Escolha seu personagem');
+  assert.equal(await page.getByTestId('arcade-play').isDisabled(), true, 'sem PRESS START até escolher');
+  await shot(page, '01-menu-neutro-quem-ja-jogou');
   await context.close();
 });
 

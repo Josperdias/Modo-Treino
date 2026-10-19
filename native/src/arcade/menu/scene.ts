@@ -1,6 +1,6 @@
 import {BlendMode, ClipOp, FilterMode, Skia, TileMode, createPicture, type SkCanvas, type SkImage, type SkShader} from '@shopify/react-native-skia';
 import {P, col, glow, hGrad, img, look, vGrad} from './skutil';
-import {drawLoading, drawPressStart, drawSelectPrompt, type LoadFrame} from './pixelscene';
+import {drawLoading, drawPressStart, type LoadFrame} from './pixelscene';
 import {boxes, clamp, mix, pose, splitLine, type Box, type Look, type Stage} from './pose';
 import type {MenuImages} from './assets';
 
@@ -283,7 +283,6 @@ export function drawMenu(canvas: SkCanvas, f: MenuFrame): void {
   }
 
   drawLogo(canvas, f, bx.logo);
-  drawSelectPrompt(canvas, s, time, f.still, (1 - p.chosen) * a * (1 - lg));
   drawPressStart(canvas, s, f.t < 0 ? 'josperd' : 'camila', time, f.still, p.chosen * a, f.press, W, H);
 
   // Botão de setas no centro (acompanha o raio) e dica de deslizar.

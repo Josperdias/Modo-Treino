@@ -218,30 +218,6 @@ export function assembleText(canvas: SkCanvas, text: string, cx: number, cy: num
   });
 }
 
-/**
- * Aviso no MEIO da tela enquanto ninguém foi escolhido: "SELECIONE / O PERSONAGEM" com setas que apontam para os dois lados.
- * `appear` = 1 neutro → 0 quando alguém é escolhido.
- */
-export function drawSelectPrompt(canvas: SkCanvas, stage: Stage, time: number, still: boolean, appear: number) {
-  if (appear <= 0.01) return;
-  const cell = Math.max(2, Math.floor((0.62 * stage.w) / 71));
-  const cx = stage.x + stage.w / 2;
-  const cy = stage.y + stage.h * 0.5;
-  const pulse = still ? 1 : 1 + 0.03 * Math.sin(time * 4);
-  const rows = ['#ffffff', '#ffffff', '#fff7b8', '#ffe36c', '#ff9bd6', '#c58cff', '#6fe3ff'];
-  glow(canvas, '#0a0420', stage.w * 0.55, cx, cy, 0.55 * appear, 1, 0.42);
-  canvas.save();
-  canvas.translate(cx, cy); canvas.scale(pulse, pulse); canvas.translate(-cx, -cy);
-  drawChunkText(canvas, 'SELECIONE', cx, cy - cell * 6, cell, {rows, depth: '#5a2a8a', extrude: 2, alpha: appear});
-  drawChunkText(canvas, 'O PERSONAGEM', cx, cy + cell * 6, cell, {rows, depth: '#5a2a8a', extrude: 2, alpha: appear});
-  canvas.restore();
-  // setas nas laterais empurrando para fora (um lado para cada personagem)
-  const bob = still ? 0 : Math.round(Math.abs(Math.sin(time * 5)) * cell * 2);
-  const reach = stage.w * 0.4;
-  drawChunkText(canvas, '<', cx - reach - bob, cy, cell + 1, {rows: ['#ff9bd6', '#ff9bd6', '#ff9bd6', '#ff6bd0', '#ff2fc8', '#ff2fc8', '#ff2fc8'], depth: '#3b1a52', extrude: 1, alpha: appear});
-  drawChunkText(canvas, '>', cx + reach + bob, cy, cell + 1, {rows: ['#a6eeff', '#a6eeff', '#a6eeff', '#6fe3ff', '#2fd0ff', '#2fd0ff', '#2fd0ff'], depth: '#3b1a52', extrude: 1, alpha: appear});
-}
-
 /** Quanto tempo (s) dura a animação do PRESS START depois do toque: pisca rápido e se despedaça. */
 export const PRESS_ANIM = {blink: 0.42, total: 0.76};
 

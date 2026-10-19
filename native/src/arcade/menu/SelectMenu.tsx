@@ -40,7 +40,7 @@ export default function SelectMenu(p: SelectMenuProps) {
   const win = useWindowDimensions();
   const [size, setSize] = useState<{w: number; h: number} | null>(null);
   const [images, setImages] = useState<MenuImages>(NO_IMAGES);
-  const [choice, setChoice] = useState<Choice | null>(p.first ? null : (p.hero as Choice));
+  const [choice, setChoice] = useState<Choice | null>(null) // sempre abre no centro: quem joga escolhe (nada vem pré-selecionado);
   const [phase, setPhase] = useState<'select' | 'flash' | 'loading'>('select');
   const reduce = useReducedMotion();
   const props = useRef(p);
@@ -48,7 +48,7 @@ export default function SelectMenu(p: SelectMenuProps) {
 
   // Estado da animação (fora do React: o laço de quadros lê direto).
   const st = useRef({
-    t: p.first ? 0 : targetOf(p.hero as Choice),
+    t: 0,
     tween: null as Tween | null,
     drag: null as {t0: number; x0: number; y0: number; at: number} | null,
     opened: now(),
