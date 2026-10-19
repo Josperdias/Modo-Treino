@@ -578,8 +578,8 @@ function drawStatus(canvas: SkCanvas, S: SceneInput, scale: number, time: number
     x += 31;
   }
   x += 4;
-  for (let i = 0; i < 2; i++) {
-    drawPix(canvas, SHIELD, x + 14, y0 + 12, 1.6, {alpha: i < sim.shields ? 1 : 0.2});
+  for (let i = 0; i < sim.shields; i++) {
+    drawPix(canvas, SHIELD, x + 14, y0 + 12, 1.6);
     x += 30;
   }
   if (sim.revive > 0) { drawPix(canvas, FLAG[Math.floor(time * 3) % 2], x + 8, y0 + 12, 1.4); x += 26; }

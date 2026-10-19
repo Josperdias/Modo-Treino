@@ -297,6 +297,78 @@ test('controles de toque: lado direito = +1, esquerdo = -1, os dois = 0, soltar 
   await context.close();
 });
 
+test('tiro: o botão redondo do centro atira sem mover; um dedo de lado continua movendo', {skip}, async () => {
+  const {context, page} = await open({save: {v: 1, unlocked: true}, touch: true});
+  const cdp = await context.newCDPSession(page);
+  await toArcade(page);
+  await startGame(page);
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', {type, touchPoints: pts.map(([x, y], id) => ({x, y, id}))});
+  const st = () => page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__; return {fire: s.fire, axis: s.axis, own: s.sim.bullets.filter(b => b.own).length}; });
+  await touch('touchStart', [[196, 790]]); // dentro do botão
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.fire === true);
+  assert.equal((await st()).axis, 0, 'o botão não move o herói');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.bullets.some(b => b.own));
+  await touch('touchStart', [[196, 790], [330, 500]]); // botão + lado direito
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.axis === 1 && globalThis.__MODO_ARCADE_SESSION__.fire === true);
+  await touch('touchEnd', []);
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.axis === 0 && globalThis.__MODO_ARCADE_SESSION__.fire === false);
+  await context.close();
+});
+
+test('tiro: a barra de espaço atira no teclado', {skip}, async () => {
+  const {context, page} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await startGame(page);
+  await page.keyboard.down(' ');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.bullets.some(b => b.own));
+  await page.keyboard.up(' ');
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.fire === false);
+  await context.close();
+});
+
+test('vidas e inimigos: encostar tira um coração, acabar as vidas encerra e a tela diz a causa', {skip}, async () => {
+  const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await startGame(page);
+  const hit = () => page.evaluate(() => {
+    const s = globalThis.__MODO_ARCADE_SESSION__, sim = s.sim, p = sim.player;
+    sim.invuln = 0; sim.shields = 0;
+    p.x = 210; p.vx = 0; p.drift = 0; // o empurrão do dano tira o herói da plataforma; recoloca
+    sim.enemies.push({id: 777 + sim.enemies.length, kind: 'drone', x0: p.x, y0: p.y + 40, x: p.x, y: p.y + 40, phase: 0, speed: 0, range: 0, size: 20, hp: 1, maxHp: 1, cooldown: 99, warn: false, alive: true});
+    return sim.lives;
+  });
+  assert.equal(await hit(), 2);
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.lives === 1);
+  await shot(page, '07-dano-um-coracao');
+  await page.evaluate(() => { const p = globalThis.__MODO_ARCADE_SESSION__.sim.player; p.x = 210; p.vx = 0; p.drift = 0; });
+  await page.waitForTimeout(2000); // fim da invencibilidade
+  await hit();
+  await page.getByTestId('arcade-final').waitFor({timeout: 10000});
+  assert.equal(await page.getByTestId('arcade-cause').textContent(), 'Acabaram as vidas.');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('portal: encostar leva ao mundo seguinte (cristal), com chão seguro, recuperação guardada e o jogo continua', {skip}, async () => {
+  const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await startGame(page);
+  await page.evaluate(() => {
+    const s = globalThis.__MODO_ARCADE_SESSION__, sim = s.sim, p = sim.player;
+    sim.items.push({id: 5551, kind: 'portal', x: p.x, y: p.y + 45 + 10, phase: 0, hit: false, target: 'crystal'});
+  });
+  await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.world === 'crystal');
+  const r = await page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__.sim; return {portals: s.portals, revive: s.revive, invuln: s.invuln, genWorld: s.gen.world}; });
+  assert.deepEqual([r.portals, r.revive, r.genWorld], [1, 1, 'crystal']);
+  await page.waitForTimeout(1500);
+  await shot(page, '08-mundo-cristal');
+  const t0 = (await sess(page)).tick;
+  await page.waitForTimeout(800);
+  assert.ok((await sess(page)).tick > t0, 'o jogo segue rodando no mundo novo');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('pausa: congela a simulação, mostra o menu e retoma sem salto de tempo', {skip}, async () => {
   const {context, page} = await open({save: {v: 1, unlocked: true}});
   await toArcade(page);

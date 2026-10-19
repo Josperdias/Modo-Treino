@@ -2,6 +2,39 @@
 
 O texto público da release fica em `CHANGELOG.md` (só uma dica, o jogo é um segredo). Aqui ficam os detalhes.
 
+## [Em desenvolvimento] — M2 (parte 1): mais jogo, mais desafio, inimigos em pixel
+
+Pedido do dono: refinar o jogo, **menos fácil e com mais cara de Doodle Jump**, **sem aviso de fase**, com **portais**, ideias do protótipo HTML, **inimigos** e mais coisas divertidas, tudo estilizado e em pixel.
+
+### Sem avisos de fase
+- Saiu o banner "NÍVEL xx" e as pílulas "NEON · LV 01 · AQUECIMENTO". O nível continua existindo só por dentro (velocidade lateral e dos tiros); o motor não emite mais o evento `level`. Mundo novo = só o visual e a mecânica mudando (nenhum texto).
+
+### Mais difícil
+- Rampa até a dificuldade máxima em 220 m (era 300), respiros mais raros (piso do ritmo 0,68), degraus até 168 un. (≈ 85 % do ápice; antes 146), plataformas mais estreitas (88→44 em vez de 100→64), móveis/quebráveis/mola entram mais cedo (fork 18 m, móveis 34, quebráveis 54, mola 76, zigue-zague 100). O validador de alcance aceita até 86 % do ápice e 90 % do alcance horizontal; **os 300 mapas × 3000 m continuam 100 % alcançáveis**.
+- Robôs medidos (240 s, 25 sementes): o IDEAL nunca cai (no máx. 1–2 morrem por dano); o HUMANO (150 ms de reação, erro de 14 un.) fica de 0 a 3 mortes; o DESCUIDADO (250 ms, erro de 30 un.) morre em 80–90 % das partidas, em ~2 min.
+
+### Combate (novo)
+- **Vidas**: 2 corações (máx. 3), escudos (máx. 2) e 1,8 s de invencibilidade depois de um golpe; coração extra cura.
+- **Pisar de cima derruba** o inimigo e quica (770), como no Doodle Jump. **Tiro para cima** pelo botão redondo do centro (ou espaço no teclado), com cooldown de 0,38 s; o botão não move o herói e dá para atirar com um dedo e andar com o outro.
+- **Inimigos em pixel** (arte nova desenhada no código, `render/pixelart.ts`; nenhum dos sprites experimentais descartados voltou): **drone** (patrulha e atira), **zigue-zague** (varre a tela), **torre** (2 vidas, atira), **orbe** (circula, espinhos) e **guardião** (chefe de 3 vidas, tiro duplo, a partir de 200 m). Os que atiram só começam a partir de 50 m e **avisam 0,72 s antes** (piscam e mostram "!"). No máximo 4 tiros inimigos no ar.
+- Inimigos nascem a partir de 38 m, mais frequentes com a altitude, **sempre fora das plataformas** (testado), no vão da rota ("bloqueio") ou ao lado dela.
+
+### Poderes e checkpoint
+- **Escudo**, **sapatos de mola** (9 s de pulo 835), **hélice** (2,1 s subindo sozinho, imune, destrói quem tocar) e **coração**: aparecem a cada 150–230 m (nunca em cascata).
+- **Bandeira de checkpoint também na Cidade Neon** (a cada ~220 m, a partir de ~95 m): guarda **uma** recuperação; cair ou ficar sem vidas gasta a carga e o herói volta numa plataforma firme da tela, com vidas cheias, 3 s de invencibilidade e a tela limpa de ameaças. Cada portal também dá uma carga.
+
+### Portais e mundos
+- **Portal por contato** (sem janela de confirmação), nunca antes de 100 m (≥ 565 un. de subida, testado), ao lado de uma plataforma larga de apoio e com o caminho seguindo para o lado oposto: **desviar = continuar no mundo**; um portal perdido some e outro vem 90 m adiante. Atravessar limpa o que estava à frente, cria um chão seguro e dá 2,5 s de invencibilidade.
+- Mundos: **Cidade Neon** → **Dimensão Cristal** (vento que alterna, plataformas de vidro, cristais e feixes de luz) → **Mundo Mecânico** (esteiras que empurram no pouso, engrenagens, torres) → volta ao Neon. O **Universo de Papel** (dois heróis espelhados) fica para a parte 2.
+- Transição do portal: clarão, anéis, o fundo antigo some por cima do novo.
+
+### Visual
+- HUD novo no canto (corações, escudos, bandeira de recuperação e barras de poder) e botão de tiro em pixel; plataformas e fundos por mundo; balas, portais animados, anéis de abate, "+60" flutuante e hélice/chama/bolha de escudo no herói. Tudo em Skia, sem imagem nova.
+- Ferramenta: `node scripts/prever-pixelart.mjs saida.png` gera a folha de prévia dos sprites de pixel.
+
+### Testes
+- `tests/arcade-m2.test.mjs` (20 testes: movimento dos inimigos, pisar, dano, escudo, hélice, tiro e cooldown, aviso antes do tiro, recuperação, poderes, portal, portal perdido, vento/esteira, geração fora das plataformas, tipos por mundo) + e2e de tiro (toque e teclado), vidas/causa do fim e portal.
+
 ## [Em desenvolvimento] — M1.6 novo menu de seleção (nativo, Skia)
 
 Refinado a partir do **V3.5 FLUIDO** do Drive (a linha principal; o V4 experimental fica de referência em `arcade/fonte/menu/`).

@@ -1,6 +1,6 @@
 # NEON STEP DX — Plano de implementação por etapas
 
-> **Status (2026-10-16):** M0 concluído · **M1 entregue** (ver `M1-comparacao.md`; APK jogável pelo CI do PR #17, sem publicar) · M2 em diante aguardam o teste do M1 no aparelho.
+> **Status (2026-10-19):** M0 concluído · **M1 entregue e lançado (1.4.5)** · novo menu de seleção (M1.6) feito · **M2 parte 1** feita (inimigos em pixel, vidas, tiro, poderes, bandeira, portais, Neon/Cristal/Mecânico; ver `CHANGELOG-ARCADE.md`). Falta do M2: Universo de Papel espelhado, guardião por mundo e regras de troca de personagem.
 
 ## Decisões aprovadas pelo dono (valem para todos os marcos)
 
