@@ -6,7 +6,7 @@ import {Accelerometer} from 'expo-sensors';
 import type {Session, Hud} from './session.ts';
 import type {SimEvent} from './core/types.ts';
 import type {Control, Hero} from './save';
-import {recordDraw} from './perf.ts';
+import {Quality, recordDraw, type QLevel} from './perf.ts';
 import {FIELD_W} from './data/neon.ts';
 import {loadSprites, type SpriteSet} from './render/assets';
 import {drawScene} from './render/scene';
@@ -23,6 +23,8 @@ export type GameCanvasProps = {
   onOver: () => void;
   /** Pedido de pausa vindo do teclado (web). */
   onPauseKey?: () => void;
+  /** Modo leve escolhido pelo usuário: começa (e fica) no nível mínimo de desenho. */
+  lite?: boolean;
 };
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -52,6 +54,10 @@ export default function GameCanvas(p: GameCanvasProps) {
   const [sprites, setSprites] = useState<SpriteSet>(EMPTY);
   // Erro dentro do laço de quadros (fora do React): reenvia para o ErrorBoundary da tela em vez de derrubar o app.
   const [, setFatal] = useState(0);
+  // Qualidade adaptativa: aparelho lento desenha mais simples, a 30 quadros/s e numa resolução menor (a simulação segue exata).
+  const quality = useRef(new Quality(p.lite ? 2 : 0));
+  const [qLevel, setQLevel] = useState<QLevel>(quality.current.level);
+  useEffect(() => { quality.current.setFloor(p.lite ? 2 : 0); setQLevel(quality.current.level); }, [p.lite]);
   const blank = useMemo(() => createPicture(() => {}, {width: 1, height: 1}), []);
   const picture = useSharedValue<SkPicture>(blank);
   const props = useRef(p);
@@ -80,7 +86,8 @@ export default function GameCanvas(p: GameCanvasProps) {
     let raf = 0;
     let lastHud = 0;
     let overSent = false;
-    const rectSize = {width: size.w, height: size.h};
+    let lastDraw = -1000;
+    const q = quality.current;
     const tick = (ts: number) => {
       raf = requestAnimationFrame(tick);
       try {
@@ -93,10 +100,15 @@ export default function GameCanvas(p: GameCanvasProps) {
     const frame = (ts: number) => {
       const {session, hero, onHud, onEvents, onOver} = props.current;
       const changed = session.frame(ts);
-      if (changed) {
+      if (changed && !q.skipDraw(ts, lastDraw)) {
         const t0 = now();
-        publish(createPicture((canvas) => { drawScene(canvas, {session, hero, width: size.w, height: size.h, sprites}, now); }, rectSize));
-        recordDraw(session.perf, now() - t0);
+        const sc = q.scale;
+        const w = size.w * sc, h = size.h * sc;
+        publish(createPicture((canvas) => { drawScene(canvas, {session, hero, width: w, height: h, sprites, quality: q.level}, now); }, {width: w, height: h}));
+        const dt = now() - t0;
+        recordDraw(session.perf, dt);
+        if (q.feed(dt, lastDraw < 0 ? 17 : ts - lastDraw, ts)) setQLevel(q.level);
+        lastDraw = ts;
       }
       if (changed) {
         const ev = session.drain();
@@ -161,8 +173,9 @@ export default function GameCanvas(p: GameCanvasProps) {
     if (!size) return;
     props.current.session.setViewH(size.h / (size.w / FIELD_W));
     // Primeiro quadro estático (antes de o laço rodar).
-    publish(createPicture((canvas) => { drawScene(canvas, {session: props.current.session, hero: props.current.hero, width: size.w, height: size.h, sprites}, now); }, {width: size.w, height: size.h}));
-  }, [size, sprites, picture, publish]);
+    const sc = quality.current.scale;
+    publish(createPicture((canvas) => { drawScene(canvas, {session: props.current.session, hero: props.current.hero, width: size.w * sc, height: size.h * sc, sprites, quality: quality.current.level}, now); }, {width: size.w * sc, height: size.h * sc}));
+  }, [size, sprites, picture, publish, qLevel]);
 
   return (
     <View
@@ -182,7 +195,11 @@ export default function GameCanvas(p: GameCanvasProps) {
       accessible
       accessibilityLabel="Jogo NEON STEP DX. Segure o lado esquerdo ou direito da tela para mover o personagem e toque no botão redondo de baixo para atirar."
     >
-      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* Nível mínimo: o canvas é menor e ampliado (menos pixels para a GPU de aparelhos fracos). */}
+      <Canvas
+        style={qLevel >= 2 ? {position: 'absolute', left: 0, top: 0, width: (size?.w ?? 0) * 0.75, height: (size?.h ?? 0) * 0.75, transformOrigin: 'top left', transform: [{scale: 1 / 0.75}]} : StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
         <Picture picture={picture} />
       </Canvas>
     </View>

@@ -132,3 +132,11 @@ Easter egg novo, **escondido** e sem mudar nada do resto do app. Lançado junto 
 ### Ainda não existe (próximos marcos)
 Inimigos, poderes, portais e os outros universos (M2), checkpoint na Cidade Neon e Papel espelhado (M2), áudio e músicas (M3/M4).
 
+
+
+## 1.4.9 — Desempenho, rampa lenta, Diário e partida guardada
+- **Desenho**: `scene.ts` guarda pincéis de cor sólida (`solid()`), grava em Pictures o corpo das plataformas (`platformPic`, chave mundo+tipo+largura+passo de animação), a fita e a engrenagem (girada com um `rotate`). Chamadas ao CanvasKit por quadro (bench2, mundo a mundo): neon 1272→306, crystal 2360→366, clock ~2900→367, paper 2872→387.
+- **Qualidade adaptativa** (`perf.ts` → `Quality`): nível 0 completo · 1 sem brilhos/menos partículas · 2 além disso 30 quadros/s e canvas a 75 % (ampliado). Sobe se o desenho passa de 8 ms (ou o quadro de 26 ms); só desce após 8 s folgado (cada recaída dobra a espera). `settings.lite` fixa o piso no nível 2.
+- **Rampa**: `RAMP_M` 2400, `RAMP_POW` 1.4, aquecimento 100 m, móveis 140 m, frágeis 300 m, 1º inimigo 220 m (espaçamento 420→100 m), guardião 900 m. Robôs: DESCUIDADO morre ~2300–6000 m, BAGUNCEIRO ~1200–3800 m, IDEAL/HUMANO sobrevivem 10 min.
+- **Diário** (`discovery.ts`, catálogo de 51 itens, `save.found` = id → nº da partida): eventos (`fromEvent`) e estado (`fromState`, a cada 1,5 s) viram descobertas salvas na hora. Sem texto de fase dentro da partida; o fim de jogo lista as novas.
+- **Partida guardada** (`runsave.ts`, chave `arcade.run.v1`): JSON da `Sim` a cada 10 s e ao pausar; apagada ao começar outra e ao morrer; CONTINUAR no menu restaura PAUSADA. Testado: restaurar e seguir 30 s dá o MESMO estado que a partida original.

@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {AppState, BackHandler, Platform, StyleSheet, View} from 'react-native';
+import {AppState, BackHandler, Platform, ScrollView, StyleSheet, View} from 'react-native';
 import Animated, {FadeIn, FadeOut} from 'react-native-reanimated';
 import {activateKeepAwakeAsync, deactivateKeepAwake} from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
@@ -7,13 +7,16 @@ import {Text} from '../text';
 import {C, R} from '../theme';
 import {Btn, Card, Chips, Icon, Pattern, Press, Switch} from '../ui';
 import {Flower, Star} from '../glyphs';
-import {useArcade, updateArcade} from './arcadeStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useArcade, updateArcade, getArcade} from './arcadeStore';
 import {useMusic} from '../music/MusicProvider';
 import GameHost from './GameHost';
 import MenuHost from './MenuHost';
 import {Session, type Hud} from './session.ts';
-import {step as simStep} from './core/sim.ts';
-import {recordRun, type Hero} from './save';
+import {metersOf, step as simStep} from './core/sim.ts';
+import {addFound, recordRun, type Hero} from './save';
+import {CATALOG, GROUPS, TOTAL, countFound, fresh, fromEvent, fromState, nameOf} from './discovery.ts';
+import {RUN_KEY, parseSnapshot, snapshotOf, type RunSnapshot} from './runsave.ts';
 import type {SimEvent} from './core/types.ts';
 import {ArcadeAudio} from './audio/engine';
 import {cuesFor, lavaClose, musicFor, stingerFor} from './audio/plan.ts';
@@ -60,6 +63,11 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   const [hint, setHint] = useState(true);
   const [newRecord, setNewRecord] = useState(false);
   const [perf, setPerf] = useState('');
+  const [diary, setDiary] = useState(false);
+  /** Partida guardada no aparelho (se o app fechou no meio) e as descobertas novas desta partida. */
+  const [saved, setSaved] = useState<RunSnapshot | null>(null);
+  const [news, setNews] = useState<string[]>([]);
+  const newsRef = useRef<string[]>([]);
   const session = useRef<Session | null>(null);
   const hero = save.settings.hero;
   const userMusic = useMusic();
@@ -70,11 +78,24 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   const getAudio = () => (audio.current ??= new ArcadeAudio());
   const set = (patch: Partial<typeof save.settings>) => updateArcade((s) => ({...s, settings: {...s.settings, ...patch}}));
 
+  /** Guarda a partida no aparelho (retomável pelo CONTINUAR). Em falha, o jogo segue normalmente. */
+  const saveRun = useCallback(() => {
+    const s = session.current;
+    if (!s || s.over) return;
+    const raw = snapshotOf(s.sim, getArcade().settings.hero, metersOf(s.sim), Date.now());
+    if (raw) AsyncStorage.setItem(RUN_KEY, raw).catch(() => {});
+  }, []);
+  const clearRun = useCallback(() => { setSaved(null); AsyncStorage.removeItem(RUN_KEY).catch(() => {}); }, []);
+
   const start = useCallback((who?: Hero) => {
     const w = who ?? hero;
     const s = new Session(newSeed(), 690, save.best[w]);
     s.bestMeters = save.bestMeters[w];
     session.current = s;
+    newsRef.current = [];
+    setNews([]);
+    clearRun();
+    updateArcade((a) => addFound(a, ['world:neon'], w));
     // Gancho só para testes de interface (ativo quando o teste fixa a semente).
     if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') {
       (globalThis as any).__MODO_ARCADE_SESSION__ = s;
@@ -85,12 +106,59 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
     setHint(true);
     setNewRecord(false);
     setPhase('play');
-  }, [hero, save.best, save.bestMeters]);
+  }, [hero, save.best, save.bestMeters, clearRun]);
 
   const pause = useCallback(() => {
-    if (session.current && !session.current.over) { session.current.pause(); audio.current?.ui('ui_pause'); setPhase('pause'); }
-  }, []);
+    if (session.current && !session.current.over) { session.current.pause(); audio.current?.ui('ui_pause'); setPhase('pause'); saveRun(); }
+  }, [saveRun]);
   const resume = useCallback(() => { session.current?.resume(); setPhase('play'); }, []);
+
+  // Partida guardada de uma vez anterior (app fechado no meio).
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(RUN_KEY).then((raw) => { const snap = parseSnapshot(raw); if (alive && snap) setSaved(snap); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const continueRun = useCallback(() => {
+    if (!saved) return;
+    const s = new Session(saved.sim.seed, saved.sim.viewH, save.best[saved.hero]);
+    s.bestMeters = save.bestMeters[saved.hero];
+    s.restore(saved.sim);
+    session.current = s;
+    newsRef.current = [];
+    setNews([]);
+    if (saved.hero !== getArcade().settings.hero) updateArcade((a) => ({...a, settings: {...a.settings, hero: saved.hero}}));
+    if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') (globalThis as any).__MODO_ARCADE_SESSION__ = s;
+    setHud(s.hud());
+    setNewRecord(false);
+    setPhase('pause');
+  }, [saved, save.best, save.bestMeters]);
+
+  // Autosave a cada 10 s jogando: se o sistema fechar o app, dá para continuar.
+  useEffect(() => {
+    if (phase !== 'play') return;
+    const id = setInterval(saveRun, 10000);
+    return () => clearInterval(id);
+  }, [phase, saveRun]);
+
+  // Diário: o que o jogador vê pela primeira vez fica salvo na hora (um fechamento do app não perde a descoberta).
+  const discover = useCallback((ids: string[]) => {
+    const cur = getArcade();
+    const novo = fresh(cur.found, ids);
+    if (!novo.length) return;
+    updateArcade((a) => addFound(a, novo, a.settings.hero));
+    newsRef.current = [...newsRef.current, ...novo];
+    setNews(newsRef.current);
+  }, []);
+  useEffect(() => {
+    if (phase !== 'play') return;
+    const id = setInterval(() => {
+      const s = session.current;
+      if (s) discover(fromState(s.sim, metersOf(s.sim)));
+    }, 1500);
+    return () => clearInterval(id);
+  }, [phase, discover]);
   const toggleSound = useCallback((on: boolean) => { updateArcade((s) => ({...s, settings: {...s.settings, sfx: on, music: on}})); }, []);
 
   // Voltar do Android: jogando → pausa; pausa/fim → seleção; seleção → sai.
@@ -167,6 +235,8 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   const onEvents = useCallback((events: SimEvent[]) => {
     for (const e of events) {
       if (e.t === 'over') setCause(e.cause);
+      const ids = fromEvent(e);
+      if (ids.length) discover(ids);
       audio.current?.play(cuesFor(e));
       if (!save.settings.haptics || Platform.OS === 'web') continue;
       if (e.t === 'collect' || e.t === 'pickup' || e.t === 'kill') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -174,18 +244,20 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
       else if (e.t === 'portal' || e.t === 'revive') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       else if (e.t === 'over') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     }
-  }, [save.settings.haptics]);
+  }, [save.settings.haptics, discover]);
 
   const onOver = useCallback(() => {
     const s = session.current;
     if (!s) return;
     const r = recordRun(save, {hero, score: s.sim.score, meters: Math.floor((s.sim.maxY - 90) / 10)});
     updateArcade(() => r.save);
+    clearRun();
+    discover(fromState(s.sim, metersOf(s.sim)));
     setNewRecord(r.record);
     setPhase('over');
     const a = audio.current;
     if (a) setTimeout(() => a.play([{id: stingerFor(r.record), gain: 0.9}]), 650);
-  }, [save, hero]);
+  }, [save, hero, clearRun, discover]);
 
   const info = HEROES.find((h) => h.id === hero)!;
   const playing = phase === 'play' || phase === 'pause' || phase === 'over'; // no fim, o último quadro fica atrás do cartão
@@ -200,6 +272,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
           running={phase === 'play'}
           control={save.settings.control}
           tiltInvert={save.settings.tiltInvert}
+          lite={save.settings.lite}
           onHud={setHud}
           onEvents={onEvents}
           onOver={onOver}
@@ -259,6 +332,10 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
           onControl={(c) => set({control: c})}
           sound={save.settings.sfx || save.settings.music}
           onSound={toggleSound}
+          diary={{found: countFound(save.found), total: TOTAL}}
+          onDiary={() => setDiary(true)}
+          resume={saved ? {meters: saved.meters} : null}
+          onResume={continueRun}
         />
       )}
 
@@ -277,9 +354,11 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
                 <Chips options={[1, 2, 3] as const} value={save.settings.volume} onChange={(v) => set({volume: v})} format={(v) => (v === 1 ? 'BAIXO' : v === 2 ? 'MÉDIO' : 'ALTO')} label={(v) => `Volume do som: ${v === 1 ? 'baixo' : v === 2 ? 'médio' : 'alto'}`} />
               )}
               <Switch value={save.settings.haptics} onChange={(v) => set({haptics: v})} title="Vibração leve" desc="Desligada por padrão." />
+              <Switch value={save.settings.lite} onChange={(v) => set({lite: v})} title="Modo leve" desc="Para aparelhos fracos: desenho mais simples a 30 quadros/s. O jogo já ajusta sozinho se o aparelho não aguentar." />
               <Switch value={save.settings.perf} onChange={(v) => set({perf: v})} title="Medidor de desempenho" desc="Mostra FPS e tempo de quadro na tela." />
             </View>
             <View style={{gap: 8, marginTop: 10}}>
+              <Btn kind="ghost" small icon="book" text={`DIÁRIO · ${countFound(save.found)}/${TOTAL}`} onPress={() => setDiary(true)} />
               <Btn kind="ghost" small icon="refresh" text="RECOMEÇAR" onPress={() => start()} />
               <Btn kind="ghost" small icon="people" text="TROCAR PERSONAGEM" onPress={() => setPhase('select')} />
               <Btn kind="danger" small icon="exit-outline" text="SAIR DO FLIPERAMA" onPress={onClose} />
@@ -287,6 +366,8 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
           </Card>
         </Animated.View>
       )}
+
+      {diary && <DiaryModal found={save.found} onClose={() => setDiary(false)} />}
 
       {phase === 'over' && hud && (
         <Animated.View entering={FadeIn.duration(220)} style={S.modal}>
@@ -297,6 +378,12 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
             <Text style={S.modalS}>pontos · {hud.meters} m · {hud.tapes} fitas · {hud.kills} abates</Text>
             <Text style={[S.modalS, {marginTop: 2, color: cause === 'damage' || cause === 'crush' ? '#ff8aa3' : '#8fd4ff'}]} testID="arcade-cause">{cause === 'damage' ? 'Acabaram as vidas.' : cause === 'crush' ? 'O teto te alcançou.' : 'Você caiu.'}</Text>
             <Text style={[S.modalS, {marginTop: 2}]}>Recorde de {info.name}: {pad(save.best[hero])}</Text>
+            {news.length > 0 && (
+              <View style={S.news} testID="arcade-news">
+                <Text style={[S.modalS, {color: C.yellow}]}>NO DIÁRIO · {countFound(save.found)}/{TOTAL}</Text>
+                <Text style={[S.modalS, {color: C.white, marginTop: 2}]}>{news.slice(0, 6).map(nameOf).join(' · ')}{news.length > 6 ? ` +${news.length - 6}` : ''}</Text>
+              </View>
+            )}
             <Btn text="JOGAR DE NOVO" icon="refresh" onPress={() => start()} style={{marginTop: 16}} />
             <View style={{gap: 8, marginTop: 10}}>
               <Btn kind="ghost" small icon="people" text="TROCAR PERSONAGEM" onPress={() => setPhase('select')} />
@@ -309,7 +396,49 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   );
 }
 
+/** Diário: tudo que o jogo esconde. O que ainda não foi visto aparece como ??? com uma pista. */
+function DiaryModal({found, onClose}: {found: Record<string, number>; onClose: () => void}) {
+  return (
+    <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={[S.modal, {zIndex: 20}]} testID="arcade-diary-modal">
+      <Card color={NEON.bg2} shadowColor={NEON.cyan} outer={{width: '100%', maxWidth: 420, maxHeight: '92%'}} pattern={<Pattern kind="dots" color={NEON.cyan} opacity={0.12} size={14} />}>
+        <Text style={S.modalT}>DIÁRIO</Text>
+        <Text style={S.modalS} testID="arcade-diary-count">{countFound(found)} de {TOTAL} descobertas · jogue de novo para achar mais</Text>
+        <ScrollView style={{marginTop: 10, maxHeight: 420}} showsVerticalScrollIndicator={false}>
+          {GROUPS.map((g) => {
+            const items = CATALOG.filter((c) => c.group === g.id);
+            const n = items.filter((c) => found[c.id] !== undefined).length;
+            return (
+              <View key={g.id} style={{marginBottom: 12}}>
+                <Text style={S.dTitle}>{g.title} · {n}/{items.length}</Text>
+                {items.map((c) => {
+                  const ok = found[c.id] !== undefined;
+                  return (
+                    <View key={c.id} style={S.dRow} accessible accessibilityLabel={ok ? `${c.name}, descoberto` : `Ainda não descoberto. Pista: ${c.hint}`}>
+                      <Text style={[S.dMark, {color: ok ? C.yellow : '#5b6485'}]}>{ok ? '★' : '·'}</Text>
+                      <View style={{flex: 1}}>
+                        <Text style={[S.dName, !ok && {color: '#6d7699'}]}>{ok ? c.name : '???'}</Text>
+                        <Text style={S.dHint}>{c.hint}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </ScrollView>
+        <Btn text="FECHAR" label="Fechar o diário" icon="close" onPress={onClose} style={{marginTop: 8}} />
+      </Card>
+    </Animated.View>
+  );
+}
+
 const S = StyleSheet.create({
+  news: {marginTop: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: R.md, borderWidth: 2, borderColor: '#4A5580', backgroundColor: 'rgba(16,9,31,.6)'},
+  dTitle: {fontSize: 12, fontWeight: '900', letterSpacing: 1.6, color: NEON.cyan, marginBottom: 4},
+  dRow: {flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 3},
+  dMark: {width: 16, fontSize: 15, fontWeight: '900', textAlign: 'center'},
+  dName: {fontSize: 14, fontWeight: '900', color: C.white, letterSpacing: 0.4},
+  dHint: {fontSize: 11, fontWeight: '700', color: '#8e98bd'},
   root: {...StyleSheet.absoluteFillObject, backgroundColor: NEON.bg, zIndex: 50},
   hudWrap: {...StyleSheet.absoluteFillObject},
   hudTop: {flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 8, gap: 8},

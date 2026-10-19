@@ -2,6 +2,14 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.9] — 2026-10-19
+
+### O segredo roda em aparelho fraco e vicia mais 🕹️
+- **Bem mais leve**: o desenho do jogo gasta até 3× menos chamadas ao Skia (plataformas, fitas e engrenagens viraram figuras guardadas e reaproveitadas). Se o aparelho não aguentar, o jogo **simplifica sozinho** (sem brilhos, menos partículas, 30 quadros/s e resolução menor). Quem quiser pode forçar o **Modo leve** no menu de pausa.
+- **Dificuldade sobe aos poucos**: até uns 300 m é só plataforma comum e larga; móveis aparecem depois dos 140 m, frágeis depois dos 300 m, inimigos só depois dos 220 m e a dificuldade máxima só perto dos 2400 m.
+- **Diário de descobertas**: mundos, portais, inimigos, poderes, tipos de chão e feitos ficam **salvos** a cada descoberta (o que ainda não foi visto aparece como ???, com uma pista). O botão de livro na abertura abre o Diário e o fim de jogo lista o que entrou nele.
+- **Partida guardada**: o jogo salva a partida a cada 10 s e ao pausar. Se o app fechar no meio, a abertura do jogo mostra **CONTINUAR** e a partida volta exatamente de onde parou.
+
 ## [1.4.8] — 2026-10-19
 
 ### O segredo ficou mais justo 🕹️

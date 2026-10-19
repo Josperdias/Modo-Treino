@@ -71,9 +71,9 @@ export const LEVELS = [
  * - Alcance: nenhum degrau passa de `GAP_MAX_FRAC` do ápice do salto normal.
  */
 export const GEN = {
-  RAMP_M: 800,
+  RAMP_M: 2400,
   /** A rampa é lenta no começo: d = (m / RAMP_M) ^ RAMP_POW (como no Doodle Jump, os primeiros metros são só plataformas comuns). */
-  RAMP_POW: 1.15,
+  RAMP_POW: 1.4,
   CYCLE: 5000,
   /** Fração do ciclo (0..1) em que a intensidade cai para o respiro. */
   CALM_FLOOR: 0.55,
@@ -92,7 +92,7 @@ export const GEN = {
   WIDTH_SPRING: [100, 72],
   WIDTH_WIDE: [150, 110],
   /** Primeiros metros: só degraus fáceis. */
-  WARMUP_M: 60,
+  WARMUP_M: 100,
   TAPE_CHANCE: 0.17,
   /** Quanto à frente da tela o mundo é gerado. */
   LOOKAHEAD: 480,
@@ -105,8 +105,8 @@ export const GEN = {
  * O resto do peso é plataforma comum (peso 1). Mais difícil = mais tipos traiçoeiros.
  */
 export const TYPE_TABLE = {
-  moving: {from: 90, w: [0.06, 0.5]},
-  fragile: {from: 180, w: [0.05, 0.42]},
+  moving: {from: 140, w: [0.05, 0.5]},
+  fragile: {from: 300, w: [0.04, 0.42]},
   spring: {from: 30, w: [0.07, 0.05]},
 } as const;
 
@@ -191,11 +191,11 @@ export const METEOR = {SPAN: 760, LOOP: 3.6} as const;
 
 export const SPAWN = {
   /** Primeiro inimigo (m) e espaçamento médio (m) no começo e no fim da rampa. */
-  FROM_M: 130,
-  GAP_M: [300, 90],
+  FROM_M: 220,
+  GAP_M: [420, 100],
   /** Chance de o inimigo ficar NO caminho (bloqueio) em vez de ao lado, por intensidade. */
   BLOCK: [0.05, 0.35],
-  GUARDIAN_FROM_M: 500,
+  GUARDIAN_FROM_M: 900,
   GUARDIAN_CHANCE: 0.05,
   /** Poderes: primeiro (m) e espaçamento (m). */
   POWER_FROM_M: 75,

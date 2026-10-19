@@ -236,16 +236,16 @@ test('mundo: estilo Doodle Jump — X aleatório no campo todo, vãos irregulare
   assert.ok(Math.min(...gaps) < 70 && Math.max(...gaps) > 150, 'há saltinhos curtos e esticões');
 });
 
-test('mundo: tipos por altitude — mola 30 m, móvel 90 m, quebrável 180 m (como no Doodle Jump, o começo é só plataforma comum) e todos aparecem depois', () => {
+test('mundo: tipos por altitude — mola 30 m, móvel 140 m, quebrável 300 m (como no Doodle Jump, o começo é só plataforma comum) e todos aparecem depois', () => {
   const first = {moving: Infinity, fragile: Infinity, spring: Infinity};
   let miss = 0;
   for (let seed = 1; seed <= 60; seed++) {
-    const w = worldOf(seed, 900);
+    const w = worldOf(seed, 1500);
     const f = {};
     for (const p of w.platforms) if (first[p.type] !== undefined) f[p.type] = Math.min(f[p.type] ?? Infinity, (p.y - 90) / 10);
-    for (const t of Object.keys(first)) { first[t] = Math.min(first[t], f[t] ?? Infinity); if (t !== 'spring' && (f[t] ?? Infinity) > 700) miss++; }
+    for (const t of Object.keys(first)) { first[t] = Math.min(first[t], f[t] ?? Infinity); if (t !== 'spring' && (f[t] ?? Infinity) > 1100) miss++; }
   }
-  assert.ok(first.moving >= 89 && first.fragile >= 179 && first.spring >= 29, JSON.stringify(first));
+  assert.ok(first.moving >= 139 && first.fragile >= 299 && first.spring >= 29, JSON.stringify(first));
   assert.ok(miss <= 12, `tipo demorando a aparecer em ${miss} casos`);
 });
 
@@ -326,7 +326,7 @@ test('robô DESCUIDADO (250 ms, erro de ~30 un.) às vezes cai: o jogo é difíc
   const careless = run({every: 30, noise: 30, lapse: 0.1}, 30, 240);
   assert.ok(careless.died <= 14 && careless.med > 1200, `descuidado: ${JSON.stringify(careless)}`);
   const messy = run({every: 42, noise: 45, lapse: 0.18, digital: true, dodge: 0.3}, 30, 240);
-  assert.ok(messy.died >= 22 && messy.med > 300 && messy.med < 2200 && messy.p10 > 120, `bagunceiro: ${JSON.stringify(messy)}`);
+  assert.ok(messy.died >= 14 && messy.med > 300 && messy.med < 3500 && messy.p10 > 120, `bagunceiro: ${JSON.stringify(messy)}`);
 });
 
 /* ---------- regras ---------- */

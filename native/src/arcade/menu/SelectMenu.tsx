@@ -29,6 +29,11 @@ export type SelectMenuProps = {
   /** Som do jogo ligado (efeitos ou trilha) e o botão que liga/desliga os dois. Desligado por padrão. */
   sound: boolean;
   onSound: (on: boolean) => void;
+  /** Diário de descobertas (quantas já viu / total) e a partida guardada (metros) para CONTINUAR. */
+  diary?: {found: number; total: number};
+  onDiary?: () => void;
+  resume?: {meters: number} | null;
+  onResume?: () => void;
 };
 
 const PRESS_MS = 760; // pisca + pixels se espalhando antes do carregando
@@ -299,8 +304,25 @@ export default function SelectMenu(p: SelectMenuProps) {
           >
             <Icon name={p.sound ? 'volume-high' : 'volume-mute'} size={20} color="#fff" />
           </Pressable>
+          {!!p.diary && (
+            <Pressable accessibilityRole="button" accessibilityLabel={`Diário de descobertas: ${p.diary.found} de ${p.diary.total}`} onPress={p.onDiary} style={S.round} testID="arcade-diary">
+              <Icon name="book" size={19} color="#fff" />
+            </Pressable>
+          )}
         </View>
       </View>}
+      {phase === 'select' && !!p.resume && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Continuar a partida guardada, ${p.resume.meters} metros`}
+          onPress={p.onResume}
+          style={[S.resume, {left: stage.x + 12, top: 62}]}
+          testID="arcade-resume"
+        >
+          <Icon name="play" size={15} color="#fff" />
+          <Text style={S.ctrlT}>CONTINUAR · {p.resume.meters} m</Text>
+        </Pressable>
+      )}
 
       {/* Rodapé: o PRESS START é desenhado em pixels no canvas; aqui só a área de toque e o aviso para leitor de tela. */}
       {/* Sem texto na tela: só o aviso para leitores de tela (a dica de deslizar fica na arte). */}
@@ -353,5 +375,6 @@ const S = StyleSheet.create({
   top: {position: 'absolute', top: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   round: {width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(3,6,28,.72)', borderWidth: 1, borderColor: 'rgba(147,230,255,.45)', alignItems: 'center', justifyContent: 'center'},
   ctrl: {flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: 'rgba(3,6,28,.72)', borderWidth: 1, borderColor: 'rgba(147,230,255,.45)'},
+  resume: {position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: 'rgba(8,60,80,.82)', borderWidth: 1, borderColor: 'rgba(120,240,255,.8)'},
   ctrlT: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: '#fff'},
 });

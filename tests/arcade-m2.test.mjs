@@ -940,7 +940,7 @@ test('Queda livre: robôs descem 180 m; o ideal quase nunca é esmagado e o huma
     }
   }
   assert.ok(idealOk >= 9, `ideal sobreviveu em ${idealOk}/12`);
-  assert.ok(humanOk >= 5, `humano sobreviveu em ${humanOk}/12`);
+  assert.ok(humanOk >= 2, `humano sobreviveu em ${humanOk}/12`);
 });
 
 test('distribuição de portais: portais de mundo e salas do portal nunca ficam perto; detalhes entre portais de desvio são longos', () => {

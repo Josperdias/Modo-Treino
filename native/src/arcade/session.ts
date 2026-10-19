@@ -51,6 +51,18 @@ export class Session {
     this.now = now;
   }
 
+  /** Retoma uma partida guardada (começa PAUSADA: o jogador toca em continuar). */
+  restore(sim: Sim) {
+    this.sim = sim;
+    this.loop = makeLoop();
+    this.fx = makeFx();
+    this.paused = true;
+    this.pending = [];
+    this.lastNow = -1;
+    this.worldBefore = sim.world;
+    this.best = Math.max(this.best, sim.score);
+  }
+
   get over(): boolean {
     return this.sim.mode === 'over';
   }

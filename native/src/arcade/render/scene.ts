@@ -20,6 +20,9 @@ import {HUD_ROW_Y, fireZone} from './layout.ts';
  * art, como no protótipo, mais o céu em camadas (skyline → estrelas conforme a altitude).
  */
 
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
+
 const colors = new Map<string, SkColor>();
 function col(hex: string): SkColor {
   let c = colors.get(hex);
@@ -32,6 +35,7 @@ const drawPixelText = drawPixelTextRaw;
 let paint: SkPaint | null = null;
 function P(): SkPaint {
   if (!paint) { paint = Skia.Paint(); paint.setAntiAlias(false); }
+  paint.setShader(null);
   return paint;
 }
 /** Pincel dos sprites: sempre opaco (o de retângulos muda a transparência a cada desenho). */
@@ -41,16 +45,30 @@ function SP(): SkPaint {
   return spritePaint;
 }
 
-function rect(canvas: SkCanvas, color: string, x: number, y: number, w: number, h: number, alpha = 1) {
-  const p = P();
-  p.setShader(null);
-  p.setColor(col(color));
-  p.setAlphaf(alpha);
-  canvas.drawRect(Skia.XYWHRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)), p);
+/**
+ * Pincéis de cor sólida já prontos (cor + opacidade em 1/32). Cada chamada ao Skia custa uma travessia JS→nativo; antes cada
+ * retângulo gastava 5 (shader, cor, opacidade, retângulo, desenho), agora 1 desenho com o pincel guardado.
+ */
+const solids = new Map<string, SkPaint>();
+function solid(color: string, alpha: number): SkPaint {
+  const a = Math.round(clamp(alpha, 0, 1) * 32);
+  const k = color + a;
+  let p = solids.get(k);
+  if (!p) {
+    if (solids.size > 700) solids.clear();
+    p = Skia.Paint();
+    p.setAntiAlias(false);
+    p.setColor(col(color));
+    p.setAlphaf(a / 32);
+    solids.set(k, p);
+  }
+  return p;
 }
 
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
+function rect(canvas: SkCanvas, color: string, x: number, y: number, w: number, h: number, alpha = 1) {
+  canvas.drawRect(Skia.XYWHRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)), solid(color, alpha));
+}
+
 
 let bgShader: SkShader | null = null;
 let bgFor = 0;
@@ -68,7 +86,12 @@ export type SceneInput = {
   width: number;
   height: number;
   sprites: SpriteSet;
+  /** Qualidade do desenho: 0 completo · 1 leve (sem brilhos, menos partículas) · 2 mínimo. Muda sozinha em aparelho lento. */
+  quality?: 0 | 1 | 2;
 };
+
+/** Qualidade do quadro em desenho (lida por todas as funções abaixo). */
+let Q = 0;
 
 /** Quadro da animação a partir da fase do salto (mesmo mapeamento do protótipo, sem faixas duplicadas). */
 export function frameIndex(p: Pick<Player, 'landTimer' | 'vy'>, over: boolean): number {
@@ -124,6 +147,7 @@ function glow(hex: string, r: number): SkShader {
   return g;
 }
 function drawGlow(canvas: SkCanvas, hex: string, r: number, x: number, y: number, alpha: number) {
+  if (Q >= 1) return;
   const p = P();
   p.setShader(glow(hex, r));
   p.setAlphaf(alpha);
@@ -300,25 +324,34 @@ function drawCrystalBackground(canvas: SkCanvas, cam: number, viewH: number, tim
   for (let x = 0; x <= FIELD_W; x += 42) rect(canvas, '#7fd8ff', x, 0, 1, viewH, 0.05);
 }
 
-/** Engrenagem: anel, dentes e miolo, girando. */
+/** Engrenagem: anel, dentes e miolo. Gravada UMA vez (na origem) e girada por quadro com um único `rotate`. */
+const gearPics = new Map<string, SkPicture>();
 function gear(canvas: SkCanvas, x: number, y: number, r: number, rot: number, color: string, a: number) {
+  const key = r + color + a;
+  let pic = gearPics.get(key);
+  if (!pic) {
+    pic = createPicture((c) => {
+      const p = Skia.Paint();
+      p.setAntiAlias(false); p.setColor(col(color)); p.setAlphaf(a);
+      for (let i = 0; i < 10; i++) {
+        c.save();
+        c.rotate(i * 36, 0, 0);
+        c.drawRect(Skia.XYWHRect(-r * 0.12, -r * 1.22, r * 0.24, r * 0.32), p);
+        c.restore();
+      }
+      p.setStyle(1); p.setStrokeWidth(r * 0.22);
+      c.drawCircle(0, 0, r * 0.88, p);
+      p.setStrokeWidth(r * 0.1);
+      for (let i = 0; i < 3; i++) { c.save(); c.rotate(i * 60, 0, 0); c.drawLine(-r * 0.7, 0, r * 0.7, 0, p); c.restore(); }
+      p.setStyle(0);
+      c.drawCircle(0, 0, r * 0.18, p);
+    }, {x: -r * 1.3, y: -r * 1.3, width: r * 2.6, height: r * 2.6});
+    gearPics.set(key, pic);
+  }
   canvas.save();
   canvas.translate(x, y);
   canvas.rotate(rot, 0, 0);
-  const p = P();
-  p.setShader(null); p.setColor(col(color)); p.setAlphaf(a);
-  for (let i = 0; i < 10; i++) {
-    canvas.save();
-    canvas.rotate(i * 36, 0, 0);
-    canvas.drawRect(Skia.XYWHRect(-r * 0.12, -r * 1.22, r * 0.24, r * 0.32), p);
-    canvas.restore();
-  }
-  p.setStyle(1); p.setStrokeWidth(r * 0.22);
-  canvas.drawCircle(0, 0, r * 0.88, p);
-  p.setStrokeWidth(r * 0.1);
-  for (let i = 0; i < 3; i++) { canvas.save(); canvas.rotate(i * 60, 0, 0); canvas.drawLine(-r * 0.7, 0, r * 0.7, 0, p); canvas.restore(); }
-  p.setStyle(0);
-  canvas.drawCircle(0, 0, r * 0.18, p);
+  canvas.drawPicture(pic);
   canvas.restore();
 }
 
@@ -726,6 +759,36 @@ function ghostAlpha(pl: Platform, time: number): number {
   return k > 0.5 && Math.floor(time * 16) % 2 === 0 ? 0.5 : 1; // avisa: vai sumir
 }
 
+const platPics = new Map<string, SkPicture>();
+/** Passo da animação do corpo (moving: 16 passos; conveyor: 14), para o quadro bater com um Picture já guardado. */
+function platformStep(pl: Platform, time: number): number {
+  if (pl.type === 'moving') return Math.floor(time * 9) % 16;
+  if (pl.type === 'conveyor') return Math.round(((time * 26 * (pl.dir >= 0 ? 1 : -1)) % 14 + 14) % 14) % 14;
+  return 0;
+}
+/** O corpo da plataforma (15–30 retângulos) é gravado UMA vez por mundo/tipo/largura/passo; por quadro vira só 1 drawPicture. */
+function platformPic(pl: Platform, off: number, world: WorldId, right: boolean): SkPicture {
+  const w = Math.round(pl.w);
+  const key = world + (right ? 'R' : '') + pl.type + w + (pl.pressed ? 'p' : '') + (pl.type === 'conveyor' ? (pl.dir >= 0 ? '>' : '<') : '') + off;
+  let pic = platPics.get(key);
+  if (!pic) {
+    if (platPics.size > 600) platPics.clear();
+    const body = {...pl, w};
+    pic = createPicture((c) => drawPlatformRaw(c, body, 0, 0, off, world, right), {x: -w / 2 - 6, y: -26, width: w + 12, height: 52});
+    platPics.set(key, pic);
+  }
+  return pic;
+}
+
+function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, time: number, world: WorldId) {
+  const right = world === 'sketch' && x > FIELD_W / 2;
+  canvas.save();
+  canvas.translate(Math.round(x), Math.round(y));
+  canvas.drawPicture(platformPic(pl, platformStep(pl, time), world, right));
+  canvas.restore();
+  if (pl.type === 'switch' && !pl.pressed) drawGlow(canvas, '#ff4d5e', 36, x, y - 14, 0.28 + 0.12 * Math.sin(time * 6));
+}
+
 function drawPlatform(canvas: SkCanvas, pl: Platform, x: number, y: number, time: number, world: WorldId) {
   if (pl.type !== 'ghost') { drawPlatformBody(canvas, pl, x, y, time, world); return; }
   const lp = P();
@@ -733,7 +796,7 @@ function drawPlatform(canvas: SkCanvas, pl: Platform, x: number, y: number, time
   canvas.saveLayer(lp);
   drawPlatformBody(canvas, pl, x, y, time, world);
   // Ondas de fumaça sob a plataforma.
-  for (let i = 0; i < 3; i++) rect(canvas, '#ffffff', x - pl.w / 2 + 14 + i * (pl.w / 3), y + 17 + Math.sin(time * 3 + i) * 2, 6, 3, 0.7);
+  if (Q < 1) for (let i = 0; i < 3; i++) rect(canvas, '#ffffff', x - pl.w / 2 + 14 + i * (pl.w / 3), y + 17 + Math.sin(time * 3 + i) * 2, 6, 3, 0.7);
   canvas.restore();
 }
 
@@ -745,8 +808,9 @@ const SKETCH_R: Skin = {
   body: '#2f62b8', bodyDark: '#1b3f85', ink: '#071a3d', glint: '#ffffff', dots: '#cfe4ff', glass: false,
 };
 
-function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, time: number, world: WorldId) {
-  const sk = world === 'sketch' && x > FIELD_W / 2 ? SKETCH_R : SKINS[world];
+/** Corpo da plataforma desenhado na origem (x, y = 0): vira um Picture guardado e reaproveitado (veja `platformPic`). */
+function drawPlatformRaw(canvas: SkCanvas, pl: Platform, x: number, y: number, off: number, world: WorldId, right: boolean) {
+  const sk = right ? SKETCH_R : SKINS[world];
   const w = pl.w;
   const left = x - w / 2;
   const acc = sk.accent[pl.type];
@@ -775,7 +839,6 @@ function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, 
       rect(canvas, on ? '#1f8a4a' : '#8a1c2c', x - 15, y - (on ? 9 : 17), 30, on ? 7 : 9);
       rect(canvas, on ? '#4dff90' : '#ff4d5e', x - 13, y - (on ? 10 : 20), 26, on ? 6 : 9);
       rect(canvas, '#ffffff', x - 9, y - (on ? 9 : 18), 8, 2, on ? 0.5 : 0.8);
-      if (!on) drawGlow(canvas, '#ff4d5e', 36, x, y - 14, 0.28 + 0.12 * Math.sin(time * 6));
       break;
     }
     case 'ghost':
@@ -791,7 +854,6 @@ function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, 
       }
       break;
     case 'moving': {
-      const off = Math.floor(time * 9) % 16;
       for (let dx = left + 8 + off; dx < left + w - 14; dx += 16) {
         rect(canvas, '#66f5e7', dx, y + 5, 2, 2);
         rect(canvas, '#66f5e7', dx + 2, y + 7, 2, 2);
@@ -803,7 +865,6 @@ function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, 
       // Esteira: faixa escura com setas que correm no sentido do empurrão.
       rect(canvas, '#1a1424', left + 3, y + 4, w - 6, 8);
       const dir = pl.dir >= 0 ? 1 : -1;
-      const off = ((time * 26 * dir) % 14 + 14) % 14;
       for (let dx = left + 4 - 14 + off; dx < left + w - 10; dx += 14) {
         if (dx < left + 3 || dx + 8 > left + w - 3) continue;
         const f = dir > 0;
@@ -831,17 +892,26 @@ function drawPlatformBody(canvas: SkCanvas, pl: Platform, x: number, y: number, 
   }
 }
 
+let tapePic: SkPicture | null = null;
 function drawTape(canvas: SkCanvas, x: number, y: number, time: number) {
   drawGlow(canvas, '#ffd369', 30, x, y, 0.22 + 0.08 * Math.sin(time * 5));
-  rect(canvas, '#160e22', x - 14, y - 10, 28, 20);
-  rect(canvas, '#ff5caa', x - 12, y - 10, 24, 17);
-  rect(canvas, '#ffd57c', x - 9, y - 8, 18, 8);
-  rect(canvas, '#5b225c', x - 7, y - 6, 4, 4);
-  rect(canvas, '#5b225c', x + 4, y - 6, 4, 4);
-  rect(canvas, '#7c316d', x - 7, y + 3, 14, 3);
-  rect(canvas, '#842769', x - 14, y + 7, 28, 3);
+  if (!tapePic) {
+    tapePic = createPicture((c) => {
+      rect(c, '#160e22', -14, -10, 28, 20);
+      rect(c, '#ff5caa', -12, -10, 24, 17);
+      rect(c, '#ffd57c', -9, -8, 18, 8);
+      rect(c, '#5b225c', -7, -6, 4, 4);
+      rect(c, '#5b225c', 4, -6, 4, 4);
+      rect(c, '#7c316d', -7, 3, 14, 3);
+      rect(c, '#842769', -14, 7, 28, 3);
+    }, {x: -16, y: -12, width: 32, height: 24});
+  }
+  canvas.save();
+  canvas.translate(Math.round(x), Math.round(y));
+  canvas.drawPicture(tapePic);
+  canvas.restore();
   // Brilho que pisca no canto.
-  if (Math.sin(time * 6 + x) > 0.3) pixelStar(canvas, '#ffffff', x + 15, y - 12, 1.5, 0.9);
+  if (Q < 1 && Math.sin(time * 6 + x) > 0.3) pixelStar(canvas, '#ffffff', x + 15, y - 12, 1.5, 0.9);
 }
 
 type Meta = {file: string; w: number; h: number; pivotX: number; pivotY: number};
@@ -1241,7 +1311,9 @@ function drawEntities(canvas: SkCanvas, S: SceneInput, sy: (y: number) => number
     drawEnemy(canvas, e, time, sy, text);
   }
   drawBullets(canvas, S, time, sy);
-  for (const p of fx.list) {
+  const skip = Q >= 2 ? 3 : Q >= 1 ? 2 : 1; // aparelho lento: desenha só 1 de cada 2–3 partículas
+  for (let i = 0; i < fx.list.length; i += skip) {
+    const p = fx.list[i];
     const f = Math.max(0, Math.min(1, p.life / p.max));
     if (p.size > 4) pixelStar(canvas, p.color, p.x, sy(p.y), 1.4, f);
     else rect(canvas, p.color, p.x, sy(p.y), p.size, p.size, f);
@@ -1301,6 +1373,7 @@ function drawSpeedLines(canvas: SkCanvas, viewH: number, time: number) {
 /** Pinta o quadro. Devolve o tempo gasto (ms) só para o medidor de desempenho. */
 export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number): number {
   const t0 = nowMs();
+  Q = S.quality ?? 0;
   const {session} = S;
   const sim = session.sim;
   const a = session.alpha;

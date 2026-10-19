@@ -561,6 +561,77 @@ test('fim de jogo: cair encerra, mostra pontos, grava o recorde e permite jogar 
   await context.close();
 });
 
+test('diário: abre no menu com "???", a partida revela descobertas, fica salvo e aparece no fim de jogo', {skip}, async () => {
+  const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await page.getByTestId('arcade-diary').click();
+  await page.getByTestId('arcade-diary-modal').waitFor();
+  assert.match(await page.getByTestId('arcade-diary-count').textContent(), /^0 de \d+ descobertas/);
+  assert.ok((await page.getByText('???').count()) >= 40, 'o que não foi visto aparece como ???');
+  await shot(page, '06-diario-vazio');
+  await page.getByLabel('Fechar o diário').click();
+  await page.getByTestId('arcade-diary-modal').waitFor({state: 'detached'});
+  await startGame(page);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('arcade.v1') || '{}').found?.['world:neon'] !== undefined);
+  // Pisa em uma mola e pega um escudo à força: os eventos viram descobertas salvas na hora.
+  await page.evaluate(() => {
+    const s = globalThis.__MODO_ARCADE_SESSION__;
+    s.sim.platforms.push({id: 777001, x: s.sim.player.x, y: s.sim.player.y - 40, w: 200, type: 'spring', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'chaos', dir: 0});
+    s.sim.player.vy = -300;
+  });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('arcade.v1') || '{}').found?.['floor:spring'] !== undefined, null, {timeout: 8000});
+  await page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__; s.sim.platforms.length = 0; s.sim.gen.y = 1e9; s.sim.player.vy = -400; });
+  await page.getByText('FIM DE JOGO', {exact: false}).waitFor({timeout: 10000});
+  assert.ok(await page.getByTestId('arcade-news').isVisible(), 'o fim de jogo lista o que entrou no Diário');
+  await shot(page, '06-fim-descobertas');
+  const sv = await saved(page);
+  assert.ok(sv.found['world:neon'] >= 1 && sv.found['floor:spring'] >= 1, JSON.stringify(sv.found));
+  assert.deepEqual(sv.played, ['josperd']);
+  // Volta ao menu: o Diário mostra o que foi achado e continua salvo depois de recarregar.
+  await page.reload();
+  await page.getByText('MODO', {exact: false}).first().waitFor();
+  await toArcade(page);
+  await page.getByTestId('arcade-diary').click();
+  const n = Number((await page.getByTestId('arcade-diary-count').textContent()).match(/^(\d+) de/)[1]);
+  assert.ok(n >= 2, `diário com ${n}`);
+  await page.getByText('Mola', {exact: true}).waitFor();
+  await shot(page, '06-diario-achados');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('partida guardada: pausar guarda no aparelho; ao reabrir o menu mostra CONTINUAR e retoma de onde parou; o fim apaga', {skip}, async () => {
+  const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
+  await toArcade(page);
+  await startGame(page);
+  await page.waitForTimeout(800);
+  await page.getByTestId('arcade-pause').click();
+  await page.getByText('PAUSA', {exact: true}).waitFor();
+  const before = await sess(page);
+  const raw = await page.evaluate(() => localStorage.getItem('arcade.run.v1'));
+  assert.ok(raw && raw.length > 500, 'partida gravada ao pausar');
+  // O app "morre": recarrega a página (sessão perdida) e volta ao fliperama.
+  await page.reload();
+  await page.getByText('MODO', {exact: false}).first().waitFor();
+  await toArcade(page);
+  await page.getByTestId('arcade-resume').waitFor();
+  await shot(page, '06-continuar');
+  await page.getByTestId('arcade-resume').click();
+  await page.getByText('PAUSA', {exact: true}).waitFor();
+  const back = await sess(page);
+  assert.equal(back.seed, before.seed);
+  assert.equal(back.tick, before.tick, 'a partida volta no mesmo instante');
+  assert.equal(back.paused, true);
+  await page.getByLabel('CONTINUAR').click();
+  await page.waitForFunction((t) => globalThis.__MODO_ARCADE_SESSION__.sim.tick > t + 20, before.tick);
+  // Cair encerra e apaga a partida guardada.
+  await page.evaluate(() => { const s = globalThis.__MODO_ARCADE_SESSION__; s.sim.platforms.length = 0; s.sim.gen.y = 1e9; s.sim.player.vy = -400; });
+  await page.getByText('FIM DE JOGO', {exact: false}).waitFor({timeout: 10000});
+  await page.waitForFunction(() => localStorage.getItem('arcade.run.v1') === null);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('desempenho: 6 s de jogo no Chromium (WebGL por software) — passo, desenho e memória sob controle', {skip}, async () => {
   const {context, page, errors} = await open({save: {v: 1, unlocked: true}});
   await toArcade(page);
