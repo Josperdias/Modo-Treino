@@ -942,3 +942,18 @@ test('Queda livre: robôs descem 180 m; o ideal quase nunca é esmagado e o huma
   assert.ok(idealOk >= 9, `ideal sobreviveu em ${idealOk}/12`);
   assert.ok(humanOk >= 5, `humano sobreviveu em ${humanOk}/12`);
 });
+
+test('distribuição de portais: portais de mundo e salas do portal nunca ficam perto; detalhes entre portais de desvio são longos', () => {
+  const minGap = (arr) => { let m = Infinity; for (let i = 1; i < arr.length; i++) m = Math.min(m, arr[i] - arr[i - 1]); return m; };
+  for (let seed = 1; seed <= 60; seed++) {
+    const g = makeGen(seed);
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(g, out, 90 + 30000);
+    const mains = out.items.filter(i => i.kind === 'portal' && i.variant !== 'tele' && i.variant !== 'exit').map(i => (i.y - 90) / 10);
+    const labs = out.items.filter(i => i.kind === 'gate').map(i => (i.y - 90) / 10);
+    assert.ok(minGap([...mains].sort((a, b) => a - b)) >= 700 - 1 || mains.length < 2, `seed ${seed}: portais a ${minGap(mains)} m`);
+    assert.ok(minGap([...labs].sort((a, b) => a - b)) >= 400 || labs.length < 2, `seed ${seed}: salas a ${minGap(labs)} m`);
+    for (const l of labs) for (const m of mains) assert.ok(Math.abs(l - m) >= 390, `seed ${seed}: sala a ${Math.abs(l - m)} m de um portal de mundo`);
+  }
+  assert.ok(SKETCH.OFFER_AT_M >= 200 && SKETCH.LENGTH_M >= 300 && INVERSE.LENGTH_M >= 300, 'trechos de desvio longos');
+});

@@ -45,6 +45,7 @@ export function makeGen(seed: number): Gen {
     portalsMade: 0,
     labY: PHYS.START_Y + range(rng, LAB.FIRST_M[0], LAB.FIRST_M[1]) * 10,
     sketchOffered: false,
+    lastPortalY: -1e9,
   };
 }
 
@@ -309,6 +310,7 @@ const portalPad: PatternFn = (g, _d, out) => {
   const px = narrow(g) ? clamp(pad.x + side * 40, lo, hi) : clamp(pad.x + side * PORTAL.SIDE, 62, FIELD_W - 62);
   out.items.push({id: g.nextId++, kind: 'portal', x: px, y: pad.y + above(g, PORTAL.ABOVE), phase: range(g.rng, 0, Math.PI * 2), hit: false, target, variant});
   g.portalPlaced = true;
+  g.lastPortalY = pad.y;
   for (let i = 0; i < 2; i++) nextPlatform(g, 0.3, out, 'portalPad', {type: 'normal'});
 };
 
@@ -367,7 +369,7 @@ function choosePattern(g: Gen, d: number): PatternName {
   if (!g.portalPlaced && g.y >= g.portalY && g.last !== 'portalPad' && g.bonusEndY === 0) return 'portalPad';
   if (g.bonusEndY > 0) { if (g.y < g.bonusEndY) return 'bonus'; g.bonusEndY = 0; }
   // Sala do portal: só no campo aberto, longe de portal comum e sem desvio ativo.
-  if (g.y >= g.labY && !g.lane && !DETOURS.includes(g.world) && Math.abs(g.portalY - g.y) > 1500) return 'lab';
+  if (g.y >= g.labY && !g.lane && !DETOURS.includes(g.world) && (g.portalPlaced ? g.y - g.lastPortalY > LAB.FAR_M * 10 : g.portalY - g.y > LAB.FAR_M * 10)) return 'lab';
   if (g.world === 'inverse') return weighted(g.rng, [['chaos', 5], ['cluster', 1.4], ['ladder', 1]] as const);
   if (m < GEN.WARMUP_M) return 'ladder';
   const table = NAMES.map(name => {

@@ -138,6 +138,8 @@ export type Gen = {
   portalsMade: number;
   /** Altitude (y) da próxima sala do portal (botão + barreira). */
   labY: number;
+  /** Altura (y) do último portal de mundo colocado (a sala do portal fica longe dele). */
+  lastPortalY: number;
   /** O portal do Rascunho já foi oferecido neste Papel. */
   sketchOffered: boolean;
 };

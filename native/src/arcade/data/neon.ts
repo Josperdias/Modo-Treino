@@ -268,16 +268,16 @@ export const PORTAL = {
  * inteiro é jogável: o gerador cria só a metade esquerda (LANE) e CLONA tudo espelhado na direita, então o mundo é simétrico.
  * Quem pousa do lado direito da dobra fica com o controle invertido; a personagem do lado esquerdo tem o controle normal.
  */
-export const SKETCH = {LENGTH_M: 150, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MAX: 160, OFFER_AT_M: 110} as const;
+export const SKETCH = {LENGTH_M: 300, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MAX: 160, OFFER_AT_M: 220} as const;
 /**
  * Queda livre: descida de verdade. O herói continua de pé, mas o mundo desce: a gravidade puxa para baixo, cada
  * pouso é só um saltinho (HOP) e o objetivo é cair de plataforma em plataforma. Um teto desce sozinho atrás de você
  * (SCROLL) e esmaga quem fica parado; a hélice vira mergulho.
  */
-export const INVERSE = {LENGTH_M: 180} as const;
+export const INVERSE = {LENGTH_M: 350} as const;
 export const DESC = {HOP: 330, TERMINAL: 900, SCROLL: 44, SCROLL_PER_LEVEL: 3, TOP_FRAC: 0.36, CRUSH: 90, GAP: [80, 215]} as const;
 /** Sala do portal: botão (plataforma) → portal azul trancado → barreira → portal laranja lá em cima. */
-export const LAB = {FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 130, HEAD: 84} as const;
+export const LAB = {FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 620, HEAD: 84, /** Distância mínima (m) entre a sala do portal e qualquer portal de mundo. */ FAR_M: 400} as const;
 
 /** Vulcão: a lava sobe sozinha; encostar nela machuca (e ela recua). */
 export const LAVA = {SPEED: 92, GAP: 130, RESET_GAP: 220} as const;
