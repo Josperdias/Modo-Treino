@@ -212,11 +212,15 @@ export const ENEMY_TABLE = {
   paper: [['clip', 3, 0], ['drone', 1.6, 10], ['zigzag', 2, 20]],
   ocean: [['jelly', 3, 0], ['zigzag', 2.4, 0], ['orb', 1.6, 20], ['blackhole', 0.5, 120]],
   volcano: [['ember', 3, 0], ['turret', 2, 10], ['drone', 1.6, 0], ['guardian', 0.4, 60]],
+  inverse: [['ufo', 2, 0], ['orb', 2.4, 0], ['zigzag', 2.4, 0], ['drone', 1.6, 0]],
+  sketch: [['clip', 2.4, 0], ['zigzag', 2.2, 0], ['drone', 1.8, 0], ['orb', 1.4, 20]],
 } as const;
 
 export const POWER_TABLE = [['shield', 4], ['boost', 3], ['jet', 2], ['heart', 1.2], ['magnet', 2.4]] as const;
 
-export type WorldId = 'neon' | 'crystal' | 'clock' | 'cosmos' | 'paper' | 'ocean' | 'volcano';
+export type WorldId = 'neon' | 'crystal' | 'clock' | 'cosmos' | 'paper' | 'ocean' | 'volcano' | 'inverse' | 'sketch';
+/** Mundos-desvio: têm portal próprio, tamanho fixo e voltam ao mundo de origem por um portal VOLTAR. */
+export const DETOURS: readonly WorldId[] = ['paper', 'sketch', 'inverse'];
 /** Ordem dos portais comuns. O Papel é um desvio especial (portal próprio) e fica fora do ciclo. */
 export const WORLD_ORDER: readonly WorldId[] = ['neon', 'crystal', 'clock', 'cosmos', 'ocean', 'volcano'];
 
@@ -228,6 +232,8 @@ export const WORLDS = {
   paper: {name: 'UNIVERSO DE PAPEL'},
   ocean: {name: 'FUNDO DO MAR'},
   volcano: {name: 'VULCÃO'},
+  inverse: {name: 'QUEDA LIVRE'},
+  sketch: {name: 'RASCUNHO'},
 } as const;
 
 /** Universo de Papel: faixa jogável (x) à esquerda da dobra; o outro herói é o espelho (W − x). */
@@ -247,7 +253,7 @@ export const PORTAL = {
   ABOVE: 74,
   SIDE: 82,
   /** Tipos de portal e peso (o do Papel só depois do primeiro portal e fora do próprio Papel). */
-  KINDS: [['world', 5], ['paper', 2.2], ['bonus', 1.6], ['warp', 1.6], ['time', 1.5], ['leap', 1.1]],
+  KINDS: [['world', 5], ['paper', 2.2], ['bonus', 1.6], ['warp', 1.6], ['time', 1.5], ['leap', 1.1], ['flip', 1.7]],
   /** Fase bônus: comprimento (m) e atalho: segundos de voo e velocidade. */
   BONUS_M: 90,
   WARP_TIME: 2.6,
@@ -256,6 +262,13 @@ export const PORTAL = {
   TIME_SECONDS: 8,
   TIME_SCALE: 0.35,
 } as const;
+
+/** Rascunho: a dobra do Papel se rasgou — campo inteiro jogável; ao POUSAR do outro lado da dobra o controle inverte e o personagem troca. */
+export const SKETCH = {LENGTH_M: 150, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MAX: 376, OFFER_AT_M: 110} as const;
+/** Queda livre: a tela vira de cabeça para baixo (a física é a mesma; o desenho é espelhado na vertical). */
+export const INVERSE = {LENGTH_M: 180} as const;
+/** Sala do portal: botão (plataforma) → portal azul trancado → barreira → portal laranja lá em cima. */
+export const LAB = {FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 130, HEAD: 84} as const;
 
 /** Vulcão: a lava sobe sozinha; encostar nela machuca (e ela recua). */
 export const LAVA = {SPEED: 92, GAP: 130, RESET_GAP: 220} as const;

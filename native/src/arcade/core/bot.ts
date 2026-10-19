@@ -51,8 +51,14 @@ function routeBlocked(sim: Sim, x0: number, y0: number, x1: number, y1: number, 
   return false;
 }
 
+/** Mundos em que o herói NÃO dá a volta pela lateral (Papel e Rascunho). */
+const noWrap = (sim: Sim) => sim.world === 'paper' || sim.world === 'sketch';
+
 export function aim(sim: Sim): number {
   const p = sim.player;
+  // Sala do portal: enquanto o portal azul estiver trancado, o botão é o destino preferido.
+  let wantSwitch = -1;
+  for (const it of sim.items) if (it.kind === 'portal' && it.variant === 'tele' && !it.open && !it.hit && it.y > p.y - 200 && it.y < p.y + 700 && it.lock !== undefined) wantSwitch = it.lock;
   const rise = p.vy > 0 ? (p.vy * p.vy) / (2 * PHYS.G) : 0;
   let best: {y: number; x: number; d: number} | null = null;
   for (const pl of sim.platforms) {
@@ -62,18 +68,25 @@ export function aim(sim: Sim): number {
     const disc = p.vy * p.vy + 2 * PHYS.G * (p.y - pl.y);
     const t = (p.vy + Math.sqrt(Math.max(0, disc))) / PHYS.G;
     if (pl.type === 'ghost' && !(ghostSolid(pl, sim.time + t - 0.12) && ghostSolid(pl, sim.time + t + 0.12))) continue; // fantasma sumido na hora: não pousa
-    const px = platformX(pl, sim.time + t);
+    let px = platformX(pl, sim.time + t);
+    if (pl.id === wantSwitch) {
+      // O botão costuma ficar embaixo da plataforma do portal: pousa na ponta que sobra para fora dela.
+      const cover = sim.platforms.find(q => q !== pl && q.y > pl.y && q.y < pl.y + 130 && Math.abs(q.x - pl.x) < q.w / 2 + landHalfWidth(pl) - 4);
+      if (cover) px = pl.x + (pl.x >= cover.x ? 1 : -1) * Math.max(0, cover.w / 2 + PHYS.LAND_TOL - Math.abs(pl.x - cover.x) + 10);
+    }
     // Caminho mais curto, contando a volta pela lateral.
     let dx = px - p.x;
     const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
-    if (dx > span / 2) dx -= span;
-    else if (dx < -span / 2) dx += span;
+    if (!noWrap(sim)) {
+      if (dx > span / 2) dx -= span;
+      else if (dx < -span / 2) dx += span;
+    }
     const d = Math.abs(dx);
     // Só vale a plataforma que dá para alcançar durante a queda até ela (física, não um número fixo).
     if (d > horizontalTravel(t, sim.level) * 0.97 + landHalfWidth(pl) - 6) continue;
     // Penaliza rotas onde um inimigo vivo estará no caminho quando o herói passar por ali.
     const blocked = routeBlocked(sim, p.x, p.y, p.x + dx, pl.y, t);
-    const score = pl.y - (blocked ? 400 : 0);
+    const score = pl.y - (blocked ? 400 : 0) + (pl.id === wantSwitch ? 10000 : 0);
     if (!best || score > best.y || (score === best.y && d < best.d)) best = {y: score, x: p.x + dx, d};
   }
   return best ? best.x : p.x;
@@ -116,10 +129,13 @@ export function botInput(sim: Sim, bot: Bot): Input {
   let dx = bot.target - sim.player.x;
   // O alvo guardado pode estar do outro lado da lateral depois de atravessá-la.
   const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
-  if (dx > span / 2) dx -= span;
-  else if (dx < -span / 2) dx += span;
+  if (!noWrap(sim)) {
+    if (dx > span / 2) dx -= span;
+    else if (dx < -span / 2) dx += span;
+  }
   bot.held = Math.max(-1, Math.min(1, dx / 36));
   let axis = Math.abs(dx) < 6 ? 0 : bot.held;
   if (bot.dodge) axis = bot.dodge;
+  if (sim.inverted) axis = -axis; // Rascunho: do outro lado da dobra o controle é invertido
   return {axis: bot.skill.digital ? Math.sign(axis) : axis, fire: bot.fire};
 }

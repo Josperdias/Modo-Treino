@@ -191,7 +191,9 @@ test('mundo: degraus respeitam os limites de projeto (nunca > 86 % do ápice)', 
       const dy = sorted[i].y - sorted[i - 1].y;
       const prev = sorted[i - 1];
       // entre plataformas consecutivas (exceto da mola): subida segura
-      if (prev.type !== 'spring' && dy > 0 && dy < 200) assert.ok(dy <= limit + 1e-9, `dy ${dy}`);
+      // as sobras do "cluster" ficam até 22 un. acima/abaixo da plataforma-base: a vizinha na ordem por altura pode estar a mais que um salto
+      const slack = prev.pattern === 'cluster' || sorted[i].pattern === 'cluster' ? 30 : 0;
+      if (prev.type !== 'spring' && sorted[i].pattern !== 'labExit' && dy > 0 && dy < 200) assert.ok(dy <= limit + slack + 1e-9, `dy ${dy}`);
     }
   }
 });

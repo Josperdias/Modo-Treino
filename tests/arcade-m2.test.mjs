@@ -10,7 +10,8 @@ const {createSim, step, metersOf, windAt, ghostSolid} = await C('sim.ts');
 const {enemyAt, tri} = await C('enemies.ts');
 const {makeGen, generateUntil, nextWorld} = await C('worldgen.ts');
 const {makeBot, botInput, IDEAL} = await C('bot.ts');
-const {PHYS, LIFE, COMBAT, POWER, PORTAL, LAVA, WORLD_ORDER, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP, PAPER, BLACKHOLE, METEOR} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
+const {canReach} = await C('validate.ts');
+const {PHYS, LIFE, COMBAT, POWER, PORTAL, LAVA, WORLD_ORDER, SKETCH, INVERSE, LAB, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP, PAPER, BLACKHOLE, METEOR} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
 
 const plat = (o = {}) => ({id: 1, x: 210, y: 300, w: 100, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'stairs', dir: 0, ...o});
 const enemy = (o = {}) => ({id: 900 + Math.floor(Math.random() * 1e6), kind: 'drone', x0: 210, y0: 400, x: 210, y: 400, phase: 0, speed: 0, range: 0, size: ENEMIES.drone.size, hp: 1, maxHp: 1, cooldown: 99, warn: false, alive: true, ...o});
@@ -249,7 +250,7 @@ test('portal: bem longe (700–1000 m), um por vez, com apoio ao lado; primeiro 
     const g = makeGen(seed);
     const out = {platforms: [], items: [], enemies: []};
     generateUntil(g, out, 90 + 12000);
-    const portals = out.items.filter(i => i.kind === 'portal');
+    const portals = out.items.filter(i => i.kind === 'portal' && i.variant !== 'tele' && i.variant !== 'exit');
     assert.equal(portals.length, 1, `semente ${seed}: um portal por vez`);
     const p = portals[0];
     const m = (p.y - 90) / 10;
@@ -269,15 +270,21 @@ test('portal: depois do primeiro, o do Papel também entra no sorteio; dentro do
     const g = makeGen(seed); g.portalsMade = 1; g.portalY = 400;
     const out = {platforms: [], items: [], enemies: []};
     generateUntil(g, out, 90 + 3000);
-    const it = out.items.find(i => i.kind === 'portal');
+    const it = out.items.find(i => i.kind === 'portal' && i.variant !== 'tele' && i.variant !== 'exit');
     seen[it.variant] = (seen[it.variant] || 0) + 1;
     const h = makeGen(seed); h.world = 'paper'; h.returnWorld = 'clock'; h.portalY = 400; h.lane = [44, 168];
     const o2 = {platforms: [], items: [], enemies: []};
     generateUntil(h, o2, 90 + 3000);
-    const back = o2.items.find(i => i.kind === 'portal');
+    // no Papel o primeiro portal é o do Rascunho (a dobra rasgada); depois dele (ou se for perdido), o de volta
+    const first = o2.items.find(i => i.kind === 'portal');
+    assert.deepEqual([first.variant, first.target], ['sketch', 'sketch']);
+    const k = makeGen(seed); k.world = 'sketch'; k.returnWorld = 'clock'; k.portalY = 400; k.lane = [44, 376];
+    const o3 = {platforms: [], items: [], enemies: []};
+    generateUntil(k, o3, 90 + 3000);
+    const back = o3.items.find(i => i.kind === 'portal');
     assert.deepEqual([back.variant, back.target], ['back', 'clock']);
   }
-  assert.ok(seen.paper > 8 && seen.world > 20 && seen.bonus > 5 && seen.warp > 5, JSON.stringify(seen));
+  assert.ok(seen.paper > 6 && seen.world > 15 && seen.bonus > 4 && seen.warp > 4 && seen.flip > 4 && seen.time > 4, JSON.stringify(seen));
 });
 
 test('portal perdido: o próximo vem mais adiante (e só um portal pendente por vez)', () => {
@@ -408,7 +415,7 @@ test('portal de bônus: continua no mesmo mundo, chuva de fitas sem inimigos, vo
   portalAt(s, 'bonus', 'crystal');
   steps(s, 1);
   assert.equal(s.world, 'crystal');
-  assert.ok(s.gen.bonusEndY > s.gen.y);
+  assert.ok(s.gen.bonusEndY > 0 && s.gen.last === 'bonus');
   assert.ok(Math.abs(s.bonusY1 - s.bonusY0 - PORTAL.BONUS_M * 10) < 1e-6);
   assert.equal(s.revive, 0, 'bônus não dá recuperação');
   const zone = s.platforms.filter(p => p.pattern === 'bonus');
@@ -463,17 +470,19 @@ test('Universo de Papel: faixa estreita, sem volta pela lateral, plataformas só
   assert.ok(s.events.some(e => e.t === 'swap'));
 });
 
-test('Papel: o portal de volta aparece no fim do trecho (260 m) e o gerador pede um só', () => {
+test('Papel: aos ~110 m aparece o portal do Rascunho (um só); perdido, o de volta vem logo depois (60 m)', () => {
   const s = bare({platforms: [plat({y: 100, w: 600})]});
   s.world = 'neon';
   put(s, 210, 600, 300);
   portalAt(s, 'paper', 'paper');
   steps(s, 1);
-  generateUntil(s.gen, {platforms: s.platforms, items: s.items, enemies: s.enemies}, s.gen.paperExitY + 1500);
-  const back = s.items.filter(i => i.kind === 'portal' && i.variant === 'back');
-  assert.equal(back.length, 1);
-  assert.equal(back[0].target, 'neon');
-  assert.ok(back[0].y >= s.gen.paperExitY);
+  const start = s.gen.worldY0;
+  generateUntil(s.gen, {platforms: s.platforms, items: s.items, enemies: s.enemies}, start + 3000);
+  const portals = s.items.filter(i => i.kind === 'portal');
+  assert.equal(portals.length, 1);
+  assert.equal(portals[0].variant, 'sketch');
+  assert.ok(portals[0].y >= start + SKETCH.OFFER_AT_M * 10 && portals[0].y < start + SKETCH.OFFER_AT_M * 10 + 1500, 'y ' + portals[0].y + ' start ' + start); // um padrão do caos pode passar de 700 un.
+  assert.equal(s.gen.returnWorld, 'neon');
 });
 
 /* ---------- novos elementos ---------- */
@@ -665,4 +674,167 @@ test('robô ideal sobrevive ao Fundo do Mar e ao Vulcão (correnteza e lava) por
     }
     assert.ok(overs <= 1, `${world}: o robô ideal caiu em ${overs}/6 partidas`);
   }
+});
+
+/* ---------- sala do portal (botão + barreira + teletransporte) ---------- */
+const labOf = (seed) => {
+  const g = makeGen(seed); g.labY = 600; g.portalY = 1e9; g.portalPlaced = true;
+  const out = {platforms: [], items: [], enemies: []};
+  generateUntil(g, out, 90 + 3000);
+  const A = out.items.find(i => i.variant === 'tele');
+  return {g, out, A, S: out.platforms.find(p => p.id === A.lock), gate: out.items.find(i => i.kind === 'gate'), exit: out.items.find(i => i.variant === 'exit')};
+};
+
+test('sala do portal: botão, portal azul trancado, barreira e portal laranja do outro lado; o botão nunca fica coberto', () => {
+  for (let seed = 1; seed <= 60; seed++) {
+    const {out, A, S, gate, exit} = labOf(seed);
+    assert.ok(A && S && gate && exit, `seed ${seed}`);
+    assert.equal(S.type, 'switch');
+    assert.ok(!A.open && !gate.open);
+    const pad = out.platforms.find(p => Math.abs(p.y + PORTAL.ABOVE - A.y) < 1e-6);
+    assert.ok(pad && pad.y > S.y && pad.y - S.y < 100);
+    assert.ok(Math.abs(pad.x - S.x) >= 48, `botão coberto pela plataforma (dx ${Math.abs(pad.x - S.x)})`);
+    assert.ok(Math.abs(gate.y - pad.y - LAB.GATE_ABOVE) < 1e-6 && exit.y > gate.y);
+    assert.equal(A.dx, exit.x);
+    assert.ok(A.dy > gate.y, 'o portal azul leva ao outro lado da barreira');
+  }
+});
+
+test('barreira: fechada, o herói bate e desce; pisar no botão abre a barreira e destranca o portal; portal azul teletransporta', () => {
+  const {out, A, S, gate} = labOf(7);
+  const s = bare({platforms: out.platforms.filter(p => p.y < gate.y + 600), items: out.items.filter(i => i.y < gate.y + 600)});
+  const g = s.items.find(i => i.kind === 'gate'), a = s.items.find(i => i.variant === 'tele'), sw = s.platforms.find(p => p.type === 'switch');
+  // sobe até a barreira com tudo fechado
+  put(s, g.x, g.y - 160, 800);
+  steps(s, 40);
+  assert.ok(s.events.some(e => e.t === 'bonk') || s.player.y <= g.y - 84 + 1e-6, 'bateu na barreira');
+  assert.ok(s.player.y + LAB.HEAD <= g.y + 1e-6, 'não atravessa');
+  // portal trancado não faz nada
+  s.events.length = 0; put(s, a.x, a.y - 45, 0); steps(s, 2);
+  assert.ok(!a.hit && !s.events.some(e => e.t === 'portal'), 'trancado');
+  // pisar no botão
+  put(s, sw.x, sw.y + 1.5, -100); steps(s, 2);
+  assert.ok(sw.pressed && a.open && g.open, 'botão abriu tudo');
+  assert.ok(s.events.some(e => e.t === 'press'));
+  // portal azul: teletransporta
+  s.events.length = 0; put(s, a.x, a.y - 45, 0); steps(s, 1);
+  assert.ok(a.hit);
+  assert.ok(Math.abs(s.player.x - a.dx) < 1e-6 && s.player.y >= a.dy - 3 && s.player.y > g.y);
+  assert.ok(s.events.some(e => e.t === 'portal' && e.variant === 'tele'));
+  assert.equal(s.world, 'neon', 'continua no mesmo mundo');
+});
+
+test('barreira aberta (ou hélice) deixa passar; portal laranja é só saída (não leva a lugar nenhum)', () => {
+  const {out} = labOf(3);
+  const s = bare({platforms: out.platforms, items: out.items});
+  const g = s.items.find(i => i.kind === 'gate'), ex = s.items.find(i => i.variant === 'exit');
+  g.open = true;
+  put(s, g.x, g.y - 120, 800); steps(s, 25);
+  assert.ok(s.player.y > g.y, 'aberta: atravessa');
+  const t = bare({platforms: out.platforms, items: out.items});
+  t.jet = 2; put(t, g.x, g.y - 160, 0); steps(t, 25);
+  assert.ok(t.player.y + LAB.HEAD > g.y, 'hélice atravessa');
+  put(s, ex.x, ex.y - 45, 0); steps(s, 2);
+  assert.ok(!ex.hit);
+});
+
+test('sala do portal: só no campo aberto, a cada 450–760 m, sempre resolvível; robô ideal passa por ela', () => {
+  let passed = 0, total = 0;
+  for (let seed = 1; seed <= 10; seed++) {
+    const s = createSim(seed), bot = makeBot(IDEAL, seed);
+    let pressed = false, tele = false;
+    for (let i = 0; i < 120 * 200 && s.mode === 'playing' && !tele; i++) {
+      step(s, botInput(s, bot));
+      for (const e of s.events) { if (e.t === 'press') pressed = true; if (e.t === 'portal' && e.variant === 'tele') tele = true; }
+      s.events.length = 0;
+    }
+    if (s.mode === 'playing' || tele) { total++; if (tele && pressed) passed++; }
+  }
+  assert.ok(passed >= 7, `o robô só passou pela sala em ${passed}/${total}`);
+});
+
+/* ---------- Rascunho (campo inteiro, dobra rasgada) ---------- */
+test('Rascunho: pousar do outro lado da dobra inverte o controle e troca o personagem; voltar desinverte; no ar não muda nada', () => {
+  const s = bare({platforms: [plat({y: 100, w: 700, x: 210}), plat({id: 2, y: 100, w: 90, x: 300}), plat({id: 3, y: 100, w: 90, x: 120})]});
+  s.world = 'sketch'; s.gen.world = 'sketch'; s.gen.lane = [SKETCH.LANE_MIN, SKETCH.LANE_MAX];
+  s.platforms.length = 0;
+  s.platforms.push(plat({id: 2, y: 100, w: 90, x: 300}), plat({id: 3, y: 100, w: 90, x: 120}));
+  // cruza a dobra no ar: ainda não inverteu
+  put(s, 150, 400, 300);
+  for (let i = 0; i < 20; i++) step(s, {axis: 1});
+  assert.equal(s.inverted, false, 'no ar nada muda');
+  // pousa na plataforma do lado direito
+  put(s, 300, 101, -300); steps(s, 4);
+  assert.equal(s.inverted, true);
+  assert.ok(s.events.some(e => e.t === 'swap'));
+  // controle invertido: apertar direita anda para a esquerda
+  const x0 = s.player.x; put(s, x0, 600, 0);
+  steps(s, 12, {axis: 1});
+  assert.ok(s.player.x < x0 - 5, 'direita anda para a esquerda');
+  assert.equal(s.player.facing, -1);
+  // pousa do lado esquerdo: desinverte
+  s.events.length = 0; s.camera = s.prevCamera = 0; put(s, 120, 101, -300); steps(s, 4);
+  assert.equal(s.inverted, false);
+  const x1 = s.player.x; s.camera = s.prevCamera = 0; put(s, x1, 300, 0); steps(s, 12, {axis: 1});
+  assert.ok(s.player.x > x1 + 5, `x ${x1} -> ${s.player.x}, inv ${s.inverted}, drift ${s.player.drift}`);
+});
+
+test('Rascunho: sem volta pela lateral (paredes), campo inteiro, alcance garantido sem contar a volta, portal de volta no fim (150 m)', () => {
+  for (let seed = 1; seed <= 30; seed++) {
+    const g = makeGen(seed); g.world = 'sketch'; g.lane = [SKETCH.LANE_MIN, SKETCH.LANE_MAX]; g.returnWorld = 'neon'; g.portalY = 90 + 1500; g.worldY0 = 90;
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(g, out, 90 + 6000);
+    let right = 0;
+    for (const p of out.platforms) { assert.ok(p.x >= SKETCH.LANE_MIN - 1 && p.x <= SKETCH.LANE_MAX + 1); if (p.x > SKETCH.FOLD) right++; }
+    assert.ok(right > out.platforms.length * 0.25 && right < out.platforms.length * 0.75, 'plataformas dos dois lados da dobra');
+    // sem a volta pela lateral: cada plataforma é alcançável da anterior pelo caminho direto
+    const sorted = [...out.platforms].sort((a, b) => a.y - b.y);
+    for (let i = 1; i < sorted.length; i++) {
+      const b = sorted[i];
+      let ok = false;
+      for (let j = i - 1; j >= 0 && b.y - sorted[j].y < 330; j--) if (canReach(sorted[j], b, 1, false)) { ok = true; break; }
+      assert.ok(ok, `seed ${seed}: plataforma ${b.id} inalcançável sem a volta pela lateral`);
+    }
+    const back = out.items.find(i => i.kind === 'portal');
+    assert.deepEqual([back.variant, back.target], ['back', 'neon']);
+  }
+});
+
+test('Rascunho: portal do Papel leva ao Rascunho; voltar de lá mantém o personagem em que você terminou (swap só se estava invertido)', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  put(s, 210, 600, 300);
+  portalAt(s, 'paper', 'paper'); steps(s, 1);
+  assert.equal(s.world, 'paper');
+  put(s, 100, 600, 300); portalAt(s, 'sketch', 'sketch'); steps(s, 1);
+  assert.equal(s.world, 'sketch');
+  assert.deepEqual(s.gen.lane, [SKETCH.LANE_MIN, SKETCH.LANE_MAX]);
+  assert.equal(s.gen.returnWorld, 'neon', 'o mundo de origem continua o mesmo');
+  s.inverted = true; s.swapped = false;
+  put(s, 300, 600, 300); portalAt(s, 'back', 'neon'); steps(s, 1);
+  assert.equal(s.world, 'neon');
+  assert.equal(s.inverted, false);
+  assert.equal(s.swapped, true, 'terminou do lado de lá: continua o outro personagem');
+  assert.equal(s.gen.lane, null);
+});
+
+/* ---------- Queda livre (desenho invertido na vertical) ---------- */
+test('Queda livre: portal leva ao mundo "inverse" (mesma física), dura 180 m, volta ao mundo de origem sem trocar herói', () => {
+  const s = bare({platforms: [plat({y: 100, w: 600})]});
+  put(s, 210, 600, 300);
+  portalAt(s, 'flip', 'inverse'); steps(s, 1);
+  assert.equal(s.world, 'inverse');
+  assert.equal(s.gen.returnWorld, 'neon');
+  assert.ok(Math.abs(s.gen.portalY - (s.gen.worldY0 + INVERSE.LENGTH_M * 10)) < 1e-6);
+  const seen = new Set();
+  for (let seed = 1; seed <= 20; seed++) {
+    const g = makeGen(seed); g.world = 'inverse'; g.returnWorld = 'clock'; g.portalY = 90 + 1800; g.worldY0 = 90;
+    const out = {platforms: [], items: [], enemies: []};
+    generateUntil(g, out, 90 + 6000);
+    assert.deepEqual(out.items.filter(i => i.kind === 'portal').map(i => i.variant), ['back']);
+    for (const e of out.enemies) seen.add(e.kind);
+  }
+  assert.ok(seen.has('ufo') && seen.has('orb'));
+  put(s, 300, 600, 300); portalAt(s, 'back', 'neon'); steps(s, 1);
+  assert.equal(s.world, 'neon');
+  assert.equal(s.swapped, false, 'a Queda livre não troca o personagem');
 });

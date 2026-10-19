@@ -3,8 +3,8 @@ import type {WorldId} from '../data/neon.ts';
 
 export type {WorldId};
 
-export type PlatformType = 'start' | 'normal' | 'moving' | 'fragile' | 'spring' | 'conveyor' | 'ghost';
-export type PatternName = 'start' | 'chaos' | 'cluster' | 'drought' | 'springPad' | 'ladder' | 'portalPad' | 'bonus';
+export type PlatformType = 'start' | 'normal' | 'moving' | 'fragile' | 'spring' | 'conveyor' | 'ghost' | 'switch';
+export type PatternName = 'start' | 'chaos' | 'cluster' | 'drought' | 'springPad' | 'ladder' | 'portalPad' | 'bonus' | 'lab' | 'labExit';
 
 export type Platform = {
   id: number;
@@ -21,12 +21,14 @@ export type Platform = {
   pattern: PatternName;
   /** Só esteiras (mundo mecânico): sentido do empurrão (+1 direita, -1 esquerda); 0 nas demais. */
   dir: number;
+  /** Só botões (`switch`): já foi pisado. */
+  pressed?: boolean;
 };
 
-export type ItemKind = 'tape' | 'shield' | 'boost' | 'jet' | 'heart' | 'flag' | 'portal' | 'magnet' | 'star';
+export type ItemKind = 'tape' | 'shield' | 'boost' | 'jet' | 'heart' | 'flag' | 'portal' | 'magnet' | 'star' | 'gate';
 
 /** Portais: mundo seguinte, Papel (heróis espelhados + troca), bônus (chuva de fitas) e atalho (sobe voando). `back` = volta do Papel. */
-export type PortalVariant = 'world' | 'paper' | 'bonus' | 'warp' | 'back' | 'time' | 'leap';
+export type PortalVariant = 'world' | 'paper' | 'bonus' | 'warp' | 'back' | 'time' | 'leap' | 'flip' | 'sketch' | 'tele' | 'exit';
 
 export type Item = {
   id: number;
@@ -38,6 +40,11 @@ export type Item = {
   /** Só portais: para onde levam e de que tipo. */
   target?: WorldId;
   variant?: PortalVariant;
+  /** Sala do portal: id do botão que destranca (portal azul e barreira), se já abriu e, no portal azul, para onde leva o herói. */
+  lock?: number;
+  open?: boolean;
+  dx?: number;
+  dy?: number;
 };
 
 export type EnemyKind = 'drone' | 'zigzag' | 'turret' | 'orb' | 'guardian' | 'ufo' | 'meteor' | 'blackhole' | 'clip' | 'jelly' | 'ember';
@@ -93,6 +100,8 @@ export type SimEvent =
   | {t: 'warn'; x: number; y: number}
   | {t: 'portal'; world: WorldId; variant: PortalVariant; x: number; y: number}
   | {t: 'swap'; x: number; y: number}
+  | {t: 'press'; x: number; y: number}
+  | {t: 'bonk'; x: number; y: number}
   | {t: 'revive'; x: number; y: number}
   | {t: 'over'; cause: 'fall' | 'damage'};
 
@@ -127,6 +136,10 @@ export type Gen = {
   bonusEndY: number;
   /** Quantos portais já passaram (o do Papel só depois do primeiro). */
   portalsMade: number;
+  /** Altitude (y) da próxima sala do portal (botão + barreira). */
+  labY: number;
+  /** O portal do Rascunho já foi oferecido neste Papel. */
+  sketchOffered: boolean;
 };
 
 export type Mode = 'playing' | 'over';
@@ -175,6 +188,8 @@ export type Sim = {
   jetSpeed: number;
   /** Heróis trocados pelo portal do Papel (a arte do herói inverte). */
   swapped: boolean;
+  /** Rascunho: o herói pousou do outro lado da dobra — controle invertido e o outro personagem. */
+  inverted: boolean;
   /** Faixa de altitude da fase bônus (y0..y1) para o desenho; 0 = nenhuma. */
   bonusY0: number;
   bonusY1: number;

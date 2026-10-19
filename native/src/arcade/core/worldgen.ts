@@ -1,4 +1,4 @@
-import {ENEMIES, ENEMY_TABLE, FIELD_W, GEN, PAPER, PATTERN_TABLE, PHYS, PICKUP, PORTAL, POWER_TABLE, SPAWN, TYPE_TABLE, WORLD_FX, WORLD_ORDER, type WorldId} from '../data/neon.ts';
+import {DETOURS, ENEMIES, ENEMY_TABLE, FIELD_W, GEN, LAB, PAPER, PATTERN_TABLE, PHYS, PICKUP, PORTAL, POWER_TABLE, SPAWN, TYPE_TABLE, WORLD_FX, WORLD_ORDER, type WorldId} from '../data/neon.ts';
 import {apex} from './physics.ts';
 import {canReach, SAFETY} from './validate.ts';
 import {chance, int, makeRng, next, range, weighted} from './rng.ts';
@@ -43,10 +43,17 @@ export function makeGen(seed: number): Gen {
     paperExitY: 0,
     bonusEndY: 0,
     portalsMade: 0,
+    labY: PHYS.START_Y + range(rng, LAB.FIRST_M[0], LAB.FIRST_M[1]) * 10,
+    sketchOffered: false,
   };
 }
 
 export const nextWorld = (w: WorldId): WorldId => WORLD_ORDER[(WORLD_ORDER.indexOf(w) + 1) % WORLD_ORDER.length] ?? WORLD_ORDER[0];
+
+/** Faixa estreita (Papel): larguras, moventes e inimigos ficam bem menores. O Rascunho tem a faixa larga. */
+const narrow = (g: Gen) => !!g.lane && g.lane[1] - g.lane[0] < 200;
+/** Alcance entre plataformas: só há a volta pela lateral no campo aberto. */
+const reaches = (g: Gen, a: Platform, b: Platform) => canReach(a, b, 1, g.lane === null);
 
 /** Faixa de X onde as plataformas e inimigos podem nascer (Papel: estreita). */
 const laneOf = (g: Gen): [number, number] => g.lane ?? [GEN.MARGIN_X, FIELD_W - GEN.MARGIN_X];
@@ -173,15 +180,15 @@ function nextPlatform(g: Gen, d: number, out: Out, pattern: PatternName, force?:
   for (let attempt = 0; attempt < 24; attempt++) {
     const type = attempt < 16 ? wantType : 'normal';
     const dy = force?.dy ?? gapSample(g, d, prev);
-    const w = Math.min(widthForType(g, type, d), g.lane ? 84 : 999);
+    const w = Math.min(widthForType(g, type, d), narrow(g) ? 84 : 999);
     let shift = 0, speed = 0;
     const [laneLo, laneHi] = laneOf(g);
-    if (type === 'moving') { shift = Math.round(range(g.rng, 30, 56 + 34 * d)); speed = range(g.rng, 0.9, 1.5) + 0.8 * d; if (g.lane) shift = Math.min(shift, 28); }
+    if (type === 'moving') { shift = Math.round(range(g.rng, 30, 56 + 34 * d)); speed = range(g.rng, 0.9, 1.5) + 0.8 * d; if (narrow(g)) shift = Math.min(shift, 28); }
     const lo = laneLo + shift, hi = laneHi - shift;
     if (hi <= lo) continue;
     const x = Math.round(range(g.rng, lo, hi));
     const cand: Platform = {id: -1, x, y: g.y + dy, w, type, phase: 0, speed, shift, broken: false, pattern, dir: 0};
-    if (prev && !canReach(prev, cand)) continue;
+    if (prev && !reaches(g, prev, cand)) continue;
     if (collides(out, cand)) continue;
     return put(g, out, pattern, x, cand.y, w, type, type === 'moving' ? {shift, speed} : undefined);
   }
@@ -219,13 +226,13 @@ const cluster: PatternFn = (g, d, out) => {
     for (let t = 0; t < 8; t++) {
       const ghostly = d > 0.25 && chance(g.rng, 0.3);
       const type: PlatformType = ghostly ? 'ghost' : chance(g.rng, 0.3 + 0.3 * d) ? 'fragile' : pickType(g, d, base);
-      const w = Math.min(widthForType(g, type === 'spring' || type === 'ghost' ? 'normal' : type, d), g.lane ? 84 : 999);
+      const w = Math.min(widthForType(g, type === 'spring' || type === 'ghost' ? 'normal' : type, d), narrow(g) ? 84 : 999);
       const [cLo, cHi] = laneOf(g);
       const x = Math.round(range(g.rng, cLo, cHi));
       const y = base.y + range(g.rng, -22, 22);
       const cand: Platform = {id: -1, x, y, w, type: type === 'spring' ? 'normal' : type, phase: ghostly ? range(g.rng, 0, Math.PI * 2) : 0, speed: ghostly ? range(g.rng, 0.9, 1.4) : 0, shift: 0, broken: false, pattern: 'cluster', dir: 0};
       if (Math.abs(x - base.x) < (w + base.w) / 2 + 20) continue;
-      if (before && !canReach(before, cand)) continue;
+      if (before && !reaches(g, before, cand)) continue;
       if (collides(out, cand)) continue;
       // o X novo não vira o "topo" da corrente: quem manda é a primeira plataforma
       const keepX = g.x, keepY = g.y;
@@ -268,7 +275,7 @@ const ladder: PatternFn = (g, d, out) => {
       x = Math.round(range(g.rng, lLo, lHi));
       const prev = out.platforms[out.platforms.length - 1];
       const cand: Platform = {id: -1, x, y: g.y + dy, w, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'ladder', dir: 0};
-      if ((!prev || canReach(prev, cand)) && !collides(out, cand)) break;
+      if ((!prev || reaches(g, prev, cand)) && !collides(out, cand)) break;
     }
     const p = put(g, out, 'ladder', x, g.y + dy, w, 'normal');
     maybeTape(g, out, p, 0.34);
@@ -277,20 +284,21 @@ const ladder: PatternFn = (g, d, out) => {
 
 /** Que portal vem agora: o de volta do Papel, ou um sorteado (o do Papel só depois do primeiro portal). */
 function pickPortal(g: Gen): {variant: PortalVariant; target: WorldId} {
-  if (g.world === 'paper') return {variant: 'back', target: g.returnWorld ?? 'neon'};
-  const table = PORTAL.KINDS.map(([k, w]) => [k as PortalVariant, (k === 'paper' || k === 'leap') && g.portalsMade < 1 ? 0 : w] as const);
+  if (g.world === 'paper' && !g.sketchOffered) { g.sketchOffered = true; return {variant: 'sketch', target: 'sketch'}; }
+  if (DETOURS.includes(g.world)) return {variant: 'back', target: g.returnWorld ?? 'neon'};
+  const table = PORTAL.KINDS.map(([k, w]) => [k as PortalVariant, (k === 'paper' || k === 'leap' || k === 'flip') && g.portalsMade < 1 ? 0 : w] as const);
   const variant = weighted(g.rng, table);
-  return {variant, target: variant === 'world' ? nextWorld(g.world) : variant === 'leap' ? nextWorld(nextWorld(g.world)) : variant === 'paper' ? 'paper' : g.world};
+  return {variant, target: variant === 'world' ? nextWorld(g.world) : variant === 'leap' ? nextWorld(nextWorld(g.world)) : variant === 'paper' ? 'paper' : variant === 'flip' ? 'inverse' : g.world};
 }
 
 const portalPad: PatternFn = (g, _d, out) => {
   // Plataforma larga de apoio e, ao lado dela, o portal; o caminho segue para o lado oposto: desviar é só não encostar.
   const pad = nextPlatform(g, 0, out, 'portalPad', {type: 'normal', dy: range(g.rng, 80, 96)});
-  pad.w = g.lane ? 84 : 132;
+  pad.w = narrow(g) ? 84 : 132;
   const [lo, hi] = laneOf(g);
   const side = pad.x < (lo + hi) / 2 ? 1 : -1;
   const {variant, target} = pickPortal(g);
-  const px = g.lane ? clamp(pad.x + side * 40, lo, hi) : clamp(pad.x + side * PORTAL.SIDE, 62, FIELD_W - 62);
+  const px = narrow(g) ? clamp(pad.x + side * 40, lo, hi) : clamp(pad.x + side * PORTAL.SIDE, 62, FIELD_W - 62);
   out.items.push({id: g.nextId++, kind: 'portal', x: px, y: pad.y + PORTAL.ABOVE, phase: range(g.rng, 0, Math.PI * 2), hit: false, target, variant});
   g.portalPlaced = true;
   for (let i = 0; i < 2; i++) nextPlatform(g, 0.3, out, 'portalPad', {type: 'normal'});
@@ -306,7 +314,7 @@ const bonus: PatternFn = (g, _d, out) => {
     for (let t = 0; t < 12; t++) {
       x = Math.round(range(g.rng, lo, hi));
       const cand: Platform = {id: -1, x, y: g.y + dy, w, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'bonus', dir: 0};
-      if ((!prev || canReach(prev, cand)) && !collides(out, cand)) break;
+      if ((!prev || reaches(g, prev, cand)) && !collides(out, cand)) break;
     }
     const p = put(g, out, 'bonus', x, g.y + dy, w, 'normal');
     for (const k of [-34, 0, 34]) tape(g, out, p.x + k, p.y + PICKUP.ABOVE);
@@ -314,13 +322,44 @@ const bonus: PatternFn = (g, _d, out) => {
   }
 };
 
-const PATTERNS: Record<Exclude<PatternName, 'start'>, PatternFn> = {portalPad, bonus, chaos, cluster, drought, springPad, ladder};
+/**
+ * Sala do portal (estilo Portal 2): um BOTÃO no caminho, um portal azul TRANCADO logo acima e uma barreira que
+ * fecha a passagem. Pisar no botão destranca o portal azul, que leva ao portal laranja, do outro lado da barreira.
+ * Sem pisar, não há como passar — mas o botão fica sempre ao alcance de quem está embaixo da barreira.
+ */
+const lab: PatternFn = (g, d, out) => {
+  nextPlatform(g, d, out, 'lab', {type: 'normal'});
+  const sw = nextPlatform(g, d, out, 'lab', {type: 'switch', dy: range(g.rng, 72, 92)});
+  sw.w = 64;
+  // A plataforma do portal fica para o lado do botão (nunca em cima dele): senão o botão ficaria coberto e inalcançável por cima.
+  const padW = 110, padDy = range(g.rng, 82, 94);
+  let padX = clamp(sw.x + (sw.x < FIELD_W / 2 ? 1 : -1) * 70, 70, FIELD_W - 70);
+  for (let t = 0; t < 16; t++) {
+    const x = Math.round(clamp(sw.x + (chance(g.rng, 0.5) ? 1 : -1) * range(g.rng, 48, 110), 70, FIELD_W - 70));
+    const cand: Platform = {id: -1, x, y: sw.y + padDy, w: padW, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'lab', dir: 0};
+    if (Math.abs(x - sw.x) >= 48 && canReach(sw, cand, 1, g.lane === null)) { padX = x; break; }
+  }
+  const pad = put(g, out, 'lab', padX, sw.y + padDy, padW, 'normal');
+  const gateY = pad.y + LAB.GATE_ABOVE;
+  const bx = Math.round(range(g.rng, 100, FIELD_W - 100));
+  const qy = gateY + LAB.EXIT_ABOVE_GATE - PORTAL.ABOVE;
+  out.items.push({id: g.nextId++, kind: 'portal', variant: 'tele', x: pad.x, y: pad.y + PORTAL.ABOVE, phase: 0, hit: false, lock: sw.id, open: false, dx: bx, dy: qy + 30});
+  out.items.push({id: g.nextId++, kind: 'gate', x: FIELD_W / 2, y: gateY, phase: 0, hit: false, lock: sw.id, open: false});
+  const q = put(g, out, 'labExit', bx, qy, 132, 'normal');
+  out.items.push({id: g.nextId++, kind: 'portal', variant: 'exit', x: bx, y: q.y + PORTAL.ABOVE, phase: 0, hit: false, lock: sw.id});
+  for (let i = 0; i < 2; i++) nextPlatform(g, 0.3, out, 'lab', {type: 'normal'});
+  g.labY = g.y + range(g.rng, LAB.GAP_M[0], LAB.GAP_M[1]) * 10;
+};
+
+const PATTERNS: Record<Exclude<PatternName, 'start' | 'labExit'>, PatternFn> = {portalPad, bonus, lab, chaos, cluster, drought, springPad, ladder};
 const NAMES = Object.keys(PATTERN_TABLE) as (keyof typeof PATTERN_TABLE)[];
 
 function choosePattern(g: Gen, d: number): PatternName {
   const m = metersAt(g.y);
   if (!g.portalPlaced && g.y >= g.portalY && g.last !== 'portalPad' && g.bonusEndY === 0) return 'portalPad';
   if (g.bonusEndY > 0) { if (g.y < g.bonusEndY) return 'bonus'; g.bonusEndY = 0; }
+  // Sala do portal: só no campo aberto, longe de portal comum e sem desvio ativo.
+  if (g.y >= g.labY && !g.lane && !DETOURS.includes(g.world) && Math.abs(g.portalY - g.y) > 1500) return 'lab';
   if (m < GEN.WARMUP_M) return 'ladder';
   const table = NAMES.map(name => {
     const [easy, hard, from] = PATTERN_TABLE[name];
@@ -382,7 +421,7 @@ function placeEnemy(g: Gen, out: Out, from: number, d: number) {
   else if (kind === 'jelly') { range0 = range(g.rng, 50, 100); speed = range(g.rng, 0.7, 1.2); }
   else if (kind === 'ember') { range0 = range(g.rng, 60, 110); speed = range(g.rng, 1.2, 1.9); }
   const [laneLo, laneHi] = laneOf(g);
-  if (g.lane) range0 = Math.min(range0, kind === 'clip' || kind === 'ember' ? range0 : 22);
+  if (narrow(g)) range0 = Math.min(range0, kind === 'clip' || kind === 'ember' ? range0 : 22);
   // Até 6 tentativas de achar um lugar onde o caminho do inimigo não atravessa uma plataforma.
   for (let k = 0; k < 6; k++) {
     // y: no vão entre duas plataformas do padrão (bloqueio) ou em qualquer ponto da faixa (ao lado).
@@ -392,7 +431,7 @@ function placeEnemy(g: Gen, out: Out, from: number, d: number) {
     const rx = routeX(list, y);
     const sideDir = rx < (laneLo + laneHi) / 2 ? 1 : -1;
     const off = block ? range(g.rng, -16, 16) : sideDir * range(g.rng, 100, 150);
-    const lim = (kind === 'meteor' ? 0 : kind === 'clip' || kind === 'ember' ? 0 : Math.abs(range0)) + spec.size + (g.lane ? 4 : 22);
+    const lim = (kind === 'meteor' ? 0 : kind === 'clip' || kind === 'ember' ? 0 : Math.abs(range0)) + spec.size + (narrow(g) ? 4 : 22);
     const x0 = laneLo + lim > laneHi - lim ? (laneLo + laneHi) / 2 : clamp(rx + off, laneLo + lim, laneHi - lim);
     // meteoros caem por cima de tudo (sem checar plataforma); os demais não podem atravessar uma
     if (kind !== 'meteor' && crossesPlatform(near, x0, y, kind === 'clip' || kind === 'ember' ? 14 : kind === 'jelly' ? Math.abs(range0) * 0.5 + 4 : Math.abs(range0), spec.size + (kind === 'clip' || kind === 'ember' ? range0 : kind === 'jelly' ? 30 : 0))) continue;
@@ -423,7 +462,7 @@ function flagItem(g: Gen, out: Out, from: number) {
 
 function decorate(g: Gen, out: Out, from: number, name: PatternName, d: number) {
   const m = metersAt(g.y);
-  if (name === 'portalPad' || name === 'bonus') return; // o portal e a fase bônus têm o palco só para eles
+  if (name === 'portalPad' || name === 'bonus' || name === 'lab') return; // o portal e a fase bônus têm o palco só para eles
   if (g.y >= g.nextFlagY && flagItem(g, out, from)) g.nextFlagY = g.y + SPAWN.FLAG_GAP_M * 10 + range(g.rng, 0, 400);
   if (g.y >= g.nextPowerY && powerItem(g, out, from)) g.nextPowerY = g.y + range(g.rng, SPAWN.POWER_GAP_M[0], SPAWN.POWER_GAP_M[1]) * 10;
   if (m >= SPAWN.FROM_M && g.y >= g.nextEnemyY && name !== 'ladder' && name !== 'springPad') {
@@ -437,7 +476,7 @@ export function generatePattern(g: Gen, out: Out): PatternName {
   const d = intensityAt(g.y);
   // Humor do acaso: mais tenso quanto mais difícil.
   g.mood = weighted(g.rng, [[0, 1.4 - d], [1, 1], [2, 0.3 + 1.3 * d]] as const);
-  const name = choosePattern(g, d) as Exclude<PatternName, 'start'>;
+  const name = choosePattern(g, d) as Exclude<PatternName, 'start' | 'labExit'>;
   const from = out.platforms.length;
   PATTERNS[name](g, d, out);
   g.repeat = name === g.last ? g.repeat + 1 : 0;

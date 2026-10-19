@@ -1,4 +1,4 @@
-import {BLACKHOLE, COMBAT, ENEMIES, GEN, LAVA, LEVELS, LIFE, PAPER, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
+import {BLACKHOLE, COMBAT, DETOURS, ENEMIES, FIELD_W, GEN, INVERSE, LAB, LAVA, LEVELS, LIFE, PAPER, SKETCH, PHYS, PICKUP, PORTAL, POWER, SCORE, SCORE_M2, WORLD_FX} from '../data/neon.ts';
 import {enemyAt} from './enemies.ts';
 import {jumpSpeed, landHalfWidth, platformX, vxMax, wrapX} from './physics.ts';
 import {makeRng, range} from './rng.ts';
@@ -80,6 +80,7 @@ export function createSim(seed: number, viewH = 690): Sim {
     lava: 0,
     jetSpeed: POWER.JET_SPEED,
     swapped: false,
+    inverted: false,
     bonusY0: 0,
     bonusY1: 0,
     score: 0,
@@ -122,10 +123,10 @@ function compact(sim: Sim) {
   for (let i = 0; i < sim.items.length; i++) {
     const it = sim.items[i];
     if (!it.hit && it.y >= floor) sim.items[n++] = it;
-    else if (!it.hit && it.kind === 'portal') {
+    else if (!it.hit && it.kind === 'portal' && it.variant !== 'tele' && it.variant !== 'exit') {
       // Portal que ficou para trás: o próximo vem mais adiante (não fica dois perto um do outro).
       sim.gen.portalPlaced = false;
-      sim.gen.portalY = sim.gen.y + PORTAL.MISS_RETRY_M * 10;
+      sim.gen.portalY = sim.gen.y + (DETOURS.includes(sim.gen.world) ? 60 : PORTAL.MISS_RETRY_M) * 10;
     }
   }
   sim.items.length = n;
@@ -247,7 +248,7 @@ function takePortal(sim: Sim, portal: Item) {
   sim.portals++;
   g.portalsMade++;
   sim.bonus += SCORE_M2.PORTAL;
-  const world: WorldId = variant === 'back' ? (g.returnWorld ?? 'neon') : variant === 'paper' ? 'paper' : variant === 'world' || variant === 'leap' ? target : sim.world;
+  const world: WorldId = variant === 'back' ? (g.returnWorld ?? 'neon') : variant === 'paper' ? 'paper' : variant === 'flip' ? 'inverse' : variant === 'sketch' ? 'sketch' : variant === 'world' || variant === 'leap' ? target : sim.world;
   sim.events.push({t: 'portal', world, variant, x: portal.x, y: portal.y});
 
   if (variant === 'warp') {
@@ -273,9 +274,9 @@ function takePortal(sim: Sim, portal: Item) {
   sim.items = sim.items.filter(it => it.y <= keep && it !== portal);
   sim.enemies = sim.enemies.filter(e => e.y <= keep);
   sim.bullets.length = 0;
-  const lane = world === 'paper' ? ([PAPER.LANE_MIN, PAPER.LANE_MAX] as [number, number]) : null;
+  const lane = world === 'paper' ? ([PAPER.LANE_MIN, PAPER.LANE_MAX] as [number, number]) : world === 'sketch' ? ([SKETCH.LANE_MIN, SKETCH.LANE_MAX] as [number, number]) : null;
   const sx = lane ? (lane[0] + lane[1]) / 2 : Math.max(92, Math.min(328, p.x));
-  const safe: Platform = {id: g.nextId++, x: sx, y: p.y - 62, w: lane ? 84 : 132, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'start', dir: 0};
+  const safe: Platform = {id: g.nextId++, x: sx, y: p.y - 62, w: lane && lane[1] - lane[0] < 200 ? 84 : 132, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'start', dir: 0};
   sim.platforms.push(safe);
   sim.invuln = LIFE.AFTER_WORLD;
   if (variant !== 'bonus') sim.revive = 1;
@@ -295,19 +296,44 @@ function takePortal(sim: Sim, portal: Item) {
     sim.bonusY1 = g.bonusEndY;
     scheduleNextPortal(sim, g.bonusEndY);
   } else if (variant === 'paper') {
+    // Papel: o portal do Rascunho aparece aos 110 m; se passar direto, o de volta vem logo depois.
     g.returnWorld = sim.world;
     g.paperExitY = safe.y + PAPER.LENGTH_M * 10;
+    g.sketchOffered = false;
     sim.world = 'paper';
     g.world = 'paper';
     g.worldY0 = safe.y;
     g.portalPlaced = false;
-    g.portalY = g.paperExitY;
+    g.portalY = safe.y + SKETCH.OFFER_AT_M * 10;
     p.x = Math.max(PAPER.WALL_MIN, Math.min(PAPER.WALL_MAX, p.x));
+  } else if (variant === 'sketch') {
+    // Rascunho: a dobra rasga; campo inteiro jogável, sem volta pela lateral.
+    sim.world = 'sketch';
+    g.world = 'sketch';
+    g.worldY0 = safe.y;
+    g.portalPlaced = false;
+    g.portalY = safe.y + SKETCH.LENGTH_M * 10;
+    sim.inverted = false;
+    p.x = Math.max(SKETCH.WALL, Math.min(FIELD_W - SKETCH.WALL, p.x));
+  } else if (variant === 'flip') {
+    // Queda livre: o desenho vira de cabeça para baixo; a física é a mesma.
+    g.returnWorld = sim.world;
+    sim.world = 'inverse';
+    g.world = 'inverse';
+    g.worldY0 = safe.y;
+    g.portalPlaced = false;
+    g.portalY = safe.y + INVERSE.LENGTH_M * 10;
   } else {
     if (variant === 'back') {
-      sim.swapped = !sim.swapped;
+      if (sim.world === 'sketch') {
+        // Quem terminou do lado de lá da dobra continua sendo o outro personagem.
+        if (sim.inverted) { sim.swapped = !sim.swapped; sim.events.push({t: 'swap', x: portal.x, y: portal.y}); }
+      } else if (sim.world === 'paper') {
+        sim.swapped = !sim.swapped;
+        sim.events.push({t: 'swap', x: portal.x, y: portal.y});
+      }
+      sim.inverted = false;
       g.returnWorld = null;
-      sim.events.push({t: 'swap', x: portal.x, y: portal.y});
     }
     sim.world = world;
     g.world = world;
@@ -316,6 +342,19 @@ function takePortal(sim: Sim, portal: Item) {
     scheduleNextPortal(sim, safe.y);
   }
   ensureWorld(sim);
+}
+
+/** Portal azul da sala do portal: leva o herói ao outro lado da barreira. */
+function teleport(sim: Sim, a: Item) {
+  const p = sim.player;
+  sim.events.push({t: 'portal', world: sim.world, variant: 'tele', x: a.x, y: a.y});
+  p.x = a.dx ?? p.x;
+  p.y = p.py = a.dy ?? p.y;
+  p.px = p.x;
+  p.vx = 0; p.vy = 0; p.drift = 0;
+  sim.bullets.length = 0;
+  sim.invuln = Math.max(sim.invuln, 0.5);
+  sim.bonus += SCORE_M2.PORTAL / 3;
 }
 
 /* ---------- combate ---------- */
@@ -465,16 +504,17 @@ export function step(sim: Sim, input: Input): void {
   }
 
   // Horizontal: resposta exponencial ao alvo (independente do dt), mais vento do mundo e empurrão de esteira.
-  const axis = Math.max(-1, Math.min(1, input.axis));
+  const axis = Math.max(-1, Math.min(1, input.axis)) * (sim.inverted ? -1 : 1);
   if (axis !== 0) p.facing = axis > 0 ? 1 : -1;
   const target = axis * vxMax(sim.level) + windAt(sim.world, sim.time) + p.drift;
   p.drift *= Math.exp(-WORLD_FX.CLOCK_DECAY * dt);
   p.vx += (target - p.vx) * (1 - Math.exp(-PHYS.ACCEL_K * dt));
-  if (sim.world === 'paper') {
-    // Universo de Papel: não dá a volta pela lateral; a dobra e a parede seguram o herói.
+  const walls: [number, number] | null = sim.world === 'paper' ? [PAPER.WALL_MIN, PAPER.WALL_MAX] : sim.world === 'sketch' ? [SKETCH.WALL, FIELD_W - SKETCH.WALL] : null;
+  if (walls) {
+    // Papel e Rascunho: não dá a volta pela lateral; a parede segura o herói.
     p.x = p.x + p.vx * dt;
-    if (p.x <= PAPER.WALL_MIN) { p.x = PAPER.WALL_MIN; if (p.vx < 0) p.vx = 0; }
-    else if (p.x >= PAPER.WALL_MAX) { p.x = PAPER.WALL_MAX; if (p.vx > 0) p.vx = 0; }
+    if (p.x <= walls[0]) { p.x = walls[0]; if (p.vx < 0) p.vx = 0; }
+    else if (p.x >= walls[1]) { p.x = walls[1]; if (p.vx > 0) p.vx = 0; }
   } else p.x = wrapX(p.x + p.vx * dt);
 
   // Vertical: integração exata para aceleração constante (a altura do salto não depende do dt).
@@ -516,6 +556,29 @@ export function step(sim: Sim, input: Input): void {
         sim.events.push({t: 'break', x: hit.x, y: hit.y});
       } else if (hit.type === 'conveyor') p.drift = (hit.dir || 1) * WORLD_FX.CLOCK_DRIFT;
       sim.events.push({t: 'land', plat: hit.type, x: p.x, y: hit.y});
+      if (hit.type === 'switch' && !hit.pressed) {
+        // Botão: destranca o portal azul e abre a barreira da sala.
+        hit.pressed = true;
+        for (const it of sim.items) if (it.lock === hit.id) it.open = true;
+        sim.events.push({t: 'press', x: hit.x, y: hit.y});
+      }
+      if (sim.world === 'sketch') {
+        // Rascunho: pousar do outro lado da dobra troca o personagem e inverte o controle.
+        const inv = p.x > SKETCH.FOLD;
+        if (inv !== sim.inverted) { sim.inverted = inv; sim.events.push({t: 'swap', x: p.x, y: hit.y}); }
+      }
+    }
+  }
+
+  // Barreira fechada da sala do portal: ninguém sobe por ela (a hélice passa).
+  if (sim.jet <= 0) {
+    for (const it of sim.items) {
+      if (it.kind !== 'gate' || it.open || it.hit) continue;
+      if (y0 + LAB.HEAD <= it.y && p.y + LAB.HEAD > it.y) {
+        p.y = it.y - LAB.HEAD;
+        p.vy = Math.min(p.vy, -90);
+        sim.events.push({t: 'bonk', x: p.x, y: it.y});
+      }
     }
   }
 
@@ -534,11 +597,13 @@ export function step(sim: Sim, input: Input): void {
   for (let i = 0; i < sim.items.length; i++) {
     const it: Item = sim.items[i];
     if (it.hit) continue;
+    if (it.kind === 'gate') continue;
     if (it.kind === 'portal') {
+      if (it.variant === 'exit' || (it.variant === 'tele' && !it.open)) continue; // saída / ainda trancado
       if (Math.abs(p.x - it.x) < PORTAL.HALF_W && Math.abs(p.y + 45 - it.y) < PORTAL.HALF_H) {
         it.hit = true;
-        takePortal(sim, it);
-        break; // a lista mudou
+        if (it.variant === 'tele') teleport(sim, it);
+        else { takePortal(sim, it); break; } // a lista mudou
       }
       continue;
     }
@@ -630,7 +695,7 @@ export function hashSim(sim: Sim): string {
   mix(sim.bullets.length);
   mix(sim.kills);
   mix(sim.portals);
-  mix(sim.world.length + (sim.swapped ? 7 : 0));
+  mix(sim.world.length + (sim.swapped ? 7 : 0) + (sim.inverted ? 13 : 0));
   mix(sim.magnet);
   mix(sim.etime);
   mix(sim.lava);

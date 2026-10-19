@@ -345,7 +345,7 @@ test('vidas e inimigos: encostar tira um coração, acabar as vidas encerra e a 
   await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim, p = sim.player; p.x = 210; p.vx = 0; p.drift = 0; p.y = p.py = sim.camera + 300; p.vy = 0; });
   await hit(); // hit() zera a invencibilidade (sem esperar 1,8 s, que deixava o teste instável)
   await page.getByTestId('arcade-final').waitFor({timeout: 10000});
-  assert.equal(await page.getByTestId('arcade-cause').textContent(), 'Acabaram as vidas.');
+  await page.waitForFunction(() => document.querySelector('[data-testid="arcade-cause"]')?.textContent === 'Acabaram as vidas.', null, {timeout: 5000});
   assert.deepEqual(errors, []);
   await context.close();
 });

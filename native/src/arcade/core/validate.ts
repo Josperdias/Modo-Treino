@@ -24,21 +24,22 @@ function span(p: Platform): [number, number] {
 }
 
 /** Pior distância horizontal (centro→centro) entre `a` e `b` nas piores fases, contando a volta pela lateral. */
-export function worstDx(a: Platform, b: Platform): number {
+export function worstDx(a: Platform, b: Platform, wrap = true): number {
   const [a0, a1] = span(a);
   const [b0, b1] = span(b);
-  return Math.max(wrapDist(a0, b1), wrapDist(a1, b0), wrapDist(a0, b0), wrapDist(a1, b1));
+  const dist = wrap ? wrapDist : (p: number, q: number) => Math.abs(p - q);
+  return Math.max(dist(a0, b1), dist(a1, b0), dist(a0, b0), dist(a1, b1));
 }
 
 /** `a` → `b` é um salto seguro? */
-export function canReach(a: Platform, b: Platform, level = 1): boolean {
+export function canReach(a: Platform, b: Platform, level = 1, wrap = true): boolean {
   const dy = b.y - a.y;
   if (dy <= 0) return true; // descer sempre é possível: cai-se na plataforma abaixo
   const v = jumpSpeed(a.type, false);
   if (dy > apex(v) * SAFETY.RISE) return false;
   const r = reach(dy, v, level);
   if (r < 0) return false;
-  const need = worstDx(a, b) - landHalfWidth(b) + b.shift * 0; // pouso aceita qualquer ponto da plataforma
+  const need = worstDx(a, b, wrap) - landHalfWidth(b) + b.shift * 0; // pouso aceita qualquer ponto da plataforma
   return need <= r * SAFETY.REACH;
 }
 
@@ -51,6 +52,7 @@ export function validate(platforms: readonly Platform[], level = 1): Problem[] {
   const sorted = [...platforms].sort((p, q) => p.y - q.y || p.x - q.x);
   for (let i = 1; i < sorted.length; i++) {
     const b = sorted[i];
+    if (b.pattern === 'labExit') continue; // chega-se por teletransporte (a sala do portal)
     let ok = false;
     for (let j = i - 1; j >= 0 && b.y - sorted[j].y < apex(PHYS.SPRING); j--) {
       const a = sorted[j];
