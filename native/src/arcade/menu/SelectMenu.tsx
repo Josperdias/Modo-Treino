@@ -212,6 +212,9 @@ export default function SelectMenu(p: SelectMenuProps) {
   /* ---------- botão JOGAR entra/sai ---------- */
   const shown = useSharedValue(choice ? 1 : 0);
   useEffect(() => { shown.value = withTiming(choice ? 1 : 0, {duration: reduce ? 0 : 420, easing: Easing.out(Easing.cubic)}); }, [choice, reduce, shown]);
+  const blink = useSharedValue(1);
+  useEffect(() => { blink.value = reduce || !choice ? 1 : withRepeat(withSequence(withTiming(1, {duration: 700}), withTiming(0.35, {duration: 500, easing: Easing.inOut(Easing.sin)}), withTiming(1, {duration: 500, easing: Easing.inOut(Easing.sin)})), -1); }, [choice, reduce, blink]);
+  const blinkStyle = useAnimatedStyle(() => ({opacity: blink.value}));
   const playStyle = useAnimatedStyle(() => ({opacity: shown.value, transform: [{translateY: (1 - shown.value) * 60}]}));
 
   const stage = size ? stageRect(size.w, size.h) : stageRect(win.width, win.height);
@@ -276,7 +279,7 @@ export default function SelectMenu(p: SelectMenuProps) {
       <View pointerEvents="box-none" style={[S.bottom, {left: stage.x, width: stage.w, height: stage.h * 0.105 + 28}]}>
         {/* Sem texto na tela: só o aviso para leitores de tela (a dica de deslizar fica na arte). */}
         <View accessibilityLiveRegion="polite" accessibilityLabel={choice ? `${NAMES[choice]} selecionado` : ''} testID="arcade-indicator" style={{height: 0, width: 0}} />
-        <Animated.View style={[{width: '68%'}, playStyle]} pointerEvents={choice ? 'auto' : 'none'}>
+        <Animated.View style={[{width: '90%'}, playStyle]} pointerEvents={choice ? 'auto' : 'none'}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={choice ? `Jogar com ${NAMES[choice]}` : 'Escolha seu personagem'}
@@ -284,10 +287,10 @@ export default function SelectMenu(p: SelectMenuProps) {
             onPress={play}
             testID="arcade-play"
           >
-            <LinearGradient colors={['#e70f9f', '#6710c8', '#00c4ef']} start={{x: 0, y: 0.4}} end={{x: 1, y: 0.6}} style={[S.play, {minHeight: btnH}]}>
-              <Text style={S.playT}>PRESS START</Text>
-              {!!choice && <Text style={S.playS}>RECORDE {pad(p.best[choice])}</Text>}
-            </LinearGradient>
+            <View style={[S.play, {minHeight: btnH}]}>
+              <Animated.View style={blinkStyle}><Outlined text="PRESS START" size={Math.round(Math.min(34, stage.w * 0.088))} glow={accent} /></Animated.View>
+              {!!choice && <Outlined text={`RECORDE ${pad(p.best[choice])}`} size={12} spacing={2} />}
+            </View>
           </Pressable>
         </Animated.View>
       </View>
@@ -319,6 +322,20 @@ export default function SelectMenu(p: SelectMenuProps) {
   );
 }
 
+/** Letreiro de fliperama: letra branca com contorno preto grosso e brilho, sem caixa por trás. */
+const OUT = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+function Outlined({text, size, spacing, glow}: {text: string; size: number; spacing?: number; glow?: string}) {
+  const w = Math.max(2, Math.round(size / 9));
+  const base = {fontSize: size, fontWeight: '900' as const, letterSpacing: spacing ?? size * 0.09, textAlign: 'center' as const};
+  return (
+    <View accessible={false} importantForAccessibility="no-hide-descendants">
+      {glow && <Text style={[base, {position: 'absolute', left: 0, right: 0, color: '#000', textShadowColor: glow, textShadowRadius: size * 0.7, textShadowOffset: {width: 0, height: 0}}]}>{text}</Text>}
+      {OUT.map(([x, y], i) => <Text key={i} style={[base, {position: 'absolute', left: x * w, right: -x * w, top: y * w, color: '#000'}]}>{text}</Text>)}
+      <Text style={[base, {color: '#fff'}]}>{text}</Text>
+    </View>
+  );
+}
+
 const S = StyleSheet.create({
   top: {position: 'absolute', top: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   round: {width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(3,6,28,.72)', borderWidth: 1, borderColor: 'rgba(147,230,255,.45)', alignItems: 'center', justifyContent: 'center'},
@@ -326,9 +343,7 @@ const S = StyleSheet.create({
   ctrlT: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: '#fff'},
   bottom: {position: 'absolute', bottom: 0, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 14},
   indicator: {fontSize: 11, fontWeight: '800', letterSpacing: 2.4, color: '#e2e4fb', textShadowRadius: 9, textShadowOffset: {width: 0, height: 0}, marginBottom: 8, minHeight: 14},
-  play: {borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,.4)', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, shadowColor: '#a502ab', shadowOpacity: 0.6, shadowRadius: 14, elevation: 8},
-  playT: {fontSize: 16, fontWeight: '900', letterSpacing: 1.6, color: '#fff'},
-  playS: {fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: 'rgba(255,255,255,.8)', marginTop: 1},
+  play: {alignItems: 'center', justifyContent: 'center', paddingVertical: 6, gap: 4},
   loading: {alignItems: 'center', justifyContent: 'center', zIndex: 10, backgroundColor: '#05021a'},
   loadT: {fontSize: 16, fontWeight: '900', letterSpacing: 5, color: '#fff', textShadowRadius: 14, textShadowOffset: {width: 0, height: 0}},
   loadS: {fontSize: 10, fontWeight: '800', letterSpacing: 2.4, color: 'rgba(226,228,251,.85)', marginTop: 10},

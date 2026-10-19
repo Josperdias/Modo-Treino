@@ -288,15 +288,17 @@ export function drawMenu(canvas: SkCanvas, f: MenuFrame): void {
     go.dx += (goLeft ? 1 : -1) * 4 * lungeE;
     rest.opacity *= 1 - lungeE;
   }
+  // O escolhido passa por cima do raio: a máscara dele se abre para o outro lado, senão o cabelo/mão ficam serrados na diagonal.
+  const extL = 26 * Math.max(0, -f.t), extR = 26 * Math.max(0, f.t);
   const drawHeroL = () => {
     canvas.save();
-    if (!(lg > 0 && goLeft)) canvas.clipPath(lanePath('left', p.laneL.top, p.laneL.bottom, f), ClipOp.Intersect, true);
+    if (!(lg > 0 && goLeft)) canvas.clipPath(lanePath('left', p.laneL.top + extL, p.laneL.bottom + extL, f), ClipOp.Intersect, true);
     posed(canvas, im.heroL, bx.heroL, hl, a, 0, bob(0));
     canvas.restore();
   };
   const drawHeroR = () => {
     canvas.save();
-    if (!(lg > 0 && !goLeft)) canvas.clipPath(lanePath('right', p.laneR.top, p.laneR.bottom, f), ClipOp.Intersect, true);
+    if (!(lg > 0 && !goLeft)) canvas.clipPath(lanePath('right', p.laneR.top - extR, p.laneR.bottom - extR, f), ClipOp.Intersect, true);
     posed(canvas, im.heroR, bx.heroR, hr, a, 0, bob(3.4));
     canvas.restore();
   };

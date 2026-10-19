@@ -59,9 +59,10 @@ const mixLook = (a: Look, b: Look, k: number): Look => ({
 
 // dx/dy em % do tamanho do PRÓPRIO elemento (como translate3d(%) no CSS).
 const HERO_NEUTRAL = L(0, 0, 1, 0.99);
-const HERO_L_SEL = L(5, 0, 1.055, 1, 1.05);
+const HERO_L_SEL = L(5, 0, 1, 1, 1.05); // sem crescer (o protótipo usava 1.055; o dono pediu para não aumentar)
 const HERO_L_OFF = L(-12, 1.1, 0.91, 0.74, 0.87, 0.84);
-const HERO_R_SEL = L(-7, 0, 1.055, 1, 1.05);
+// Camila selecionada não cresce: a arte vai até a borda direita do quadro e o cabelo até a esquerda, então tudo precisa caber.
+const HERO_R_SEL = L(-7, 0, 1, 1, 1.05);
 const HERO_R_OFF = L(13, 1.1, 0.91, 0.74, 0.87, 0.84);
 const INFO_NEUTRAL = L(0, 0, 1, 1);
 const INFO_L_SEL = L(1, 0, 1.02, 1);
@@ -132,7 +133,7 @@ export function boxes(s: Stage) {
   const swipeH = (swipeW * 245) / 740;
   return {
     heroL: at(0.75, -0.155, 0.221, 1024 / 1536),
-    heroR: at(0.73, 0.43, 0.24, 941 / 1672),
+    heroR: at(0.70, 0.30, 0.24, 941 / 1672), // cabe inteira no palco (neutro e selecionada)
     ghostL: at(0.7, -0.26, 0.12, 836 / 475),
     ghostR: at(0.7, 0.57, 0.13, 836 / 475),
     infoL: info(0.005),

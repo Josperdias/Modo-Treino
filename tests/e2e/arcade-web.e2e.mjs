@@ -151,12 +151,12 @@ test('menu: tela neutra na 1ª vez, escolher mostra o JOGAR com o recorde, troca
   await shot(page, '01-menu-neutro');
   await pick(page, 'josperd');
   await chosen(page, 'JOSPERD');
-  await page.getByText('RECORDE 1234').waitFor();
+  await page.getByText('RECORDE 1234').first().waitFor();
   await page.waitForTimeout(1000);
   await shot(page, '01a-menu-josperd');
   await page.getByTestId('arcade-swap').click(); // botão de setas do centro
   await chosen(page, 'CAMILA');
-  await page.getByText('RECORDE 0077').waitFor();
+  await page.getByText('RECORDE 0077').first().waitFor();
   await page.waitForTimeout(1000);
   await shot(page, '01b-menu-camila');
   await startGame(page, 'camila');
@@ -169,7 +169,7 @@ test('menu: quem já jogou volta com o último personagem já escolhido', {skip}
   const {context, page} = await open({save: {v: 1, unlocked: true, plays: 3, best: {josperd: 10, camila: 500}, settings: {hero: 'camila'}}});
   await toArcade(page);
   await chosen(page, 'CAMILA');
-  await page.getByText('PRESS START').waitFor();
+  await page.getByText('PRESS START').first().waitFor();
   await page.getByLabel('Jogar com CAMILA').waitFor();
   await context.close();
 });

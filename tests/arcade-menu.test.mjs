@@ -19,9 +19,9 @@ test('pose: os três estados batem com o CSS do protótipo V3.5', () => {
   assert.deepEqual([j.laneR.top, j.laneR.bottom], [73, 43]);
   assert.equal(n.rayShift, 0); assert.equal(j.rayShift, 7); assert.equal(c.rayShift, -7);
   assert.deepEqual([n.swapX, j.swapX, c.swapX], [50, 57, 43]);
-  assert.deepEqual(j.heroL, {dx: 5, dy: 0, scale: 1.055, opacity: 1, bright: 1.05, sat: 1});
+  assert.deepEqual(j.heroL, {dx: 5, dy: 0, scale: 1, opacity: 1, bright: 1.05, sat: 1});
   assert.deepEqual(j.heroR, {dx: 13, dy: 1.1, scale: 0.91, opacity: 0.74, bright: 0.87, sat: 0.84});
-  assert.deepEqual(c.heroR, {dx: -7, dy: 0, scale: 1.055, opacity: 1, bright: 1.05, sat: 1});
+  assert.deepEqual(c.heroR, {dx: -7, dy: 0, scale: 1, opacity: 1, bright: 1.05, sat: 1});
   assert.deepEqual(c.heroL, {dx: -12, dy: 1.1, scale: 0.91, opacity: 0.74, bright: 0.87, sat: 0.84});
   assert.equal(j.infoR.opacity, 0.76); assert.equal(c.infoL.opacity, 0.76);
   assert.equal(n.heroL.opacity, 0.99);
@@ -79,7 +79,7 @@ test('caixas: retratos, cartões e logo ficam dentro das proporções do CSS', (
   const s = stageRect(400, 800);
   const b = boxes(s);
   assert.ok(near(b.heroL.w, 300) && near(b.heroL.x, -62) && near(b.heroL.y, 176.8));
-  assert.ok(near(b.heroR.x, 172) && near(b.heroR.w, 292));
+  assert.ok(near(b.heroR.x, 120) && near(b.heroR.w, 280));
   assert.ok(near(b.infoL.w, 196) && near(b.infoR.x, 202));
   assert.ok(near(b.infoL.y + b.infoL.h, 720), 'o cartão assenta a 10 % do fundo');
   assert.ok(near(b.logo.x, 56) && near(b.logo.w, 288));
