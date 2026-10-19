@@ -1,5 +1,5 @@
 import {GEN, PHYS} from '../data/neon.ts';
-import {apex, jumpSpeed, landHalfWidth, reach} from './physics.ts';
+import {apex, jumpSpeed, landHalfWidth, reach, wrapDist} from './physics.ts';
 import type {Platform} from './types.ts';
 
 /**
@@ -23,11 +23,11 @@ function span(p: Platform): [number, number] {
   return [p.x - p.shift, p.x + p.shift];
 }
 
-/** Pior distância horizontal (centro→centro) entre `a` e `b` nas piores fases. */
+/** Pior distância horizontal (centro→centro) entre `a` e `b` nas piores fases, contando a volta pela lateral. */
 export function worstDx(a: Platform, b: Platform): number {
   const [a0, a1] = span(a);
   const [b0, b1] = span(b);
-  return Math.max(Math.abs(a0 - b1), Math.abs(a1 - b0), Math.abs(a0 - b0), Math.abs(a1 - b1));
+  return Math.max(wrapDist(a0, b1), wrapDist(a1, b0), wrapDist(a0, b0), wrapDist(a1, b1));
 }
 
 /** `a` → `b` é um salto seguro? */

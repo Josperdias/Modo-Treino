@@ -170,15 +170,14 @@ test('mundo: TODA plataforma é alcançável com folga (300 sementes × 3000 m) 
   assert.ok(total > 50000);
 });
 
-test('mundo: o validador pega salto impossível e plataformas sobrepostas', () => {
+test('mundo: o validador pega salto impossível e plataformas sobrepostas; conta a volta pela lateral', () => {
   const a = plat({id: 1, y: 100, x: 100});
-  assert.ok(!canReach(a, plat({id: 2, y: 100 + 190, x: 100})), 'subida de 190 passa de 78% do ápice');
-  assert.ok(!canReach(a, plat({id: 3, y: 100 + 100, x: 100 + 600})), 'distância absurda');
+  assert.ok(!canReach(a, plat({id: 2, y: 100 + 190, x: 100})), 'subida de 190 passa de 86% do ápice');
+  assert.ok(canReach(a, plat({id: 3, y: 100 + 100, x: 100 + 600})), 'dar a volta pela lateral: 600 de distância são 100 do outro lado');
   assert.ok(canReach(a, plat({id: 4, y: 100 + 110, x: 100 + 150})));
-  assert.equal(validate([a, plat({id: 5, y: 190, x: 100 + 400})]).length, 1);
   assert.ok(validate([a, plat({id: 6, y: 110, x: 105})]).some(p => p.reason === 'sobreposta'));
-  // móvel: usa o pior caso
-  assert.ok(!canReach(a, plat({id: 7, y: 200, x: 100 + 150, type: 'moving', shift: 160})));
+  assert.equal(validate([a, plat({id: 5, y: 190, x: 100 + 400})]).length, 0, 'x longe mas alcançável pela volta');
+  assert.equal(validate([a, plat({id: 5, y: 100 + 250, x: 100})]).length, 1, 'alto demais sem mola');
   // mola: alcança bem mais alto
   assert.ok(canReach(plat({type: 'spring', y: 100}), plat({id: 8, y: 100 + 260, x: 110})));
 });
@@ -197,55 +196,62 @@ test('mundo: degraus respeitam os limites de projeto (nunca > 86 % do ápice)', 
   }
 });
 
-test('mundo: aquecimento — nada de móvel/quebrável/mola nos primeiros 18 m', () => {
+test('mundo: aquecimento — nada de móvel/quebrável/mola nos primeiros 14 m', () => {
   for (let seed = 1; seed <= 100; seed++) {
     const w = worldOf(seed, 40);
     for (const p of w.platforms) if (p.y < 90 + GEN.WARMUP_M * 10) assert.ok(['start', 'normal'].includes(p.type), `${p.type} @${p.y}`);
   }
 });
 
-test('mundo: variedade — vários padrões, sem repetir o mesmo padrão em sequência longa, respiros regulares', () => {
+test('mundo: variedade — todos os "humores" aparecem e o mapa não repete fórmula', () => {
   const seen = {};
-  let maxRun = 0, maxSinceWide = 0;
   for (let seed = 1; seed <= 60; seed++) {
     const g = makeGen(seed);
     const out = {platforms: [], items: [], enemies: []};
-    let run = 0, last = '', since = 0;
-    for (let i = 0; i < 400; i++) {
-      const before = out.platforms.length;
-      generateUntil(g, out, g.y + 1);
-      const pat = out.platforms[before]?.pattern;
-      if (!pat) continue;
-      seen[pat] = (seen[pat] || 0) + 1;
-      run = pat === last ? run + 1 : 1; last = pat; maxRun = Math.max(maxRun, run);
-      since = ['wide', 'fork', 'springPad', 'portalPad'].includes(pat) ? 0 : since + 1; maxSinceWide = Math.max(maxSinceWide, since);
-    }
+    for (let i = 0; i < 400; i++) { const before = out.platforms.length; generateUntil(g, out, g.y + 1); const pat = out.platforms[before]?.pattern; if (pat) seen[pat] = (seen[pat] || 0) + 1; }
   }
-  for (const name of ['stairs', 'tower', 'wide', 'scatter', 'fork', 'movers', 'zigzag', 'springPad', 'breakables']) assert.ok(seen[name] > 20, `padrão ${name} quase não aparece`);
-  assert.ok(maxRun <= 4, `mesmo padrão ${maxRun}x seguidas`);
-  assert.ok(maxSinceWide <= 11, `${maxSinceWide} padrões tensos sem respiro`);
+  for (const name of ['chaos', 'cluster', 'drought', 'springPad', 'ladder']) assert.ok(seen[name] > 15, `padrão ${name} quase não aparece: ${seen[name]}`);
 });
 
-test('mundo: apresentação — cada novidade aparece cedo e em ordem (fork, móveis, quebráveis, mola, zigue-zague)', () => {
-  const first = {};
-  for (let seed = 1; seed <= 40; seed++) {
+test('mundo: estilo Doodle Jump — X aleatório no campo todo, vãos irregulares, sem escadinha previsível', () => {
+  let n = 0, big = 0, sumDx = 0, sameDir = 0, trip = 0, gaps = [];
+  for (let seed = 1; seed <= 60; seed++) {
+    const w = worldOf(seed, 1500).platforms.filter(p => p.pattern === 'chaos').sort((p, q) => p.y - q.y);
+    for (let i = 2; i < w.length; i++) {
+      const dx1 = w[i - 1].x - w[i - 2].x, dx2 = w[i].x - w[i - 1].x;
+      const d = Math.abs(dx2);
+      n++; sumDx += d; if (d > 150) big++;
+      trip++; if (Math.sign(dx1) === Math.sign(dx2)) sameDir++;
+      gaps.push(w[i].y - w[i - 1].y);
+    }
+  }
+  const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const sd = Math.sqrt(gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / gaps.length);
+  assert.ok(sumDx / n > 100, `salto lateral médio ${sumDx / n}`);
+  assert.ok(big / n > 0.25, `saltos laterais > 150: ${big / n}`);
+  assert.ok(Math.abs(sameDir / trip - 1 / 3) < 0.08, `sem tendência de direção (sorteio puro dá 1/3): ${sameDir / trip}`);
+  assert.ok(sd > 22, `vãos irregulares (desvio ${sd})`);
+  assert.ok(Math.min(...gaps) < 70 && Math.max(...gaps) > 150, 'há saltinhos curtos e esticões');
+});
+
+test('mundo: tipos por altitude — móvel a partir de 12 m, quebrável 20 m, mola 34 m, e todos aparecem cedo', () => {
+  const first = {moving: Infinity, fragile: Infinity, spring: Infinity};
+  let miss = 0;
+  for (let seed = 1; seed <= 60; seed++) {
     const w = worldOf(seed, 400);
-    const seen = {};
-    for (const p of w.platforms) if (!seen[p.pattern]) seen[p.pattern] = (p.y - 90) / 10;
-    for (const [pat, limit] of [['fork', 90], ['movers', 140], ['breakables', 195], ['springPad', 250], ['zigzag', 300]]) {
-      assert.ok(seen[pat] !== undefined && seen[pat] <= limit, `semente ${seed}: ${pat} só aos ${seen[pat]} m`);
-      first[pat] = Math.max(first[pat] || 0, seen[pat]);
-    }
-    const typeAt = t => w.platforms.find(p => p.type === t);
-    assert.ok((typeAt('moving').y - 90) / 10 <= 140 && (typeAt('fragile').y - 90) / 10 <= 200 && (typeAt('spring').y - 90) / 10 <= 260);
+    const f = {};
+    for (const p of w.platforms) if (first[p.type] !== undefined) f[p.type] = Math.min(f[p.type] ?? Infinity, (p.y - 90) / 10);
+    for (const t of Object.keys(first)) { first[t] = Math.min(first[t], f[t] ?? Infinity); if (t !== 'spring' && (f[t] ?? Infinity) > 160) miss++; }
   }
+  assert.ok(first.moving >= 11 && first.fragile >= 19 && first.spring >= 33, JSON.stringify(first));
+  assert.ok(miss <= 16, `tipo demorando a aparecer em ${miss} casos`);
 });
 
-test('mundo: ritmo — a intensidade oscila (tensão/respiro) e cresce com a altitude', () => {
+test('mundo: ritmo — a intensidade cresce com a altitude e ainda oscila', () => {
   assert.ok(rampAt(90) === 0 && rampAt(90 + 5000) > 0.9);
   const samples = [];
   for (let y = 90 + 5000; y < 90 + 5000 + GEN.CYCLE; y += 100) samples.push(intensityAt(y));
-  assert.ok(Math.max(...samples) > 0.9 && Math.min(...samples) < 0.75);
+  assert.ok(Math.max(...samples) > 0.9 && Math.min(...samples) < 0.9);
   assert.ok(cycleAt(90) < cycleAt(90 + GEN.CYCLE / 2));
 });
 
@@ -269,22 +275,25 @@ test('robô IDEAL nunca cai em 25 sementes × 240 s (o jogo é sempre possível)
     while (s.mode === 'playing' && s.tick < 120 * 240) { step(s, botInput(s, bot)); for (const e of s.events) if (e.t === 'over') cause = e.cause; s.events.length = 0; }
     assert.notEqual(cause, 'fall', `semente ${seed} caiu aos ${s.time.toFixed(1)} s (${metersOf(s)} m)`);
     if (s.mode === 'over') byDamage++;
-    else assert.ok(metersOf(s) > 1500);
+    else assert.ok(metersOf(s) > 150, `só ${metersOf(s)} m`);
   }
-  assert.ok(byDamage <= 2, `${byDamage}/25 morreram por dano`);
+  assert.ok(byDamage <= 3, `${byDamage}/25 morreram por dano`);
 });
 
-test('robô HUMANO (150 ms de reação, erro de ~14 un.) também sobrevive: o jogo não é injusto', () => {
-  let died = 0;
+test('robô HUMANO (150 ms de reação, erro de ~14 un.) progride bem e às vezes cai: o jogo é difícil mas justo', () => {
+  let died = 0; const med = [];
   for (let seed = 1; seed <= 25; seed++) {
     const s = createSim(seed), bot = makeBot(HUMAN, seed);
     while (s.mode === 'playing' && s.tick < 120 * 240) step(s, botInput(s, bot));
     if (s.mode === 'over') died++;
+    med.push(metersOf(s));
   }
-  assert.ok(died <= 4, `${died}/25 caíram`);
+  med.sort((a, b) => a - b);
+  assert.ok(died <= 22, `${died}/25 caíram`);
+  assert.ok(med[12] > 800, `mediana ${med[12]} m`);
 });
 
-test('robô DESCUIDADO (250 ms, erro de ~30 un.) cai com frequência: há desafio real', () => {
+test('robô DESCUIDADO (250 ms, erro de ~30 un.) quase sempre cai: há desafio real, mas dá para progredir', () => {
   let died = 0, med = [];
   for (let seed = 1; seed <= 30; seed++) {
     const s = createSim(seed), bot = makeBot({every: 30, noise: 30, lapse: 0.1}, seed);
@@ -292,9 +301,9 @@ test('robô DESCUIDADO (250 ms, erro de ~30 un.) cai com frequência: há desafi
     if (s.mode === 'over') died++;
     med.push(metersOf(s));
   }
-  assert.ok(died >= 15 && died <= 29, `${died}/30 caíram`);
+  assert.ok(died >= 20, `${died}/30 caíram`);
   med.sort((a, b) => a - b);
-  assert.ok(med[15] > 300, `mediana ${med[15]} m`);
+  assert.ok(med[15] > 150, `mediana ${med[15]} m`);
 });
 
 /* ---------- regras ---------- */

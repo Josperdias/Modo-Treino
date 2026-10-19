@@ -234,7 +234,6 @@ function enterWorld(sim: Sim, portal: Item) {
   g.y = safe.y;
   g.last = 'start';
   g.repeat = 0;
-  g.sinceWide = 0;
   g.portalPlaced = false;
   g.portalY = safe.y + PORTAL.TRAVEL_M * 10;
   g.nextEnemyY = safe.y + 360;

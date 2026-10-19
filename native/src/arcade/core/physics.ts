@@ -54,3 +54,10 @@ export function wrapX(x: number): number {
   if (x > FIELD_W + m) return -m;
   return x;
 }
+
+/** Distância horizontal entre dois X contando a volta pela lateral (o campo "dá a volta" a cada FIELD_W + 2·margem). */
+export function wrapDist(a: number, b: number): number {
+  const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
+  const d = Math.abs(a - b) % span;
+  return Math.min(d, span - d);
+}

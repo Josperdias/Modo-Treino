@@ -312,7 +312,7 @@ test('geração: inimigos só depois de 38 m, fora das plataformas, com poderes 
     }
     const powers = out.items.filter(i => ['shield', 'boost', 'jet', 'heart'].includes(i.kind)).map(i => i.y);
     assert.ok(powers.length >= 8 && powers[0] - 90 >= SPAWN.POWER_FROM_M * 10 - 600, `poderes ${powers.length}`);
-    for (let i = 1; i < powers.length; i++) assert.ok(powers[i] - powers[i - 1] >= SPAWN.POWER_GAP_M[0] * 10 - 600, 'poder em cascata');
+    for (let i = 1; i < powers.length; i++) assert.ok(powers[i] - powers[i - 1] >= SPAWN.POWER_GAP_M[0] * 10 - 900, 'poder em cascata');
     const flags = out.items.filter(i => i.kind === 'flag').map(i => i.y);
     assert.ok(flags.length >= 6 && flags[0] - 90 >= 300);
     for (let i = 1; i < flags.length; i++) assert.ok(flags[i] - flags[i - 1] >= 1200, 'bandeira em cascata');

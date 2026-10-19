@@ -71,26 +71,26 @@ export const LEVELS = [
  * - Alcance: nenhum degrau passa de `GAP_MAX_FRAC` do ápice do salto normal.
  */
 export const GEN = {
-  RAMP_M: 220,
+  RAMP_M: 240,
   CYCLE: 5000,
   /** Fração do ciclo (0..1) em que a intensidade cai para o respiro. */
-  CALM_FLOOR: 0.68,
-  MARGIN_X: 52,
-  GAP_MIN: 86,
-  GAP_MIN_HARD: 118,
-  GAP_MAX: 118,
-  GAP_MAX_HARD: 166,
+  CALM_FLOOR: 0.8,
+  MARGIN_X: 30,
+  GAP_MIN: 74,
+  GAP_MIN_HARD: 100,
+  GAP_MAX: 116,
+  GAP_MAX_HARD: 168,
   /** Nenhum degrau passa disto (≈ 85 % do ápice): a folga que o validador exige. */
   GAP_CAP: 168,
   /** Espessura mínima entre plataformas para não sobrepor desenhos. */
   CLEARANCE_Y: 34,
-  WIDTH_NORMAL: [88, 44],
-  WIDTH_MOVING: [74, 42],
-  WIDTH_FRAGILE: [80, 46],
-  WIDTH_SPRING: [82, 60],
-  WIDTH_WIDE: [136, 92],
+  WIDTH_NORMAL: [96, 38],
+  WIDTH_MOVING: [80, 38],
+  WIDTH_FRAGILE: [84, 40],
+  WIDTH_SPRING: [80, 56],
+  WIDTH_WIDE: [136, 80],
   /** Primeiros metros: só degraus fáceis. */
-  WARMUP_M: 18,
+  WARMUP_M: 14,
   TAPE_CHANCE: 0.17,
   /** Quanto à frente da tela o mundo é gerado. */
   LOOKAHEAD: 480,
@@ -98,43 +98,24 @@ export const GEN = {
   KEEP_BEHIND: 220,
 } as const;
 
-/** Pesos de padrões por intensidade (0..1). O valor é [fácil, difícil] e interpola. */
-export const PATTERN_WEIGHTS = {
-  stairs: [3, 1.6],
-  tower: [2.2, 1],
-  wide: [1.1, 0.45],
-  scatter: [1.4, 1.6],
-  fork: [0.4, 1.5],
-  movers: [0.5, 2.2],
-  zigzag: [0.3, 1.8],
-  springPad: [0.35, 1.1],
-  breakables: [0.35, 1.7],
-} as const;
-
-/** Ao entrar em cada padrão, a partir de qual intensidade ele é permitido. */
-export const PATTERN_MIN_INTENSITY = {
-  stairs: 0,
-  tower: 0,
-  wide: 0,
-  scatter: 0.08,
-  fork: 0.13,
-  movers: 0.16,
-  zigzag: 0.22,
-  springPad: 0.2,
-  breakables: 0.26,
-} as const;
-
 /**
- * Apresentação de novidades: cada padrão novo é FORÇADO uma vez nesta altitude (metros), para o jogador
- * conhecer plataformas móveis, quebráveis e mola cedo, em vez de esperar o sorteio.
+ * Tipos de plataforma por altitude: peso = lerp(fácil, difícil, intensidade) a partir de `from` (m).
+ * O resto do peso é plataforma comum (peso 1). Mais difícil = mais tipos traiçoeiros.
  */
-export const INTRO = [
-  {pattern: 'fork', m: 18},
-  {pattern: 'movers', m: 34},
-  {pattern: 'breakables', m: 54},
-  {pattern: 'springPad', m: 76},
-  {pattern: 'zigzag', m: 100},
-] as const;
+export const TYPE_TABLE = {
+  moving: {from: 12, w: [0.42, 0.55]},
+  fragile: {from: 20, w: [0.3, 0.48]},
+  spring: {from: 34, w: [0.12, 0.08]},
+} as const;
+
+/** Padrões (agora são "humores" do acaso, não escadinhas): [peso fácil, peso difícil, a partir da intensidade]. */
+export const PATTERN_TABLE = {
+  chaos: [6, 7, 0],
+  cluster: [1, 1.6, 0.08],
+  drought: [0, 1.3, 0.2],
+  springPad: [0.45, 0.8, 0.12],
+  ladder: [0.7, 0.1, 0],
+} as const;
 
 /* ------------------------------------------------------------------ */
 /* M2: vidas, combate, poderes, mundos                                 */

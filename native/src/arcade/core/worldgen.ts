@@ -1,15 +1,17 @@
-import {ENEMIES, ENEMY_TABLE, FIELD_W, GEN, INTRO, PATTERN_MIN_INTENSITY, PATTERN_WEIGHTS, PHYS, PICKUP, PORTAL, POWER_TABLE, SPAWN, WORLD_FX, WORLD_ORDER, type WorldId} from '../data/neon.ts';
+import {ENEMIES, ENEMY_TABLE, FIELD_W, GEN, PATTERN_TABLE, PHYS, PICKUP, PORTAL, POWER_TABLE, SPAWN, TYPE_TABLE, WORLD_FX, WORLD_ORDER, type WorldId} from '../data/neon.ts';
+import {apex} from './physics.ts';
+import {canReach, SAFETY} from './validate.ts';
 import {chance, int, makeRng, next, range, weighted} from './rng.ts';
 import type {Enemy, EnemyKind, Gen, Item, ItemKind, PatternName, Platform, PlatformType} from './types.ts';
 
 /**
- * Gerador do mundo por PADRÕES (substitui o sorteio plataforma a plataforma do protótipo, que
- * produzia zigue-zague aleatório sem ritmo). Cada padrão é uma frase curta e legível:
- * degraus, torre, plataforma larga de respiro, bifurcação, móveis, zigue-zague, mola e quebráveis.
+ * Gerador do mundo ao estilo Doodle Jump de verdade: plataformas em lugares ALEATÓRIOS do campo inteiro
+ * (o herói dá a volta pela lateral), vãos irregulares, tipos misturados e "humores" do acaso
+ * (calmo/normal/tenso) em vez de escadinhas e torres. Nada de padrão previsível.
  *
  * Garantias (provadas em `validate.ts` + testes):
- * - toda plataforma é alcançável de alguma anterior com folga (nunca exige o limite físico);
- * - o mundo depende só da semente e da ordem dos padrões, nunca do tempo, da câmera ou do dt.
+ * - toda plataforma é alcançável da anterior com folga (nunca exige o limite físico), contando a volta pela lateral;
+ * - o mundo depende só da semente e da ordem de geração, nunca do tempo, da câmera ou do dt.
  */
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -26,8 +28,7 @@ export function makeGen(seed: number): Gen {
     count: 0,
     last: 'start',
     repeat: 0,
-    sinceWide: 0,
-    intro: 0,
+    mood: 1,
     nextId: 1,
     world: 'neon',
     worldY0: PHYS.START_Y,
@@ -63,14 +64,8 @@ export function intensityAt(y: number): number {
   return rampAt(y) * cycleAt(y);
 }
 
-function gapFor(g: Gen, d: number, scale = 1): number {
-  const lo = lerp(GEN.GAP_MIN, GEN.GAP_MIN_HARD, d);
-  const hi = lerp(GEN.GAP_MAX, GEN.GAP_MAX_HARD, d);
-  return Math.min(GEN.GAP_CAP, range(g.rng, lo, hi) * scale);
-}
-
 function widthFor(g: Gen, span: readonly number[], d: number): number {
-  return Math.round(lerp(span[0], span[1], d) + range(g.rng, -5, 5));
+  return Math.round(lerp(span[0], span[1], d) + range(g.rng, -8, 10));
 }
 
 function put(
@@ -84,7 +79,7 @@ function put(
   moving?: {shift: number; speed: number},
 ): Platform {
   let dir = 0;
-  if (type === 'normal' && g.world === 'clock' && pattern !== 'wide' && pattern !== 'portalPad' && chance(g.rng, WORLD_FX.CLOCK_CONVEYOR_CHANCE)) {
+  if (type === 'normal' && g.world === 'clock' && pattern !== 'ladder' && pattern !== 'portalPad' && chance(g.rng, WORLD_FX.CLOCK_CONVEYOR_CHANCE)) {
     type = 'conveyor';
     dir = chance(g.rng, 0.5) ? 1 : -1;
   }
@@ -102,6 +97,8 @@ function put(
     dir,
   };
   out.platforms.push(p);
+  g.x = x;
+  g.y = y;
   return p;
 }
 
@@ -114,199 +111,173 @@ function maybeTape(g: Gen, out: Out, p: Platform, prob: number = GEN.TAPE_CHANCE
   if (chance(g.rng, prob)) tape(g, out, p.x, p.y + PICKUP.ABOVE);
 }
 
-/** Direção lateral que afasta da borda (evita encurralar o herói num canto). */
-function awayFromEdge(g: Gen): 1 | -1 {
-  if (g.x < 130) return 1;
-  if (g.x > FIELD_W - 130) return -1;
-  return next(g.rng) < 0.5 ? -1 : 1;
+/* ---------- colocação ao acaso com alcance garantido ---------- */
+
+const SPAN = FIELD_W + 2 * PHYS.WRAP_MARGIN;
+
+/** Escolhe o tipo da plataforma: pesos por altitude/intensidade (o resto é plataforma comum). */
+function pickType(g: Gen, d: number, prev: Platform | null): PlatformType {
+  const m = metersAt(g.y);
+  const w = (k: keyof typeof TYPE_TABLE) => (m >= TYPE_TABLE[k].from ? lerp(TYPE_TABLE[k].w[0], TYPE_TABLE[k].w[1], d) * (g.mood === 2 ? 1.3 : g.mood === 0 ? 0.6 : 1) : 0);
+  // depois de uma quebrável o chão firme é mais provável (senão o jogo vira só armadilha)
+  const fragileW = prev?.type === 'fragile' ? w('fragile') * 0.45 : w('fragile');
+  return weighted(g.rng, [['normal', 0.8], ['moving', w('moving')], ['fragile', fragileW], ['spring', w('spring')]] as const);
+}
+
+/** Vão vertical até a próxima: irregular, com saltinhos curtos e esticões perto do limite. */
+function gapSample(g: Gen, d: number, prev: Platform | null): number {
+  if (prev?.type === 'spring') return range(g.rng, 170, Math.min(300, apex(PHYS.SPRING) * SAFETY.RISE * 0.96));
+  const lo = lerp(GEN.GAP_MIN, GEN.GAP_MIN_HARD, d);
+  const hi = lerp(GEN.GAP_MAX, GEN.GAP_MAX_HARD, d);
+  const u = next(g.rng);
+  const bias = g.mood === 0 ? u * u : g.mood === 2 ? 1 - (1 - u) * (1 - u) : u;
+  let dy = lo + (hi - lo) * bias;
+  if (chance(g.rng, 0.1)) dy = range(g.rng, 50, 76); // saltinho curto no meio da bagunça
+  return Math.min(GEN.GAP_CAP, dy);
+}
+
+function widthForType(g: Gen, type: PlatformType, d: number): number {
+  const span = type === 'moving' ? GEN.WIDTH_MOVING : type === 'fragile' ? GEN.WIDTH_FRAGILE : type === 'spring' ? GEN.WIDTH_SPRING : GEN.WIDTH_NORMAL;
+  return Math.max(34, widthFor(g, span, d));
+}
+
+/** A plataforma candidata invade o espaço de alguma das últimas? (mesma regra do validador) */
+function collides(out: Out, c: {x: number; y: number; w: number; shift: number}): boolean {
+  const list = out.platforms;
+  for (let i = list.length - 1; i >= 0 && i >= list.length - 10; i--) {
+    const a = list[i];
+    if (Math.abs(a.y - c.y) >= GEN.CLEARANCE_Y) continue;
+    const overlap = Math.min(a.x + a.shift + a.w / 2, c.x + c.shift + c.w / 2) - Math.max(a.x - a.shift - a.w / 2, c.x - c.shift - c.w / 2);
+    if (overlap > -14) return true;
+  }
+  return false;
+}
+
+/**
+ * Próxima plataforma da corrente: X aleatório em TODO o campo, com tentativas até ser alcançável da anterior
+ * (contando a volta pela lateral). Nunca devolve algo impossível: se o sorteio falha, cai num degrau seguro.
+ */
+function nextPlatform(g: Gen, d: number, out: Out, pattern: PatternName, force?: {type?: PlatformType; dy?: number}): Platform {
+  const prev = out.platforms.length ? out.platforms[out.platforms.length - 1] : null;
+  // O tipo é sorteado UMA vez (senão o sorteio de posição favorece só o comum, que é o mais fácil de aceitar).
+  const wantType = force?.type ?? pickType(g, d, prev);
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const type = attempt < 16 ? wantType : 'normal';
+    const dy = force?.dy ?? gapSample(g, d, prev);
+    const w = widthForType(g, type, d);
+    let shift = 0, speed = 0;
+    if (type === 'moving') { shift = Math.round(range(g.rng, 30, 56 + 34 * d)); speed = range(g.rng, 0.9, 1.5) + 0.8 * d; }
+    const lo = GEN.MARGIN_X + shift, hi = FIELD_W - GEN.MARGIN_X - shift;
+    if (hi <= lo) continue;
+    const x = Math.round(range(g.rng, lo, hi));
+    const cand: Platform = {id: -1, x, y: g.y + dy, w, type, phase: 0, speed, shift, broken: false, pattern, dir: 0};
+    if (prev && !canReach(prev, cand)) continue;
+    if (collides(out, cand)) continue;
+    return put(g, out, pattern, x, cand.y, w, type, type === 'moving' ? {shift, speed} : undefined);
+  }
+  // Fallback: degrau comum, curto e do lado oposto (sempre alcançável).
+  const dx = (g.x < FIELD_W / 2 ? 1 : -1) * 70;
+  const y = g.y + GEN.GAP_MIN;
+  return put(g, out, pattern, clamp(g.x + dx, GEN.MARGIN_X, FIELD_W - GEN.MARGIN_X), y, widthForType(g, 'normal', Math.min(d, 0.5)), 'normal');
 }
 
 type PatternFn = (g: Gen, d: number, out: Out) => void;
 
-const stairs: PatternFn = (g, d, out) => {
-  const n = int(g.rng, 3, 5);
-  let dir = awayFromEdge(g);
-  const step = range(g.rng, 48, 92) * (0.85 + 0.3 * d);
+/** Corrente de plataformas ao acaso (o miolo do jogo). */
+const chaos: PatternFn = (g, d, out) => {
+  const n = int(g.rng, 3, 7);
   for (let i = 0; i < n; i++) {
-    let nx = g.x + dir * step;
-    if (nx < GEN.MARGIN_X || nx > FIELD_W - GEN.MARGIN_X) {
-      dir = (dir * -1) as 1 | -1;
-      nx = g.x + dir * step;
+    const prev = out.platforms[out.platforms.length - 1];
+    const p = nextPlatform(g, d, out, 'chaos');
+    maybeTape(g, out, p, 0.16);
+    // fitas no caminho de saltos longos: convite para arriscar
+    if (prev && p.y - prev.y > 120 && chance(g.rng, 0.35) && Math.abs(p.x - prev.x) < 200) {
+      for (const f of [0.35, 0.65]) tape(g, out, prev.x + (p.x - prev.x) * f, prev.y + (p.y - prev.y) * f + 20);
     }
-    g.x = clampX(nx);
-    g.y += gapFor(g, d);
-    maybeTape(g, out, put(g, out, 'stairs', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, d), 'normal'));
   }
 };
 
-const tower: PatternFn = (g, d, out) => {
-  const n = int(g.rng, 3, 5);
+/** Duas ou três plataformas quase na mesma altura, espalhadas: escolha de qual pegar (e uma pode ser armadilha). */
+const cluster: PatternFn = (g, d, out) => {
+  const base = nextPlatform(g, d, out, 'cluster');
+  maybeTape(g, out, base, 0.25);
+  const n = int(g.rng, 1, 2);
+  const before = out.platforms.length - 2 >= 0 ? out.platforms[out.platforms.length - 2] : null;
   for (let i = 0; i < n; i++) {
-    g.x = clampX(g.x + range(g.rng, -34, 34));
-    g.y += gapFor(g, d, 1.04);
-    maybeTape(g, out, put(g, out, 'tower', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, d), 'normal'), 0.3);
-  }
-};
-
-const wide: PatternFn = (g, d, out) => {
-  g.x = clampX(lerp(g.x, FIELD_W / 2, 0.5) + range(g.rng, -26, 26));
-  g.y += gapFor(g, 0, 1);
-  const p = put(g, out, 'wide', g.x, g.y, widthFor(g, GEN.WIDTH_WIDE, d), 'normal');
-  tape(g, out, p.x - 30, p.y + PICKUP.ABOVE);
-  tape(g, out, p.x + 30, p.y + PICKUP.ABOVE);
-};
-
-const scatter: PatternFn = (g, d, out) => {
-  const n = int(g.rng, 3, 6);
-  let vel = 0;
-  const lat = 92 * (0.85 + 0.45 * d);
-  for (let i = 0; i < n; i++) {
-    vel = vel * 0.5 + range(g.rng, -1, 1) * lat;
-    vel = clamp(vel, -(105 + 25 * d), 105 + 25 * d);
-    let nx = g.x + vel;
-    if (nx < GEN.MARGIN_X || nx > FIELD_W - GEN.MARGIN_X) {
-      vel = -vel;
-      nx = g.x + vel;
+    for (let t = 0; t < 8; t++) {
+      const type = chance(g.rng, 0.3 + 0.3 * d) ? 'fragile' : pickType(g, d, base);
+      const w = widthForType(g, type === 'spring' ? 'normal' : type, d);
+      const x = Math.round(range(g.rng, GEN.MARGIN_X, FIELD_W - GEN.MARGIN_X));
+      const y = base.y + range(g.rng, -22, 22);
+      const cand: Platform = {id: -1, x, y, w, type: type === 'spring' ? 'normal' : type, phase: 0, speed: 0, shift: 0, broken: false, pattern: 'cluster', dir: 0};
+      if (Math.abs(x - base.x) < (w + base.w) / 2 + 20) continue;
+      if (before && !canReach(before, cand)) continue;
+      if (collides(out, cand)) continue;
+      // o X novo não vira o "topo" da corrente: quem manda é a primeira plataforma
+      const keepX = g.x, keepY = g.y;
+      put(g, out, 'cluster', x, y, w, cand.type);
+      g.x = keepX; g.y = keepY;
+      break;
     }
-    g.x = clampX(nx);
-    g.y += gapFor(g, d);
-    maybeTape(g, out, put(g, out, 'scatter', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, d), 'normal'));
   }
 };
 
-const fork: PatternFn = (g, d, out) => {
-  const y = g.y + gapFor(g, d);
-  const s = range(g.rng, 92, 122);
-  const R = 125; // nenhum dos dois lados fica além do alcance seguro a partir do ponto de partida
-  let xl = Math.max(clampX(g.x - s), g.x - R);
-  let xr = Math.min(clampX(g.x + s), g.x + R);
-  if (xr - xl < 112) {
-    // Perto da borda: abre o lado livre, sem passar do alcance nem da margem.
-    if (g.x < FIELD_W / 2) xr = Math.min(xl + 112, FIELD_W - GEN.MARGIN_X);
-    else xl = Math.max(xr - 112, GEN.MARGIN_X);
-  }
-  const w = widthFor(g, GEN.WIDTH_NORMAL, d);
-  const a = put(g, out, 'fork', xl, y, w, 'normal');
-  const b = put(g, out, 'fork', xr, y, w, 'normal');
-  // A "estrada de cima" tem fitas; a outra é só caminho: escolha do jogador.
-  const rich = chance(g.rng, 0.5) ? a : b;
-  tape(g, out, rich.x - 14, rich.y + PICKUP.ABOVE);
-  tape(g, out, rich.x + 14, rich.y + PICKUP.ABOVE);
-  // Reencontro no meio.
-  g.x = clampX((xl + xr) / 2 + range(g.rng, -22, 22));
-  g.y = y + gapFor(g, d);
-  put(g, out, 'fork', g.x, g.y, widthFor(g, GEN.WIDTH_WIDE, d * 0.5), 'normal');
+/** Seca: um vão grande com plataforma estreita do outro lado (e fitas de isca no caminho). */
+const drought: PatternFn = (g, d, out) => {
+  const p = nextPlatform(g, d, out, 'drought', {dy: GEN.GAP_CAP * range(g.rng, 0.86, 1), type: 'normal'});
+  maybeTape(g, out, p, 0.4);
+  nextPlatform(g, d, out, 'drought');
 };
 
-const movers: PatternFn = (g, d, out) => {
-  const n = int(g.rng, 2, 3);
-  for (let i = 0; i < n; i++) {
-    const shift = Math.round(range(g.rng, 36, 58) * (0.85 + 0.45 * d));
-    const cx = clamp(g.x + range(g.rng, -90, 90), GEN.MARGIN_X + shift, FIELD_W - GEN.MARGIN_X - shift);
-    g.x = cx;
-    g.y += gapFor(g, d, 0.97);
-    put(g, out, 'movers', cx, g.y, widthFor(g, GEN.WIDTH_MOVING, d), 'moving', {
-      shift,
-      speed: range(g.rng, 1.1, 1.7) + 0.3 * d,
-    });
-  }
-  // Depois dos móveis, um chão firme.
-  g.x = clampX(g.x + range(g.rng, -50, 50));
-  g.y += gapFor(g, d, 0.95);
-  put(g, out, 'movers', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, d), 'normal');
-};
-
-const zigzag: PatternFn = (g, d, out) => {
-  const n = int(g.rng, 3, 5);
-  let dir = awayFromEdge(g);
-  for (let i = 0; i < n; i++) {
-    const dx = range(g.rng, 118, 160);
-    let nx = g.x + dir * dx;
-    if (nx < GEN.MARGIN_X || nx > FIELD_W - GEN.MARGIN_X) {
-      dir = (dir * -1) as 1 | -1;
-      nx = g.x + dir * dx;
-    }
-    g.x = clampX(nx);
-    g.y += gapFor(g, d, 0.94);
-    maybeTape(g, out, put(g, out, 'zigzag', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, d), 'normal'), 0.28);
-    dir = (dir * -1) as 1 | -1;
-  }
-};
-
+/** Mola num lugar qualquer e pouso bem lá em cima, em outro lugar qualquer. */
 const springPad: PatternFn = (g, d, out) => {
-  // 1) chão de aproximação; 2) mola; 3) pouso largo bem acima; fitas no ar, no caminho da mola.
-  g.x = clampX(g.x + range(g.rng, -40, 40));
-  g.y += gapFor(g, d, 0.95);
-  put(g, out, 'springPad', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, d), 'normal');
-  const sx = clampX(g.x + range(g.rng, -46, 46));
-  const sy = g.y + gapFor(g, d, 0.92);
-  put(g, out, 'springPad', sx, sy, widthFor(g, GEN.WIDTH_SPRING, d), 'spring');
-  const rise = range(g.rng, 225, 268);
-  const lx = clampX(sx + range(g.rng, -100, 100));
-  const ly = sy + rise;
-  for (const f of [0.3, 0.55, 0.8]) tape(g, out, sx + (lx - sx) * f * 0.5, sy + rise * f);
-  g.x = lx;
-  g.y = ly;
-  put(g, out, 'springPad', lx, ly, widthFor(g, GEN.WIDTH_WIDE, d * 0.6), 'normal');
+  const prev = nextPlatform(g, d, out, 'springPad', {type: 'normal'});
+  const sp = nextPlatform(g, d, out, 'springPad', {type: 'spring', dy: range(g.rng, GEN.GAP_MIN, 110)});
+  const up = nextPlatform(g, d, out, 'springPad', {type: 'normal'});
+  for (const f of [0.3, 0.55, 0.8]) tape(g, out, sp.x + (up.x - sp.x) * f * 0.4, sp.y + (up.y - sp.y) * f);
+  void prev;
 };
 
-const breakables: PatternFn = (g, d, out) => {
-  const n = int(g.rng, 3, 4);
+/** Trecho fácil de verdade (começo e respiros raros): vãos pequenos e plataformas largas, mas ainda espalhadas. */
+const ladder: PatternFn = (g, d, out) => {
+  const n = int(g.rng, 2, 4);
   for (let i = 0; i < n; i++) {
-    g.x = clampX(g.x + range(g.rng, -110, 110));
-    g.y += gapFor(g, d, 0.96);
-    const type: PlatformType = i % 2 === 0 ? 'fragile' : 'normal';
-    const p = put(g, out, 'breakables', g.x, g.y, widthFor(g, type === 'fragile' ? GEN.WIDTH_FRAGILE : GEN.WIDTH_NORMAL, d), type);
-    // Isca: fita sobre a quebrável.
-    if (type === 'fragile' && chance(g.rng, 0.55)) tape(g, out, p.x, p.y + PICKUP.ABOVE);
+    const w = Math.round(range(g.rng, 92, 130));
+    const dy = range(g.rng, GEN.GAP_MIN, 96);
+    let x = g.x;
+    for (let t = 0; t < 10; t++) {
+      x = Math.round(range(g.rng, GEN.MARGIN_X, FIELD_W - GEN.MARGIN_X));
+      const prev = out.platforms[out.platforms.length - 1];
+      const cand: Platform = {id: -1, x, y: g.y + dy, w, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'ladder', dir: 0};
+      if ((!prev || canReach(prev, cand)) && !collides(out, cand)) break;
+    }
+    const p = put(g, out, 'ladder', x, g.y + dy, w, 'normal');
+    maybeTape(g, out, p, 0.34);
   }
 };
 
 const portalPad: PatternFn = (g, _d, out) => {
   // Plataforma larga de apoio e, ao lado dela, o portal; o caminho segue para o lado oposto: desviar é só não encostar.
-  g.x = clampX(lerp(g.x, FIELD_W / 2, 0.6) + range(g.rng, -20, 20));
-  g.y += gapFor(g, 0, 1);
-  const pad = put(g, out, 'portalPad', g.x, g.y, 132, 'normal');
+  const pad = nextPlatform(g, 0, out, 'portalPad', {type: 'normal', dy: range(g.rng, 80, 96)});
+  pad.w = 132;
   const side = pad.x < FIELD_W / 2 ? 1 : -1;
   out.items.push({id: g.nextId++, kind: 'portal', x: clamp(pad.x + side * PORTAL.SIDE, 62, FIELD_W - 62), y: pad.y + PORTAL.ABOVE, phase: range(g.rng, 0, Math.PI * 2), hit: false, target: nextWorld(g.world)});
   g.portalPlaced = true;
-  for (let i = 0; i < 2; i++) {
-    g.x = clampX(g.x - side * 62 + range(g.rng, -18, 18));
-    g.y += gapFor(g, 0.4);
-    put(g, out, 'portalPad', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, 0.2), 'normal');
-  }
+  for (let i = 0; i < 2; i++) nextPlatform(g, 0.3, out, 'portalPad', {type: 'normal'});
 };
 
-const PATTERNS: Record<Exclude<PatternName, 'start'>, PatternFn> = {
-  portalPad,
-  stairs,
-  tower,
-  wide,
-  scatter,
-  fork,
-  movers,
-  zigzag,
-  springPad,
-  breakables,
-};
-
-const NAMES = Object.keys(PATTERNS).filter(n => n !== 'portalPad') as Exclude<PatternName, 'start' | 'portalPad'>[];
+const PATTERNS: Record<Exclude<PatternName, 'start'>, PatternFn> = {portalPad, chaos, cluster, drought, springPad, ladder};
+const NAMES = Object.keys(PATTERN_TABLE) as (keyof typeof PATTERN_TABLE)[];
 
 function choosePattern(g: Gen, d: number): PatternName {
   const m = metersAt(g.y);
   if (!g.portalPlaced && g.y >= g.portalY && g.last !== 'portalPad') return 'portalPad';
-  if (m < GEN.WARMUP_M) return weighted(g.rng, [['stairs', 3], ['tower', 2], ['wide', 1]] as const);
-  // Novidade do momento (uma vez cada): apresenta o padrão antes de ele entrar no sorteio.
-  if (g.intro < INTRO.length && m >= INTRO[g.intro].m) return INTRO[g.intro++].pattern;
-  // Respiro garantido: depois de vários padrões tensos, entra um pouso largo.
-  if (g.sinceWide >= 9 && g.last !== 'wide') return 'wide';
-  const calm = cycleAt(g.y) < 0.72;
-  const table: [PatternName, number][] = NAMES.map(name => {
-    const [easy, hard] = PATTERN_WEIGHTS[name];
-    let w = d < PATTERN_MIN_INTENSITY[name] ? 0 : lerp(easy, hard, d);
-    if (name === g.last) w *= g.last === 'stairs' && g.repeat < 2 ? 0.7 : 0.08;
-    if (calm && (name === 'wide' || name === 'stairs' || name === 'tower')) w *= 2.2;
-    return [name, w];
+  if (m < GEN.WARMUP_M) return 'ladder';
+  const table = NAMES.map(name => {
+    const [easy, hard, from] = PATTERN_TABLE[name];
+    let w = d < from ? 0 : lerp(easy, hard, d);
+    if (name === g.last && name !== 'chaos') w *= 0.1;
+    return [name as PatternName, w] as const;
   });
   return weighted(g.rng, table);
 }
@@ -387,7 +358,7 @@ function powerItem(g: Gen, out: Out, from: number) {
 }
 
 function flagItem(g: Gen, out: Out, from: number) {
-  const p = [...out.platforms.slice(from)].reverse().find(q => (q.type === 'normal' || q.type === 'conveyor') && q.w >= 50 && q.pattern !== 'portalPad');
+  const p = [...out.platforms.slice(from)].reverse().find(q => (q.type === 'normal' || q.type === 'conveyor') && q.w >= 40 && q.pattern !== 'portalPad');
   if (!p) return false;
   out.items.push({id: g.nextId++, kind: 'flag', x: p.x, y: p.y + 38, phase: 0, hit: false});
   return true;
@@ -398,7 +369,7 @@ function decorate(g: Gen, out: Out, from: number, name: PatternName, d: number) 
   if (name === 'portalPad') return; // o portal tem o palco só para ele
   if (g.y >= g.nextFlagY && flagItem(g, out, from)) g.nextFlagY = g.y + SPAWN.FLAG_GAP_M * 10 + range(g.rng, 0, 400);
   if (g.y >= g.nextPowerY && powerItem(g, out, from)) g.nextPowerY = g.y + range(g.rng, SPAWN.POWER_GAP_M[0], SPAWN.POWER_GAP_M[1]) * 10;
-  if (m >= SPAWN.FROM_M && g.y >= g.nextEnemyY && name !== 'wide' && name !== 'springPad') {
+  if (m >= SPAWN.FROM_M && g.y >= g.nextEnemyY && name !== 'ladder' && name !== 'springPad') {
     placeEnemy(g, out, from, d);
     g.nextEnemyY = g.y + range(g.rng, 0.8, 1.2) * lerp(SPAWN.GAP_M[0], SPAWN.GAP_M[1], d) * 10;
   }
@@ -407,12 +378,13 @@ function decorate(g: Gen, out: Out, from: number, name: PatternName, d: number) 
 /** Gera UM padrão acima do topo atual. */
 export function generatePattern(g: Gen, out: Out): PatternName {
   const d = intensityAt(g.y);
+  // Humor do acaso: mais tenso quanto mais difícil.
+  g.mood = weighted(g.rng, [[0, 1.4 - d], [1, 1], [2, 0.3 + 1.3 * d]] as const);
   const name = choosePattern(g, d) as Exclude<PatternName, 'start'>;
   const from = out.platforms.length;
   PATTERNS[name](g, d, out);
   g.repeat = name === g.last ? g.repeat + 1 : 0;
   g.last = name;
-  g.sinceWide = name === 'wide' || name === 'fork' || name === 'springPad' || name === 'portalPad' ? 0 : g.sinceWide + 1;
   g.count++;
   decorate(g, out, from, name, d);
   return name;

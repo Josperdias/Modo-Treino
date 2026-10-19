@@ -1,5 +1,5 @@
 import {FIELD_W, PHYS} from '../data/neon.ts';
-import {landHalfWidth, platformX} from './physics.ts';
+import {horizontalTravel, landHalfWidth, platformX} from './physics.ts';
 import {enemyAt} from './enemies.ts';
 import {makeRng, next, type Rng} from './rng.ts';
 import type {Input, Sim} from './types.ts';
@@ -22,7 +22,7 @@ export type BotSkill = {
   dodge?: number;
 };
 
-export const IDEAL: BotSkill = {every: 1, noise: 0, lapse: 0, dodge: 1};
+export const IDEAL: BotSkill = {every: 6, noise: 0, lapse: 0, dodge: 1};
 /** ~150 ms de reação, erro de ~14 un. e 6 % de descuido. */
 export const HUMAN: BotSkill = {every: 18, noise: 14, lapse: 0.06, dodge: 0.7};
 
@@ -63,10 +63,12 @@ export function aim(sim: Sim): number {
     const px = platformX(pl, sim.time + t);
     // Caminho mais curto, contando a volta pela lateral.
     let dx = px - p.x;
-    if (dx > FIELD_W / 2) dx -= FIELD_W + 2 * PHYS.WRAP_MARGIN;
-    else if (dx < -FIELD_W / 2) dx += FIELD_W + 2 * PHYS.WRAP_MARGIN;
+    const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
+    if (dx > span / 2) dx -= span;
+    else if (dx < -span / 2) dx += span;
     const d = Math.abs(dx);
-    if (d > 230 + landHalfWidth(pl)) continue;
+    // Só vale a plataforma que dá para alcançar durante a queda até ela (física, não um número fixo).
+    if (d > horizontalTravel(t, sim.level) * 0.97 + landHalfWidth(pl) - 6) continue;
     // Penaliza rotas onde um inimigo vivo estará no caminho quando o herói passar por ali.
     const blocked = routeBlocked(sim, p.x, p.y, p.x + dx, pl.y, t);
     const score = pl.y - (blocked ? 400 : 0);

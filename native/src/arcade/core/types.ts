@@ -4,18 +4,7 @@ import type {WorldId} from '../data/neon.ts';
 export type {WorldId};
 
 export type PlatformType = 'start' | 'normal' | 'moving' | 'fragile' | 'spring' | 'conveyor';
-export type PatternName =
-  | 'start'
-  | 'stairs'
-  | 'tower'
-  | 'wide'
-  | 'scatter'
-  | 'fork'
-  | 'movers'
-  | 'zigzag'
-  | 'springPad'
-  | 'breakables'
-  | 'portalPad';
+export type PatternName = 'start' | 'chaos' | 'cluster' | 'drought' | 'springPad' | 'ladder' | 'portalPad';
 
 export type Platform = {
   id: number;
@@ -110,12 +99,10 @@ export type Gen = {
   /** Quantos padrões já foram gerados. */
   count: number;
   last: PatternName;
-  /** Quantos degraus seguidos o último padrão repetiu (evita monotonia). */
+  /** Quantos padrões seguidos repetiram o mesmo nome. */
   repeat: number;
-  /** Padrões desde o último "respiro" (wide/fork/springPad). */
-  sinceWide: number;
-  /** Quantas apresentações de padrão novo (INTRO) já aconteceram. */
-  intro: number;
+  /** Humor atual do acaso: 0 calmo, 1 normal, 2 tenso (muda a cada padrão). */
+  mood: number;
   nextId: number;
   /** Mundo em que a geração está e altitude (y) onde ele começou. */
   world: WorldId;
