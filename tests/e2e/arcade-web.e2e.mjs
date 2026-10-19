@@ -341,8 +341,9 @@ test('vidas e inimigos: encostar tira um coração, acabar as vidas encerra e a 
   });
   assert.equal(await hit(), 2);
   await page.waitForFunction(() => globalThis.__MODO_ARCADE_SESSION__.sim.lives === 1);
+  await page.evaluate(() => globalThis.__MODO_ARCADE_SESSION__.pause()); // a captura demora: sem pausa o herói cai e a causa vira "Você caiu"
   await shot(page, '07-dano-um-coracao');
-  await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim, p = sim.player; p.x = 210; p.vx = 0; p.drift = 0; p.y = p.py = sim.camera + 300; p.vy = 0; });
+  await page.evaluate(() => { const sim = globalThis.__MODO_ARCADE_SESSION__.sim, p = sim.player; p.x = 210; p.vx = 0; p.drift = 0; p.y = p.py = sim.camera + 300; p.vy = 0; globalThis.__MODO_ARCADE_SESSION__.resume(); });
   await hit(); // hit() zera a invencibilidade (sem esperar 1,8 s, que deixava o teste instável)
   await page.getByTestId('arcade-final').waitFor({timeout: 10000});
   await page.waitForFunction(() => document.querySelector('[data-testid="arcade-cause"]')?.textContent === 'Acabaram as vidas.', null, {timeout: 5000});
@@ -553,6 +554,8 @@ test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, que
       const s = globalThis.__MODO_ARCADE_SESSION__, step = globalThis.__MODO_ARCADE_STEP__;
       const types = new Set();
       s.pause();
+      // Começa sempre do mesmo ponto: o instante do primeiro pouso na plataforma inicial (o quadro em que o robô simples assume varia com a carga da máquina).
+      for (let k = 0; k < 400; k++) { step(0); if (s.sim.player.vy > 600 && s.sim.player.y < 100) break; }
       for (let i = 0; i < 120 * 90 && (s.sim.player.y - 90) / 10 < 260; i++) {
         const p = s.sim.player, rise = p.vy > 0 ? p.vy * p.vy / 2400 : 0; let best = null;
         for (const pl of s.sim.platforms) {
@@ -572,9 +575,9 @@ test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, que
         }
       }
       s.resume();
-      return {types: [...types].sort(), meters: Math.floor((s.sim.player.y - 90) / 10), mode: s.sim.mode};
+      return {types: [...types].sort(), meters: Math.floor((s.sim.player.y - 90) / 10), mode: s.sim.mode, world: s.sim.world, y: Math.round(s.sim.player.y), cam: Math.round(s.sim.camera), tick: s.sim.tick, lives: s.sim.lives};
     });
-    assert.equal(seen.mode, 'playing');
+    assert.equal(seen.mode, 'playing', JSON.stringify(seen));
     for (const t of ['moving', 'fragile', 'normal']) assert.ok(seen.types.includes(t), `faltou ${t}: ${seen.types}`);
     await page.waitForTimeout(500);
     const p = await paintStats(page);
