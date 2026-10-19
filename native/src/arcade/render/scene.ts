@@ -1199,16 +1199,16 @@ function drawStatus(canvas: SkCanvas, S: SceneInput, scale: number, time: number
 function drawFireButton(canvas: SkCanvas, S: SceneInput, time: number) {
   const z = fireZone(S.width, S.height);
   const held = S.session.fire;
-  drawGlow(canvas, '#62fff1', z.r * 1.7, z.cx, z.cy, held ? 0.5 : 0.22);
+  drawGlow(canvas, '#62fff1', z.r * 1.6, z.cx, z.cy, held ? 0.5 : 0.14);
   const p = P();
-  p.setShader(null); p.setColor(col('#0c0820')); p.setAlphaf(0.78);
+  p.setShader(null); p.setColor(col('#0c0820')); p.setAlphaf(held ? 0.85 : 0.5);
   canvas.drawCircle(z.cx, z.cy, z.r, p);
-  p.setColor(col(held ? '#e6fffd' : '#62fff1')); p.setAlphaf(held ? 1 : 0.75); p.setStyle(1); p.setStrokeWidth(3);
+  p.setColor(col(held ? '#e6fffd' : '#62fff1')); p.setAlphaf(held ? 1 : 0.55); p.setStyle(1); p.setStrokeWidth(3);
   canvas.drawCircle(z.cx, z.cy, z.r - 2, p);
   p.setStyle(0);
   const ready = S.session.sim.fireCd <= 0;
   if (S.session.sim.world === 'inverse') { canvas.save(); canvas.translate(0, z.cy * 2); canvas.scale(1, -1); } // o tiro vai "para a frente": para baixo
-  drawPix(canvas, ARROW_UP, z.cx, z.cy + (held ? 2 : 0), Math.max(3, Math.round(z.r / 9)), {alpha: ready || held ? 1 : 0.45});
+  drawPix(canvas, ARROW_UP, z.cx, z.cy + (held ? 2 : 0), Math.max(3, Math.round(z.r / 9)), {alpha: (ready || held ? 1 : 0.45) * (held ? 1 : 0.8)});
   if (S.session.sim.world === 'inverse') canvas.restore();
   void time;
 }
@@ -1258,7 +1258,7 @@ function drawMarkers(canvas: SkCanvas, S: SceneInput, sy: (y: number) => number,
     const y = sy(PHYS.START_Y + m * 10);
     if (y < -20 || y > viewH + 20) return;
     for (let x = 0; x < FIELD_W; x += 20) rect(canvas, color, x + ((time * 12) % 20), y, 10, 2, a);
-    if (text) drawPixelText(canvas, label, 34, y - 12, 2, {top: '#ffffff', low: color, shadow: '#1a0d2e', alpha: Math.min(1, a * 3)});
+    if (text) drawPixelText(canvas, label, FIELD_W - 30 - label.length * 12, y - 12, 2, {top: '#ffffff', low: color, shadow: '#1a0d2e', alpha: Math.min(1, a * 3)});
   };
   for (let k = lo; k <= hi; k++) {
     if (best > 0 && Math.abs(k * 100 - best) < 30) continue;

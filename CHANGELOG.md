@@ -2,6 +2,12 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.8] — 2026-10-19
+
+### O segredo ficou mais justo 🕹️
+- O **jogo escondido** foi refeito para jogar de verdade: plataformas **bem maiores** e vãos menores no começo, só plataforma comum nos primeiros metros, dificuldade subindo devagar (como no Doodle Jump), muito menos inimigos e só depois de bastante altura. A animação de escolher o personagem agora **vai e volta** (da direita para a esquerda e da esquerda para a direita). O botão de tiro ficou menor e não cobre mais as plataformas.
+- **Mais estável**: os efeitos sonoros usam bem menos recursos do aparelho (antes dezenas de players podiam travar o app) e um erro dentro do jogo não fecha mais o app: aparece um aviso e dá para voltar.
+
 ## [1.4.7] — 2026-10-19
 
 ### O segredo ganhou som 🎧

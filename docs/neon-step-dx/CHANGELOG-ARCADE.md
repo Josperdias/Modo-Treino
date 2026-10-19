@@ -2,6 +2,15 @@
 
 O texto público da release fica em `CHANGELOG.md` (só uma dica, o jogo é um segredo). Aqui ficam os detalhes.
 
+## [1.4.8] — M4: jogabilidade estilo Doodle Jump, estabilidade e menu
+
+Relato do dono: "o jogo travou e saiu o app", "muito mal distribuído, injogável", "a animação do selecione só vai da direita para a esquerda".
+
+- **Distribuição refeita com medições** (capturas reais no Chromium + robôs): antes, aos 150 m só 45 % das plataformas eram comuns, 20 % quebráveis, a largura caía para ~50 un. (o herói tem 90) e havia ~1,3 inimigo por tela desde os 60 m. Agora: largura 130→84 (nunca < 64), vãos 56–104 un. no começo (≤ 160 no fim), só plataforma comum até 90 m, móveis a partir de 90 m, quebráveis de 180 m, mola de 30 m, depois de uma traiçoeira o chão firme é bem mais provável, rampa lenta (`RAMP_M` 800, `RAMP_POW` 1,15, mais respiros), inimigos só a partir de 130 m e muito mais espaçados (guardião de 500 m, tiros de 220 m). Robôs: IDEAL quase nunca cai; DESCUIDADO (250 ms, erro 30) mediana > 3 000 m; BAGUNCEIRO (350 ms, erro 45, só toque) mediana ~960 m e ~110 s de vida (iniciante).
+- **Estabilidade**: efeitos agora tocam de um ATLAS (`sfx-atlas.ogg`) com no máximo 3 "vozes" (players) em vez de até 41 ExoPlayers (provável causa do travamento com som ligado); o laço de quadros e a tela têm `ErrorBoundary`: um erro mostra "O JOGO TEVE UM PROBLEMA" com botão de voltar, sem fechar o app. Soak no Chromium (≈ 900 estados em todos os mundos e desvios) sem nenhum erro.
+- **Menu**: a dica de deslizar agora alterna os dois sentidos (a mão vai e volta; o rótulo "DESLIZE PARA ESCOLHER" fica parado).
+- **Interface**: botão de tiro menor, mais baixo e translúcido; rótulos de marco (100 M…) passam para a direita para não cobrir as vidas.
+
 ## [Em desenvolvimento] — M3.2: trilhas v2 (compostas à mão, com fita)
 
 Pedido do dono: a primeira trilha estava "muito genérica, mal feita"; refazer "melhor", usando o material do Drive (as 26 músicas por código), efeitos e fita, algo criativo e bem mais desenvolvido.

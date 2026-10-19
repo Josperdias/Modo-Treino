@@ -68,7 +68,7 @@ export function metersAt(y: number): number {
 
 /** Rampa de dificuldade 0..1 por altitude (determinística, independe do tempo). */
 export function rampAt(y: number): number {
-  return clamp(metersAt(y) / GEN.RAMP_M, 0, 1);
+  return Math.pow(clamp(metersAt(y) / GEN.RAMP_M, 0, 1), GEN.RAMP_POW);
 }
 
 /** Ritmo: 0 = respiro, 1 = pico. Começa no respiro e oscila com período GEN.CYCLE. */
@@ -138,9 +138,9 @@ const SPAN = FIELD_W + 2 * PHYS.WRAP_MARGIN;
 function pickType(g: Gen, d: number, prev: Platform | null): PlatformType {
   const m = metersAt(g.y);
   const w = (k: keyof typeof TYPE_TABLE) => (m >= TYPE_TABLE[k].from ? lerp(TYPE_TABLE[k].w[0], TYPE_TABLE[k].w[1], d) * (g.mood === 2 ? 1.3 : g.mood === 0 ? 0.6 : 1) : 0);
-  // depois de uma quebrável o chão firme é mais provável (senão o jogo vira só armadilha)
-  const fragileW = prev?.type === 'fragile' ? w('fragile') * 0.45 : w('fragile');
-  return weighted(g.rng, [['normal', 0.8], ['moving', w('moving')], ['fragile', fragileW], ['spring', g.world === 'inverse' ? 0 : w('spring')]] as const);
+  // depois de uma plataforma traiçoeira (móvel ou quebrável) o chão firme é bem mais provável (senão o jogo vira só armadilha)
+  const tricky = prev?.type === 'fragile' || prev?.type === 'moving' ? 0.3 : 1;
+  return weighted(g.rng, [['normal', 1], ['moving', w('moving') * tricky], ['fragile', w('fragile') * tricky], ['spring', g.world === 'inverse' ? 0 : w('spring')]] as const);
 }
 
 /** Vão vertical até a próxima: irregular, com saltinhos curtos e esticões perto do limite. */
@@ -163,7 +163,7 @@ function gapSample(g: Gen, d: number, prev: Platform | null): number {
 
 function widthForType(g: Gen, type: PlatformType, d: number): number {
   const span = type === 'moving' ? GEN.WIDTH_MOVING : type === 'fragile' ? GEN.WIDTH_FRAGILE : type === 'spring' ? GEN.WIDTH_SPRING : GEN.WIDTH_NORMAL;
-  return Math.max(34, widthFor(g, span, d));
+  return Math.max(64, widthFor(g, span, d));
 }
 
 /** A plataforma candidata invade o espaço de alguma das últimas? (mesma regra do validador) */
@@ -258,7 +258,7 @@ const cluster: PatternFn = (g, d, out) => {
 
 /** Seca: um vão grande com plataforma estreita do outro lado (e fitas de isca no caminho). */
 const drought: PatternFn = (g, d, out) => {
-  const p = nextPlatform(g, d, out, 'drought', {dy: GEN.GAP_CAP * range(g.rng, 0.86, 1), type: 'normal'});
+  const p = nextPlatform(g, d, out, 'drought', {dy: GEN.GAP_CAP * range(g.rng, 0.82, 0.96), type: 'normal'});
   maybeTape(g, out, p, 0.4);
   nextPlatform(g, d, out, 'drought');
 };
@@ -276,8 +276,8 @@ const springPad: PatternFn = (g, d, out) => {
 const ladder: PatternFn = (g, d, out) => {
   const n = int(g.rng, 2, 4);
   for (let i = 0; i < n; i++) {
-    const w = Math.round(range(g.rng, 92, 130));
-    const dy = range(g.rng, GEN.GAP_MIN, 96);
+    const w = Math.round(range(g.rng, 124, 150));
+    const dy = range(g.rng, GEN.GAP_MIN, 92);
     let x = g.x;
     for (let t = 0; t < 10; t++) {
       const [lLo, lHi] = laneOf(g);
@@ -369,7 +369,7 @@ function choosePattern(g: Gen, d: number): PatternName {
   if (!g.portalPlaced && g.y >= g.portalY && g.last !== 'portalPad' && g.bonusEndY === 0) return 'portalPad';
   if (g.bonusEndY > 0) { if (g.y < g.bonusEndY) return 'bonus'; g.bonusEndY = 0; }
   // Sala do portal: só no campo aberto, longe de portal comum e sem desvio ativo.
-  if (g.y >= g.labY && !g.lane && !DETOURS.includes(g.world) && (g.portalPlaced ? g.y - g.lastPortalY > LAB.FAR_M * 10 : g.portalY - g.y > LAB.FAR_M * 10)) return 'lab';
+  if (g.y >= g.labY && !g.lane && !DETOURS.includes(g.world) && (g.portalPlaced ? g.y - g.lastPortalY > LAB.FAR_M * 10 : g.portalY - g.y > (LAB.FAR_M + LAB.SPAN_M) * 10)) return 'lab';
   if (g.world === 'inverse') return weighted(g.rng, [['chaos', 5], ['cluster', 1.4], ['ladder', 1]] as const);
   if (m < GEN.WARMUP_M) return 'ladder';
   const table = NAMES.map(name => {

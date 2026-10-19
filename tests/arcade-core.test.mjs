@@ -139,7 +139,7 @@ test('determinismo: mesma semente + mesmas entradas ⇒ mesmo estado; sementes d
 
 test('determinismo: o mundo não depende da altura da tela (viewH) nem da câmera', () => {
   const a = createSim(11, 690), b = createSim(11, 910);
-  for (const s of [a, b]) generateUntil(s.gen, {platforms: s.platforms, items: s.items, enemies: s.enemies}, 6000);
+  for (const s of [a, b]) generateUntil(s.gen, {platforms: s.platforms, items: s.items, enemies: s.enemies}, 40000);
   const n = Math.min(a.platforms.length, b.platforms.length);
   for (let i = 0; i < n; i++) {
     assert.equal(a.platforms[i].x, b.platforms[i].x);
@@ -236,24 +236,40 @@ test('mundo: estilo Doodle Jump — X aleatório no campo todo, vãos irregulare
   assert.ok(Math.min(...gaps) < 70 && Math.max(...gaps) > 150, 'há saltinhos curtos e esticões');
 });
 
-test('mundo: tipos por altitude — móvel a partir de 12 m, quebrável 20 m, mola 34 m, e todos aparecem cedo', () => {
+test('mundo: tipos por altitude — mola 30 m, móvel 90 m, quebrável 180 m (como no Doodle Jump, o começo é só plataforma comum) e todos aparecem depois', () => {
   const first = {moving: Infinity, fragile: Infinity, spring: Infinity};
   let miss = 0;
   for (let seed = 1; seed <= 60; seed++) {
-    const w = worldOf(seed, 400);
+    const w = worldOf(seed, 900);
     const f = {};
     for (const p of w.platforms) if (first[p.type] !== undefined) f[p.type] = Math.min(f[p.type] ?? Infinity, (p.y - 90) / 10);
-    for (const t of Object.keys(first)) { first[t] = Math.min(first[t], f[t] ?? Infinity); if (t !== 'spring' && (f[t] ?? Infinity) > 160) miss++; }
+    for (const t of Object.keys(first)) { first[t] = Math.min(first[t], f[t] ?? Infinity); if (t !== 'spring' && (f[t] ?? Infinity) > 700) miss++; }
   }
-  assert.ok(first.moving >= 11 && first.fragile >= 19 && first.spring >= 33, JSON.stringify(first));
-  assert.ok(miss <= 16, `tipo demorando a aparecer em ${miss} casos`);
+  assert.ok(first.moving >= 89 && first.fragile >= 179 && first.spring >= 29, JSON.stringify(first));
+  assert.ok(miss <= 12, `tipo demorando a aparecer em ${miss} casos`);
+});
+
+test('mundo: o começo é fácil — até 60 m só plataformas comuns e largas; chão firme é a maioria sempre', () => {
+  let early = 0, earlyNon = 0, all = 0, normal = 0, narrow = 0;
+  for (let seed = 1; seed <= 80; seed++) {
+    const w = worldOf(seed, 3000);
+    for (const p of w.platforms) {
+      if (p.type === 'start') continue;
+      all++; if (p.type === 'normal') normal++;
+      if (p.w < 64) narrow++;
+      if ((p.y - 90) / 10 < 60) { early++; if (p.type !== 'normal') earlyNon++; }
+    }
+  }
+  assert.equal(earlyNon, 0, 'nos primeiros 60 m só plataforma comum');
+  assert.ok(normal / all > 0.6, `comuns ${(normal / all).toFixed(2)}`);
+  assert.equal(narrow, 0, 'nenhuma plataforma mais estreita que o herói tolera');
 });
 
 test('mundo: ritmo — a intensidade cresce com a altitude e ainda oscila', () => {
-  assert.ok(rampAt(90) === 0 && rampAt(90 + 5000) > 0.9);
+  assert.ok(rampAt(90) === 0 && rampAt(90 + GEN.RAMP_M * 10) > 0.99 && rampAt(90 + GEN.RAMP_M * 5) < 0.6, 'rampa lenta');
   const samples = [];
-  for (let y = 90 + 5000; y < 90 + 5000 + GEN.CYCLE; y += 100) samples.push(intensityAt(y));
-  assert.ok(Math.max(...samples) > 0.9 && Math.min(...samples) < 0.9);
+  for (let y = 90 + GEN.RAMP_M * 10; y < 90 + GEN.RAMP_M * 10 + GEN.CYCLE; y += 100) samples.push(intensityAt(y));
+  assert.ok(Math.max(...samples) > 0.95 && Math.min(...samples) < 0.7);
   assert.ok(cycleAt(90) < cycleAt(90 + GEN.CYCLE / 2));
 });
 
@@ -295,17 +311,22 @@ test('robô HUMANO (150 ms de reação, erro de ~14 un.) progride bem e às veze
   assert.ok(med[12] > 800, `mediana ${med[12]} m`);
 });
 
-test('robô DESCUIDADO (250 ms, erro de ~30 un.) quase sempre cai: há desafio real, mas dá para progredir', () => {
-  let died = 0, med = [];
-  for (let seed = 1; seed <= 30; seed++) {
-    const s = createSim(seed), bot = makeBot({every: 30, noise: 30, lapse: 0.1}, seed);
-    while (s.mode === 'playing' && s.tick < 120 * 300) step(s, botInput(s, bot));
-    if (s.mode === 'over') died++;
-    med.push(metersOf(s));
-  }
-  assert.ok(died >= 20, `${died}/30 caíram`);
-  med.sort((a, b) => a - b);
-  assert.ok(med[15] > 150, `mediana ${med[15]} m`);
+test('robô DESCUIDADO (250 ms, erro de ~30 un.) às vezes cai: o jogo é difícil mas justo; o BAGUNCEIRO (350 ms, erro de ~45 un., só toque) quase sempre cai', () => {
+  const run = (skill, n, secs) => {
+    let died = 0; const med = [];
+    for (let seed = 1; seed <= n; seed++) {
+      const s = createSim(seed, 910), bot = makeBot(skill, seed);
+      while (s.mode === 'playing' && s.tick < 120 * secs) step(s, botInput(s, bot));
+      if (s.mode === 'over') died++;
+      med.push(metersOf(s));
+    }
+    med.sort((a, b) => a - b);
+    return {died, med: med[n >> 1], p10: med[Math.floor(n * 0.1)]};
+  };
+  const careless = run({every: 30, noise: 30, lapse: 0.1}, 30, 240);
+  assert.ok(careless.died <= 14 && careless.med > 1200, `descuidado: ${JSON.stringify(careless)}`);
+  const messy = run({every: 42, noise: 45, lapse: 0.18, digital: true, dodge: 0.3}, 30, 240);
+  assert.ok(messy.died >= 22 && messy.med > 300 && messy.med < 2200 && messy.p10 > 120, `bagunceiro: ${JSON.stringify(messy)}`);
 });
 
 /* ---------- regras ---------- */

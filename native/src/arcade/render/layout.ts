@@ -2,8 +2,8 @@
 
 /** Botão de tiro: círculo no centro de baixo (px de tela). Toques aqui atiram em vez de mover. */
 export function fireZone(width: number, height: number): {cx: number; cy: number; r: number} {
-  const r = Math.max(30, Math.min(40, width * 0.095));
-  return {cx: width / 2, cy: height - r - 26, r};
+  const r = Math.max(26, Math.min(34, width * 0.082));
+  return {cx: width / 2, cy: height - r - 16, r};
 }
 
 /** O ponto (x, y) está dentro do botão de tiro (com 14 px de folga para o dedo)? */

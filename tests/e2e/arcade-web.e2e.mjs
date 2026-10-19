@@ -579,7 +579,7 @@ test('desempenho: 6 s de jogo no Chromium (WebGL por software) — passo, desenh
   await context.close();
 });
 
-test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, quebráveis e mola (captura)', {skip}, async () => {
+test('mundo avançado: patrulhando até ~620 m aparecem plataformas móveis, quebráveis e mola (captura)', {skip}, async () => {
   for (const who of ['josperd', 'camila']) {
     const {context, page, errors} = await open({save: {v: 1, unlocked: true, settings: {hero: who}}});
     await toArcade(page);
@@ -591,7 +591,7 @@ test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, que
       s.pause();
       // Começa sempre do mesmo ponto: o instante do primeiro pouso na plataforma inicial (o quadro em que o robô simples assume varia com a carga da máquina).
       for (let k = 0; k < 400; k++) { step(0); if (s.sim.player.vy > 600 && s.sim.player.y < 100) break; }
-      for (let i = 0; i < 120 * 90 && (s.sim.player.y - 90) / 10 < 260; i++) {
+      for (let i = 0; i < 120 * 90 && (s.sim.player.y - 90) / 10 < 620; i++) {
         const p = s.sim.player, rise = p.vy > 0 ? p.vy * p.vy / 2400 : 0; let best = null;
         for (const pl of s.sim.platforms) {
           if (pl.broken || pl.y > p.y + rise - 6 || pl.y < p.y - 260) continue;
@@ -604,7 +604,7 @@ test('mundo avançado: patrulhando até ~260 m aparecem plataformas móveis, que
         step(Math.abs(dx) < 6 ? 0 : Math.max(-1, Math.min(1, dx / 36)));
         for (const pl of s.sim.platforms) types.add(pl.type);
         // Para quando a tela mostra pelo menos dois tipos especiais ao mesmo tempo (bom para a captura).
-        if ((p.y - 90) / 10 > 120 && i % 20 === 0) {
+        if ((p.y - 90) / 10 > 120 && i % 20 === 0 && types.has('fragile') && types.has('moving')) {
           const vis = new Set(s.sim.platforms.filter(pl => pl.y > s.sim.camera + 60 && pl.y < s.sim.camera + s.sim.viewH - 120 && pl.type !== 'normal').map(pl => pl.type));
           if (vis.size >= 2) break;
         }

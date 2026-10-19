@@ -50,6 +50,8 @@ function readTouches(e: GestureResponderEvent, w: number, h: number): {axis: num
 export default function GameCanvas(p: GameCanvasProps) {
   const [size, setSize] = useState<{w: number; h: number} | null>(null);
   const [sprites, setSprites] = useState<SpriteSet>(EMPTY);
+  // Erro dentro do laço de quadros (fora do React): reenvia para o ErrorBoundary da tela em vez de derrubar o app.
+  const [, setFatal] = useState(0);
   const blank = useMemo(() => createPicture(() => {}, {width: 1, height: 1}), []);
   const picture = useSharedValue<SkPicture>(blank);
   const props = useRef(p);
@@ -81,6 +83,14 @@ export default function GameCanvas(p: GameCanvasProps) {
     const rectSize = {width: size.w, height: size.h};
     const tick = (ts: number) => {
       raf = requestAnimationFrame(tick);
+      try {
+        frame(ts);
+      } catch (e) {
+        cancelAnimationFrame(raf);
+        setFatal(() => { throw e; });
+      }
+    };
+    const frame = (ts: number) => {
       const {session, hero, onHud, onEvents, onOver} = props.current;
       const changed = session.frame(ts);
       if (changed) {

@@ -4,22 +4,23 @@
  * (sem pedir foco de áudio), então a música do usuário no Media3 não é interrompida pelos efeitos.
  */
 import {createAudioPlayer, setAudioModeAsync, type AudioPlayer} from 'expo-audio';
-import {MUSIC, SFX, SFX_META} from './assets';
+import {MUSIC, SFX_ATLAS, SFX_CLIPS} from './assets';
 import {GAPS, Limiter, type Cue} from './plan.ts';
 
 const SFX_MASTER = 0.9;
 const MUSIC_MASTER = 0.5;
 const FADE_MS = 1100;
-const MAX_SFX_PLAYERS = 28;
-/** Efeitos frequentes: o player já nasce pronto, para o primeiro toque não atrasar. */
-const HOT = ['land_normal', 'land_spring', 'land_moving', 'tape1', 'tape2', 'tape3', 'shoot', 'enemy_shoot', 'hit', 'kill', 'shield_block', 'star', 'ui_click'];
+/** Efeitos: UM arquivo (atlas) tocado por poucas "vozes" (players), cada uma pulando para o começo do trecho. Dezenas de players travavam o aparelho. */
+const MAX_VOICES = 3;
+const LOW = /^(land_|tape\d|shoot|enemy_shoot|enemy_warn|ui_)/;
 
 type Mus = {id: string; p: AudioPlayer; vol: number};
+type Voice = {p: AudioPlayer; until: number; pri: number; timer: ReturnType<typeof setTimeout> | null};
 
 export class ArcadeAudio {
   private sfxOn = false;
   private musicOn = false;
-  private sfxPool = new Map<string, AudioPlayer>();
+  private voices: Voice[] = [];
   private cur: Mus | null = null;
   private fading: Mus[] = [];
   private wanted: string | null = null;
@@ -42,7 +43,7 @@ export class ArcadeAudio {
   }
 
   configure(sfx: boolean, music: boolean) {
-    if (sfx && !this.sfxOn) { void this.mode(); this.warm(); }
+    if (sfx && !this.sfxOn) void this.mode();
     if (!sfx) this.releaseSfx();
     this.sfxOn = sfx;
     if (music && !this.musicOn) void this.mode();
@@ -51,24 +52,19 @@ export class ArcadeAudio {
     else this.applyMusic();
   }
 
-  private warm() {
-    for (const id of HOT) this.sfxPlayer(id);
-  }
-
-  private sfxPlayer(id: string): AudioPlayer | null {
-    const have = this.sfxPool.get(id);
-    if (have) return have;
-    const src = (SFX as Record<string, number>)[id];
-    if (src === undefined) return null;
-    try {
-      if (this.sfxPool.size >= MAX_SFX_PLAYERS) {
-        const old = [...this.sfxPool.keys()].find((k) => !HOT.includes(k));
-        if (old) { try { this.sfxPool.get(old)?.remove(); } catch { /* já solto */ } this.sfxPool.delete(old); }
-      }
-      const p = createAudioPlayer(src);
-      this.sfxPool.set(id, p);
-      return p;
-    } catch { return null; }
+  /** Voz livre (ou nova, até o limite); se todas estão ocupadas, só um efeito importante rouba a mais antiga. */
+  private pickVoice(pri: number, now: number): Voice | null {
+    const idle = this.voices.find((v) => v.until <= now);
+    if (idle) return idle;
+    if (this.voices.length < MAX_VOICES) {
+      try {
+        const v: Voice = {p: createAudioPlayer(SFX_ATLAS), until: 0, pri: 0, timer: null};
+        this.voices.push(v);
+        return v;
+      } catch { return null; }
+    }
+    if (pri < 2) return null;
+    return this.voices.filter((v) => v.pri < 2).sort((x, y) => x.until - y.until)[0] ?? null;
   }
 
   /** Toca os sons de um grupo de eventos (já filtrados por taxa). */
@@ -76,13 +72,20 @@ export class ArcadeAudio {
     if (!this.sfxOn || this.paused || !cues.length) return;
     const now = Date.now();
     for (const c of this.limiter.filter(cues, now)) {
-      const p = this.sfxPlayer(c.id);
-      if (!p) continue;
+      const clip = SFX_CLIPS[c.id];
+      if (!clip) continue;
+      const pri = LOW.test(c.id) ? 1 : 2;
+      const v = this.pickVoice(pri, now);
+      if (!v) continue;
       try {
-        const lvl = (SFX_META as Record<string, {level: number}>)[c.id]?.level ?? 0.85;
-        p.volume = Math.max(0, Math.min(1, SFX_MASTER * this.vol * c.gain * Math.min(1, lvl + 0.15)));
-        void p.seekTo(0).catch(() => {});
-        p.play();
+        if (v.timer) clearTimeout(v.timer);
+        v.pri = pri;
+        v.until = now + clip.dur * 1000 + 30;
+        v.p.volume = Math.max(0, Math.min(1, SFX_MASTER * this.vol * c.gain * Math.min(1, clip.level + 0.15)));
+        void v.p.seekTo(clip.start).catch(() => {});
+        v.p.play();
+        const p = v.p;
+        v.timer = setTimeout(() => { try { p.pause(); } catch { /* ok */ } }, clip.dur * 1000 + 20);
       } catch { /* som perdido: sem problema */ }
     }
   }
@@ -116,7 +119,7 @@ export class ArcadeAudio {
     this.tick();
   }
 
-  private resumeOne(m: Mus) { try { m.p.play(); } catch { /* ok */ } }
+  private resumeOne(m: Mus) { try { if (!m.p.playing) m.p.play(); } catch { /* ok */ } }
 
   private tick() {
     if (this.timer) return;
@@ -150,7 +153,7 @@ export class ArcadeAudio {
   pause() {
     this.paused = true;
     for (const m of [this.cur, ...this.fading]) { try { m?.p.pause(); } catch { /* ok */ } }
-    for (const p of this.sfxPool.values()) { try { p.pause(); } catch { /* ok */ } }
+    for (const v of this.voices) { if (v.timer) clearTimeout(v.timer); v.until = 0; try { v.p.pause(); } catch { /* ok */ } }
   }
 
   resume() {
@@ -160,8 +163,8 @@ export class ArcadeAudio {
   }
 
   private releaseSfx() {
-    for (const p of this.sfxPool.values()) { try { p.pause(); p.remove(); } catch { /* ok */ } }
-    this.sfxPool.clear();
+    for (const v of this.voices) { if (v.timer) clearTimeout(v.timer); try { v.p.pause(); v.p.remove(); } catch { /* ok */ } }
+    this.voices = [];
   }
 
   dispose() {

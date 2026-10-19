@@ -86,15 +86,26 @@ test('lava e limitador', () => {
   assert.equal(new Limiter().filter(burst, 0).length, 5);
 });
 
-test('arquivos gerados: manifesto cobre tudo, tamanhos sãos, sem silêncio', () => {
+test('arquivos gerados: manifesto cobre tudo, atlas dos efeitos coerente, tamanhos sãos, sem silêncio', () => {
   const ts = readFileSync(join(ROOT, 'native/src/arcade/audio/assets.ts'), 'utf8');
   for (const id of MUSIC) assert.match(ts, new RegExp(`${id}: require\\('../../../assets/arcade/audio/musica/${id}.ogg'\\)`));
-  for (const id of SFX) assert.match(ts, new RegExp(`${id}: require\\('../../../assets/arcade/audio/sfx/${id}.ogg'\\)`));
+  assert.match(ts, /SFX_ATLAS = require\('..\/..\/..\/assets\/arcade\/audio\/sfx-atlas.ogg'\)/);
+  const atlas = JSON.parse(readFileSync(join(AUD, 'sfx-atlas.json'), 'utf8'));
+  for (const id of SFX) {
+    assert.ok(atlas[id], `falta ${id} no atlas`);
+    assert.ok(ts.includes(`  ${id}: {start: ${Number(atlas[id].start).toString().replace(/^(\d+)$/, '$1.0')}`) || ts.includes(`  ${id}: {start: ${atlas[id].start}`), `manifesto sem ${id}`);
+  }
+  assert.equal(Object.keys(atlas).length, SFX.size);
+  // clipes em ordem, sem sobreposição, com folga entre eles
+  const list = Object.values(atlas).sort((a, b) => a.start - b.start);
+  for (let i = 1; i < list.length; i++) assert.ok(list[i].start >= list[i - 1].start + list[i - 1].dur + 0.1, 'clipes do atlas muito juntos');
+  const atlasBytes = statSync(join(AUD, 'sfx-atlas.ogg')).size;
+  assert.ok(atlasBytes > 50e3 && atlasBytes < 500e3, `atlas ${atlasBytes}`);
   assert.equal(MUSIC.size, 11);
   assert.ok(SFX.size >= 50);
-  let total = 0;
+  let total = atlasBytes;
   for (const id of MUSIC) { const b = statSync(join(AUD, 'musica', `${id}.ogg`)).size; total += b; assert.ok(b > 100e3 && b < 1.2e6, `${id} ${b}`); }
-  for (const id of SFX) { const b = statSync(join(AUD, 'sfx', `${id}.ogg`)).size; total += b; assert.ok(b > 1e3 && b < 60e3, `${id} ${b}`); }
+  for (const id of SFX) { const b = statSync(join(AUD, 'sfx', `${id}.ogg`)).size; assert.ok(b > 1e3 && b < 60e3, `${id} ${b}`); }
   assert.ok(total < 10e6, `áudio do jogo pesa ${total}`);
   const rep = JSON.parse(readFileSync(join(ROOT, 'docs/neon-step-dx/AUDIT_audio.json'), 'utf8'));
   for (const id of MUSIC) {

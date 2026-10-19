@@ -71,26 +71,28 @@ export const LEVELS = [
  * - Alcance: nenhum degrau passa de `GAP_MAX_FRAC` do ápice do salto normal.
  */
 export const GEN = {
-  RAMP_M: 240,
+  RAMP_M: 800,
+  /** A rampa é lenta no começo: d = (m / RAMP_M) ^ RAMP_POW (como no Doodle Jump, os primeiros metros são só plataformas comuns). */
+  RAMP_POW: 1.15,
   CYCLE: 5000,
   /** Fração do ciclo (0..1) em que a intensidade cai para o respiro. */
-  CALM_FLOOR: 0.8,
+  CALM_FLOOR: 0.55,
   MARGIN_X: 30,
-  GAP_MIN: 74,
-  GAP_MIN_HARD: 100,
-  GAP_MAX: 116,
-  GAP_MAX_HARD: 168,
+  GAP_MIN: 56,
+  GAP_MIN_HARD: 88,
+  GAP_MAX: 104,
+  GAP_MAX_HARD: 158,
   /** Nenhum degrau passa disto (≈ 85 % do ápice): a folga que o validador exige. */
-  GAP_CAP: 168,
+  GAP_CAP: 160,
   /** Espessura mínima entre plataformas para não sobrepor desenhos. */
   CLEARANCE_Y: 34,
-  WIDTH_NORMAL: [96, 38],
-  WIDTH_MOVING: [80, 38],
-  WIDTH_FRAGILE: [84, 40],
-  WIDTH_SPRING: [80, 56],
-  WIDTH_WIDE: [136, 80],
+  WIDTH_NORMAL: [130, 84],
+  WIDTH_MOVING: [114, 78],
+  WIDTH_FRAGILE: [110, 76],
+  WIDTH_SPRING: [100, 72],
+  WIDTH_WIDE: [150, 110],
   /** Primeiros metros: só degraus fáceis. */
-  WARMUP_M: 14,
+  WARMUP_M: 60,
   TAPE_CHANCE: 0.17,
   /** Quanto à frente da tela o mundo é gerado. */
   LOOKAHEAD: 480,
@@ -103,18 +105,18 @@ export const GEN = {
  * O resto do peso é plataforma comum (peso 1). Mais difícil = mais tipos traiçoeiros.
  */
 export const TYPE_TABLE = {
-  moving: {from: 12, w: [0.42, 0.55]},
-  fragile: {from: 20, w: [0.3, 0.48]},
-  spring: {from: 34, w: [0.12, 0.08]},
+  moving: {from: 90, w: [0.06, 0.5]},
+  fragile: {from: 180, w: [0.05, 0.42]},
+  spring: {from: 30, w: [0.07, 0.05]},
 } as const;
 
 /** Padrões (agora são "humores" do acaso, não escadinhas): [peso fácil, peso difícil, a partir da intensidade]. */
 export const PATTERN_TABLE = {
   chaos: [6, 7, 0],
-  cluster: [1, 1.6, 0.08],
-  drought: [0, 1.3, 0.2],
-  springPad: [0.45, 0.8, 0.12],
-  ladder: [0.7, 0.1, 0],
+  cluster: [0.5, 1.3, 0.12],
+  drought: [0, 0.9, 0.3],
+  springPad: [0.5, 0.8, 0.06],
+  ladder: [1.6, 0.35, 0],
 } as const;
 
 /* ------------------------------------------------------------------ */
@@ -156,7 +158,7 @@ export const COMBAT = {
   /** Aviso (s) antes do tiro: o inimigo pisca. */
   TELEGRAPH: 0.72,
   /** Só atiram a partir desta altitude (m), para a abertura ser limpa. */
-  SHOOT_FROM_M: 50,
+  SHOOT_FROM_M: 220,
   KNOCKBACK_VY: 420,
   KNOCKBACK_VX: 170,
 } as const;
@@ -189,12 +191,12 @@ export const METEOR = {SPAN: 760, LOOP: 3.6} as const;
 
 export const SPAWN = {
   /** Primeiro inimigo (m) e espaçamento médio (m) no começo e no fim da rampa. */
-  FROM_M: 38,
-  GAP_M: [46, 22],
+  FROM_M: 130,
+  GAP_M: [300, 90],
   /** Chance de o inimigo ficar NO caminho (bloqueio) em vez de ao lado, por intensidade. */
-  BLOCK: [0.15, 0.5],
-  GUARDIAN_FROM_M: 200,
-  GUARDIAN_CHANCE: 0.08,
+  BLOCK: [0.05, 0.35],
+  GUARDIAN_FROM_M: 500,
+  GUARDIAN_CHANCE: 0.05,
   /** Poderes: primeiro (m) e espaçamento (m). */
   POWER_FROM_M: 75,
   POWER_GAP_M: [150, 230],
@@ -277,7 +279,7 @@ export const SKETCH = {LENGTH_M: 300, WALL: 34, FOLD: 210, LANE_MIN: 44, LANE_MA
 export const INVERSE = {LENGTH_M: 350} as const;
 export const DESC = {HOP: 330, TERMINAL: 900, SCROLL: 44, SCROLL_PER_LEVEL: 3, TOP_FRAC: 0.36, CRUSH: 90, GAP: [80, 215]} as const;
 /** Sala do portal: botão (plataforma) → portal azul trancado → barreira → portal laranja lá em cima. */
-export const LAB = {FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 620, HEAD: 84, /** Distância mínima (m) entre a sala do portal e qualquer portal de mundo. */ FAR_M: 400} as const;
+export const LAB = {FIRST_M: [300, 480], GAP_M: [450, 760], GATE_ABOVE: 170, EXIT_ABOVE_GATE: 620, HEAD: 84, /** Distância mínima (m) entre a sala do portal e qualquer portal de mundo. */ FAR_M: 400, /** Altura aproximada (m) que a sala ocupa: conta na distância até o próximo portal de mundo. */ SPAN_M: 130} as const;
 
 /** Vulcão: a lava sobe sozinha; encostar nela machuca (e ela recua). */
 export const LAVA = {SPEED: 92, GAP: 130, RESET_GAP: 220} as const;

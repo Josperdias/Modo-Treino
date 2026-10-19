@@ -31,7 +31,28 @@ function newSeed(): number {
 
 const pad = (n: number, w = 4) => String(Math.max(0, Math.floor(n))).padStart(w, '0');
 
+/** Se o jogo der erro, o app NÃO fecha: mostra um aviso e volta para o app. */
+class ArcadeBoundary extends React.Component<{onClose: () => void; children: React.ReactNode}, {failed: boolean}> {
+  state = {failed: false};
+  static getDerivedStateFromError() { return {failed: true}; }
+  componentDidCatch(error: unknown) { try { console.warn('[arcade] erro no jogo:', error); } catch { /* sem console */ } }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <View style={[S.root, {alignItems: 'center', justifyContent: 'center', padding: 24}]} testID="arcade-error">
+        <Text style={S.modalT}>O JOGO TEVE UM PROBLEMA</Text>
+        <Text style={[S.modalS, {textAlign: 'center', marginBottom: 16}]}>Nada do seu app foi perdido. Dá para tentar de novo.</Text>
+        <Btn text="VOLTAR AO APP" icon="exit-outline" onPress={this.props.onClose} />
+      </View>
+    );
+  }
+}
+
 export default function ArcadeScreen({onClose}: {onClose: () => void}) {
+  return <ArcadeBoundary onClose={onClose}><ArcadeGame onClose={onClose} /></ArcadeBoundary>;
+}
+
+function ArcadeGame({onClose}: {onClose: () => void}) {
   const {save, loaded} = useArcade();
   const [phase, setPhase] = useState<Phase>('select');
   const [hud, setHud] = useState<Hud | null>(null);

@@ -288,17 +288,30 @@ export function drawMenu(canvas: SkCanvas, f: MenuFrame): void {
   // Botão de setas no centro (acompanha o raio) e dica de deslizar.
   const sz = bx.swapSize;
   img(canvas, im.swap, s.x + (p.swapX / 100) * s.w - sz / 2, bx.swapY - sz / 2, sz, sz, a);
-  // Dica de deslizar: o dedo vai da direita para a esquerda, suave, e recomeça (ensina o gesto sem texto).
+  // Dica de deslizar: a MÃO vai e volta (direita → esquerda, depois esquerda → direita) e o rótulo "DESLIZE PARA ESCOLHER" fica parado
+  // embaixo (ensina os dois sentidos do gesto sem texto novo).
   const hint = (1 - p.chosen) * a * (1 - lg);
   if (hint > 0.01) {
     let off = 0, env = 1;
     if (!f.still) {
       const CYCLE = 2.8;
       const u = (time % CYCLE) / CYCLE;
+      const dir = Math.floor(time / CYCLE) % 2 === 0 ? 1 : -1; // ciclo par: direita → esquerda; ímpar: esquerda → direita
       const mv = clamp((u - 0.1) / 0.6, 0, 1);
-      off = (0.5 - (mv < 0.5 ? 2 * mv * mv : 1 - Math.pow(-2 * mv + 2, 2) / 2)) * 0.34 * s.w; // easeInOutQuad: +17% → −17%
+      off = dir * (0.5 - (mv < 0.5 ? 2 * mv * mv : 1 - Math.pow(-2 * mv + 2, 2) / 2)) * 0.34 * s.w; // easeInOutQuad: ±17% → ∓17%
       env = clamp(u / 0.1, 0, 1) * clamp((0.9 - u) / 0.12, 0, 1);
     }
-    img(canvas, im.swipe, bx.swipe.x + off, bx.swipe.y + p.chosen * 0.3 * bx.swipe.h, bx.swipe.w, bx.swipe.h, hint * (f.still ? 1 : 0.25 + 0.75 * env));
+    const sw = bx.swipe;
+    const y = sw.y + p.chosen * 0.3 * sw.h;
+    const alpha = hint * (f.still ? 1 : 0.25 + 0.75 * env);
+    const cut = y + sw.h * 0.66; // acima: mão e setas (se mexem); abaixo: rótulo (parado)
+    canvas.save();
+    canvas.clipRect(Skia.XYWHRect(0, 0, W, cut), ClipOp.Intersect, false);
+    img(canvas, im.swipe, sw.x + off, y, sw.w, sw.h, alpha);
+    canvas.restore();
+    canvas.save();
+    canvas.clipRect(Skia.XYWHRect(0, cut, W, H - cut), ClipOp.Intersect, false);
+    img(canvas, im.swipe, sw.x, y, sw.w, sw.h, hint * (f.still ? 1 : 0.55 + 0.45 * env));
+    canvas.restore();
   }
 }

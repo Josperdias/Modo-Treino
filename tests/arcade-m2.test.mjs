@@ -123,7 +123,7 @@ test('tiro para cima derruba; respeita o cooldown; torre precisa de 2 tiros', ()
   assert.equal(s.kills, 2);
 });
 
-test('tiros inimigos: só a partir de 50 m, com aviso antes, e no máximo 4 no ar', () => {
+test('tiros inimigos: só a partir de COMBAT.SHOOT_FROM_M, com aviso antes, e no máximo 4 no ar', () => {
   const mk = (meters) => {
     const e = enemy({kind: 'turret', x0: 210, y0: 520, x: 210, y: 520, size: 24, hp: 2, maxHp: 2, cooldown: 1.0});
     const s = bare({enemies: [e], platforms: [plat({y: 100, w: 600})], meters});
@@ -132,8 +132,8 @@ test('tiros inimigos: só a partir de 50 m, com aviso antes, e no máximo 4 no a
   };
   const early = mk(30);
   for (let i = 0; i < 400; i++) { put(early.s, 100, 300, 0); step(early.s, {axis: 0}); }
-  assert.equal(early.s.bullets.length + early.s.events.filter(e => e.t === 'shoot').length, 0, 'abaixo de 50 m não atira');
-  const late = mk(80);
+  assert.equal(early.s.bullets.length + early.s.events.filter(e => e.t === 'shoot').length, 0, 'antes da altitude de estreia não atira');
+  const late = mk(COMBAT.SHOOT_FROM_M + 30);
   let warned = -1, shot = -1;
   for (let i = 0; i < 400 && shot < 0; i++) {
     put(late.s, 100, 300, 0);
@@ -322,7 +322,7 @@ test('mundo cristal: o vento muda o alvo horizontal; mecânico: esteira empurra 
 });
 
 /* ---------- geração ---------- */
-test('geração: inimigos só depois de 38 m, fora das plataformas, com poderes e bandeiras espaçados', () => {
+test('geração: inimigos só depois de SPAWN.FROM_M, fora das plataformas, com poderes e bandeiras espaçados', () => {
   let enemies = 0, bad = 0;
   const firstEnemy = [];
   for (let seed = 1; seed <= 60; seed++) {
@@ -346,7 +346,7 @@ test('geração: inimigos só depois de 38 m, fora das plataformas, com poderes 
     assert.ok(flags.length >= 6 && flags[0] - 90 >= 300);
     for (let i = 1; i < flags.length; i++) assert.ok(flags[i] - flags[i - 1] >= 1200, 'bandeira em cascata');
   }
-  assert.ok(enemies > 800, `inimigos ${enemies}`);
+  assert.ok(enemies > 400, `inimigos ${enemies}`);
   assert.equal(bad, 0, 'inimigo atravessando plataforma');
   assert.ok(Math.min(...firstEnemy) >= SPAWN.FROM_M, `primeiro inimigo aos ${Math.min(...firstEnemy)} m`);
 });
@@ -547,7 +547,7 @@ test('buraco negro: puxa de longe, machuca no centro, indestrutível (tiro e pis
 
 test('disco voador atira em leque (3 tiros); meteoro cai em laço; clipe sobe e desce', () => {
   const u = enemy({kind: 'ufo', x0: 210, y0: 520, x: 210, y: 520, size: 22, hp: 2, maxHp: 2, cooldown: 0.001});
-  const s = bare({enemies: [u], platforms: [plat({y: 100, w: 600})], meters: 80});
+  const s = bare({enemies: [u], platforms: [plat({y: 100, w: 600})], meters: COMBAT.SHOOT_FROM_M + 30});
   put(s, 100, 300, 0);
   for (let i = 0; i < 10; i++) { put(s, 100, 300, 0); s.invuln = 9; step(s, {axis: 0}); }
   assert.ok(s.bullets.filter(b => !b.own).length >= 3, `balas ${s.bullets.length}`);

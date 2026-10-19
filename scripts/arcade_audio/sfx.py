@@ -408,15 +408,16 @@ LEVEL = {'land_normal': 0.5, 'land_moving': 0.5, 'land_conveyor': 0.5, 'land_fra
 
 
 def build(ids, write_ogg, out_dir):
+    """Gera os efeitos. Todos entram no ATLAS (`sfx-atlas.ogg` + `sfx-atlas.json`): o app toca o atlas com poucos players
+    (seekTo no começo do trecho), em vez de um player por efeito (dezenas de ExoPlayers travavam o aparelho)."""
     D = sfx_defs()
     report = {}
-    for name in (ids or list(D)):
-        if name not in D:
-            continue
+    clips = {}
+    for name in D:
         r = np.random.default_rng(sum(ord(c) * (i + 3) for i, c in enumerate(name)))
         y = np.asarray(D[name](r), dtype=np.float64)
         y = np.nan_to_num(y)
-        # tira silêncio do começo, normaliza para -3 dBFS e aplica fade curto
+        # normaliza para -3 dBFS e aplica fade curto
         pk = float(np.max(np.abs(y)) + 1e-9)
         y = y / pk * 0.7
         k = int(0.002 * SR)
@@ -428,37 +429,43 @@ def build(ids, write_ogg, out_dir):
         idx = np.where(env > 0.004)[0]
         if len(idx):
             y = y[: min(len(y), idx[-1] + int(0.02 * SR))]
+        clips[name] = y
+        if ids and name not in ids:
+            continue
         size = write_ogg(y, os.path.join(out_dir, 'sfx', f'{name}.ogg'), 3.0)
         report[name] = {'duracao_s': round(len(y) / SR, 3), 'bytes': size, 'pico_dBFS': round(20 * np.log10(np.max(np.abs(y)) + 1e-9), 2), 'nivel': LEVEL.get(name, 0.85)}
         print(f"sfx {name:14s} {len(y)/SR:5.2f}s {size/1024:5.1f} KB", flush=True)
+    # atlas: clipes em sequência com 0,2 s de silêncio entre eles (o seek do player não precisa ser exato)
+    gap = np.zeros(int(0.2 * SR))
+    parts, pos, table = [gap], len(gap), {}
+    for name in sorted(clips):
+        y = clips[name]
+        table[name] = {'start': round(pos / SR, 4), 'dur': round(len(y) / SR, 4), 'level': LEVEL.get(name, 0.85)}
+        parts += [y, gap]
+        pos += len(y) + len(gap)
+    size = write_ogg(np.concatenate(parts), os.path.join(out_dir, 'sfx-atlas.ogg'), 3.0)
+    json.dump(table, open(os.path.join(out_dir, 'sfx-atlas.json'), 'w'), indent=1)
+    print(f"atlas de efeitos: {len(table)} clipes, {pos / SR:.1f}s, {size / 1024:.0f} KB", flush=True)
     return report
 
 
 def write_manifest(out_dir):
-    """Gera native/src/arcade/audio/assets.ts com `require` estáticos (o Metro precisa deles) + duração/nível de cada som."""
+    """Gera native/src/arcade/audio/assets.ts com `require` estáticos (o Metro precisa deles): trilhas + atlas dos efeitos."""
     root = os.path.abspath(os.path.join(out_dir, '..', '..', '..'))
     ts_dir = os.path.join(root, 'src', 'arcade', 'audio')
     os.makedirs(ts_dir, exist_ok=True)
     mus = sorted(f[:-4] for f in os.listdir(os.path.join(out_dir, 'musica')) if f.endswith('.ogg'))
-    sfx = sorted(f[:-4] for f in os.listdir(os.path.join(out_dir, 'sfx')) if f.endswith('.ogg'))
-    meta = {}
-    repo = os.path.abspath(os.path.join(root, '..'))
-    try:
-        rep = json.load(open(os.path.join(repo, 'docs', 'neon-step-dx', 'AUDIT_audio.json')))
-        meta = rep.get('sfx', {})
-    except Exception:
-        pass
+    table = json.load(open(os.path.join(out_dir, 'sfx-atlas.json')))
     lines = ['// GERADO por scripts/arcade_audio/build.py — não edite à mão.', '/* eslint-disable */', '', 'export const MUSIC = {']
     for n in mus:
         lines.append(f"  {n}: require('../../../assets/arcade/audio/musica/{n}.ogg'),")
-    lines += ['} as const;', '', 'export const SFX = {']
-    for n in sfx:
-        lines.append(f"  {n}: require('../../../assets/arcade/audio/sfx/{n}.ogg'),")
-    lines += ['} as const;', '', 'export type MusicId = keyof typeof MUSIC;', 'export type SfxId = keyof typeof SFX;', '',
-              '/** Duração (s) e nível relativo (0..1) de cada efeito. */', 'export const SFX_META: Record<SfxId, {dur: number; level: number}> = {']
-    for n in sfx:
-        m = meta.get(n, {})
-        lines.append(f"  {n}: {{dur: {m.get('duracao_s', 0.5)}, level: {m.get('nivel', 0.85)}}},")
+    lines += ['} as const;', '', "export const SFX_ATLAS = require('../../../assets/arcade/audio/sfx-atlas.ogg');", '',
+              'export type MusicId = keyof typeof MUSIC;', '',
+              '/** Onde cada efeito está no atlas: início e duração (s) e nível relativo (0..1). */',
+              'export const SFX_CLIPS: Record<string, {start: number; dur: number; level: number}> = {']
+    for n in sorted(table):
+        c = table[n]
+        lines.append(f"  {n}: {{start: {c['start']}, dur: {c['dur']}, level: {c['level']}}},")
     lines += ['};', '']
     open(os.path.join(ts_dir, 'assets.ts'), 'w').write('\n'.join(lines))
 
