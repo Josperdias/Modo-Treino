@@ -2,6 +2,11 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.6] — 2026-10-19
+
+### O segredo ficou bem maior 🕹️
+- O **jogo escondido** ganhou uma tela de abertura nova (com animação de PRESS START e carregamento), **inimigos, portais, poderes e mundos diferentes**. Continua offline, com Josperd e Camila, e a pista continua a mesma: ele mora onde o app conta a própria versão.
+
 ## [1.4.5] — 2026-10-16
 
 ### Um segredo novo 🕹️

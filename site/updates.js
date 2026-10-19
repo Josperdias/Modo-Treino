@@ -2,7 +2,7 @@
  * Regras de comparação em logic.js (testadas em tests/logic.test.mjs). */
 (()=>{'use strict';
   const L=window.ModoLogic;
-  const APP_VERSION='1.4.5', LAST_KEY='modo-treino-latest-seen', CACHE_HOURS=6;
+  const APP_VERSION='1.4.6', LAST_KEY='modo-treino-latest-seen', CACHE_HOURS=6;
   let apkInfo=null, settings=()=>({repo:'',enabled:false}), lastCheck=0, status='Configure um repositório público para receber avisos.', latest=null;
   const safeRepo=v=>/^[a-zA-Z0-9-]+\/[a-zA-Z0-9._-]+$/.test(String(v||''))?v:null;
   function updateScreen(){const el=document.getElementById('updateStatus');if(el)el.textContent=status;const dt=document.getElementById('dlTitle'),ds=document.getElementById('dlSub');if(dt&&apkInfo){dt.textContent='Baixe o app Android · '+apkInfo.tag;if(ds)ds.textContent='APK de teste · '+apkInfo.mb+' · instalação manual, sem conta'};let banner=document.getElementById('git-news-banner');if(!banner){banner=document.createElement('div');banner.id='git-news-banner';banner.className='git-news-banner';banner.setAttribute('role','status');const main=document.getElementById('main');main?.parentNode?.insertBefore(banner,main)}if(banner){banner.replaceChildren();if(latest){const strong=document.createElement('strong');strong.textContent=latest.title;const small=document.createElement('span');small.textContent=latest.desc;banner.append(strong,small);for(const [href,label] of [[latest.apk,'BAIXAR APK ↓'],[latest.url,'VER NO GITHUB ↗']]){if(!href)continue;const a=document.createElement('a');a.href=href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=label;banner.append(a)}banner.style.display='flex'}else banner.style.display='none'}}
