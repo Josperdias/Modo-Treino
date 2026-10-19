@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Dimensions, GestureResponderEvent, Platform, StyleSheet, View} from 'react-native';
+import {GestureResponderEvent, Platform, StyleSheet, View} from 'react-native';
 import {Canvas, Picture, createPicture, type SkPicture} from '@shopify/react-native-skia';
 import {useSharedValue} from 'react-native-reanimated';
 import {Accelerometer} from 'expo-sensors';
@@ -10,6 +10,7 @@ import {recordDraw} from './perf.ts';
 import {FIELD_W} from './data/neon.ts';
 import {loadSprites, type SpriteSet} from './render/assets';
 import {drawScene} from './render/scene';
+import {inFireZone} from './render/layout.ts';
 
 export type GameCanvasProps = {
   session: Session;
@@ -27,16 +28,23 @@ export type GameCanvasProps = {
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const EMPTY: SpriteSet = {josperd: [], camila: []};
 
-/** Eixo a partir dos dedos na tela: metade esquerda = -1, direita = +1, os dois lados = 0. */
-function axisFromTouches(e: GestureResponderEvent): number {
-  const half = Dimensions.get('window').width / 2;
+/**
+ * Eixo e tiro a partir dos dedos na tela: metade esquerda = -1, direita = +1, os dois lados = 0.
+ * Um dedo dentro do botão de tiro (centro de baixo) atira e não move.
+ */
+function readTouches(e: GestureResponderEvent, w: number, h: number): {axis: number; fire: boolean} {
+  const half = w / 2;
   let left = false;
   let right = false;
+  let fire = false;
   for (const t of e.nativeEvent.touches || []) {
-    if (t.pageX < half) left = true;
+    const x = t.locationX ?? t.pageX;
+    const y = t.locationY ?? t.pageY;
+    if (inFireZone(x, y, w, h)) fire = true;
+    else if (x < half) left = true;
     else right = true;
   }
-  return (right ? 1 : 0) - (left ? 1 : 0);
+  return {axis: (right ? 1 : 0) - (left ? 1 : 0), fire};
 }
 
 export default function GameCanvas(p: GameCanvasProps) {
@@ -115,20 +123,28 @@ export default function GameCanvas(p: GameCanvasProps) {
       const k = e.key.toLowerCase();
       if (k === 'arrowleft' || k === 'a') { held.l = true; push(); e.preventDefault(); }
       else if (k === 'arrowright' || k === 'd') { held.r = true; push(); e.preventDefault(); }
+      else if ((k === ' ' || k === 'arrowup' || k === 'w' || k === 'z') && !e.repeat) { props.current.session.setFire(true); e.preventDefault(); }
       else if ((k === 'p' || k === 'escape') && !e.repeat) props.current.onPauseKey?.();
     };
     const up = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (k === 'arrowleft' || k === 'a') { held.l = false; push(); }
       else if (k === 'arrowright' || k === 'd') { held.r = false; push(); }
+      else if (k === ' ' || k === 'arrowup' || k === 'w' || k === 'z') props.current.session.setFire(false);
     };
     document.addEventListener('keydown', down);
     document.addEventListener('keyup', up);
     return () => { document.removeEventListener('keydown', down); document.removeEventListener('keyup', up); };
   }, []);
 
+  const sizeRef = useRef<{w: number; h: number} | null>(null);
+  sizeRef.current = size;
   const touch = useCallback((e: GestureResponderEvent) => {
-    if (props.current.control === 'touch') props.current.session.setAxis(axisFromTouches(e));
+    const z = sizeRef.current;
+    if (!z) return;
+    const r = readTouches(e, z.w, z.h);
+    props.current.session.setFire(r.fire);
+    if (props.current.control === 'touch') props.current.session.setAxis(r.axis);
   }, []);
 
   useEffect(() => {
@@ -154,7 +170,7 @@ export default function GameCanvas(p: GameCanvasProps) {
       onResponderRelease={touch}
       onResponderTerminate={touch}
       accessible
-      accessibilityLabel="Jogo NEON STEP DX. Segure o lado esquerdo ou direito da tela para mover o personagem."
+      accessibilityLabel="Jogo NEON STEP DX. Segure o lado esquerdo ou direito da tela para mover o personagem e toque no botão redondo de baixo para atirar."
     >
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
         <Picture picture={picture} />

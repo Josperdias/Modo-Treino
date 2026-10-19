@@ -1,5 +1,5 @@
 import {advance, makeLoop, type Loop} from './core/loop.ts';
-import {createSim, levelName, metersOf, setViewH} from './core/sim.ts';
+import {createSim, metersOf, setViewH} from './core/sim.ts';
 import type {Sim, SimEvent} from './core/types.ts';
 import {makeFx, onEvents, updateFx, type Fx} from './fx.ts';
 import {makePerf, recordFrame, summarize, type Perf} from './perf.ts';
@@ -9,9 +9,16 @@ export type Hud = {
   best: number;
   tapes: number;
   meters: number;
-  level: number;
-  levelName: string;
   combo: number;
+  lives: number;
+  shields: number;
+  /** Segundos restantes de sapatos de mola / hélice. */
+  boost: number;
+  jet: number;
+  kills: number;
+  /** Há uma recuperação guardada (bandeira ou portal). */
+  revive: boolean;
+  world: string;
 };
 
 /**
@@ -24,12 +31,15 @@ export class Session {
   fx: Fx = makeFx();
   perf: Perf = makePerf();
   axis = 0;
+  /** Botão de tiro segurado. */
+  fire = false;
   alpha = 0;
   paused = false;
   best: number;
   /** Eventos novos desde a última leitura (HUD, vibração, avisos). */
   private pending: SimEvent[] = [];
   private lastNow = -1;
+  private worldBefore: Sim['world'] = 'neon';
   private now: () => number;
 
   constructor(seed: number, viewH: number, best = 0, now: () => number = () => Date.now()) {
@@ -51,9 +61,14 @@ export class Session {
     this.axis = Math.max(-1, Math.min(1, a));
   }
 
+  setFire(f: boolean) {
+    this.fire = f;
+  }
+
   pause() {
     this.paused = true;
     this.axis = 0;
+    this.fire = false;
     this.lastNow = -1;
   }
 
@@ -70,12 +85,13 @@ export class Session {
     this.lastNow = ts;
     const t0 = this.now();
     const before = this.sim.events.length;
-    this.alpha = advance(this.sim, this.loop, {axis: this.axis}, frameMs / 1000);
+    this.worldBefore = this.sim.world;
+    this.alpha = advance(this.sim, this.loop, {axis: this.axis, fire: this.fire}, frameMs / 1000);
     const stepMs = this.now() - t0;
     recordFrame(this.perf, frameMs, stepMs);
     if (this.sim.events.length > before) {
       const fresh = this.sim.events.splice(before);
-      onEvents(this.fx, fresh);
+      onEvents(this.fx, fresh, this.worldBefore);
       for (const e of fresh) this.pending.push(e);
     }
     updateFx(this.fx, Math.min(frameMs, 50) / 1000);
@@ -97,9 +113,14 @@ export class Session {
       best: this.best,
       tapes: s.tapes,
       meters: metersOf(s),
-      level: s.level,
-      levelName: levelName(s.level),
       combo: s.combo,
+      lives: s.lives,
+      shields: s.shields,
+      boost: s.boost,
+      jet: s.jet,
+      kills: s.kills,
+      revive: s.revive > 0,
+      world: s.world,
     };
   }
 

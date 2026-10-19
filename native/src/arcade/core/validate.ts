@@ -11,9 +11,9 @@ import type {Platform} from './types.ts';
 /** Fração do alcance físico que o gerador pode usar (o resto é folga para erro humano). */
 export const SAFETY = {
   /** Subida máxima permitida em relação ao ápice do salto. */
-  RISE: 0.78,
+  RISE: 0.86,
   /** Deslocamento horizontal máximo em relação ao alcance físico. */
-  REACH: 0.8,
+  REACH: 0.9,
 };
 
 export type Problem = {id: number; reason: string; dx?: number; dy?: number};

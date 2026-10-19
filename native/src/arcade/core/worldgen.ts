@@ -1,6 +1,6 @@
-import {FIELD_W, GEN, INTRO, PATTERN_MIN_INTENSITY, PATTERN_WEIGHTS, PHYS, PICKUP} from '../data/neon.ts';
+import {ENEMIES, ENEMY_TABLE, FIELD_W, GEN, INTRO, PATTERN_MIN_INTENSITY, PATTERN_WEIGHTS, PHYS, PICKUP, PORTAL, POWER_TABLE, SPAWN, WORLD_FX, WORLD_ORDER, type WorldId} from '../data/neon.ts';
 import {chance, int, makeRng, next, range, weighted} from './rng.ts';
-import type {Gen, Item, PatternName, Platform, PlatformType} from './types.ts';
+import type {Enemy, EnemyKind, Gen, Item, ItemKind, PatternName, Platform, PlatformType} from './types.ts';
 
 /**
  * Gerador do mundo por PADRÕES (substitui o sorteio plataforma a plataforma do protótipo, que
@@ -16,7 +16,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 const clampX = (x: number) => clamp(x, GEN.MARGIN_X, FIELD_W - GEN.MARGIN_X);
 
-export type Out = {platforms: Platform[]; items: Item[]};
+export type Out = {platforms: Platform[]; items: Item[]; enemies: Enemy[]};
 
 export function makeGen(seed: number): Gen {
   return {
@@ -29,8 +29,17 @@ export function makeGen(seed: number): Gen {
     sinceWide: 0,
     intro: 0,
     nextId: 1,
+    world: 'neon',
+    worldY0: PHYS.START_Y,
+    nextEnemyY: PHYS.START_Y + SPAWN.FROM_M * 10,
+    nextPowerY: PHYS.START_Y + SPAWN.POWER_FROM_M * 10,
+    nextFlagY: PHYS.START_Y + SPAWN.FLAG_FROM_M * 10,
+    portalY: PHYS.START_Y + PORTAL.FIRST_M * 10,
+    portalPlaced: false,
   };
 }
+
+export const nextWorld = (w: WorldId): WorldId => WORLD_ORDER[(WORLD_ORDER.indexOf(w) + 1) % WORLD_ORDER.length];
 
 /** Altitude em metros (mesma conta do protótipo). */
 export function metersAt(y: number): number {
@@ -57,7 +66,7 @@ export function intensityAt(y: number): number {
 function gapFor(g: Gen, d: number, scale = 1): number {
   const lo = lerp(GEN.GAP_MIN, GEN.GAP_MIN_HARD, d);
   const hi = lerp(GEN.GAP_MAX, GEN.GAP_MAX_HARD, d);
-  return range(g.rng, lo, hi) * scale;
+  return Math.min(GEN.GAP_CAP, range(g.rng, lo, hi) * scale);
 }
 
 function widthFor(g: Gen, span: readonly number[], d: number): number {
@@ -74,6 +83,11 @@ function put(
   type: PlatformType,
   moving?: {shift: number; speed: number},
 ): Platform {
+  let dir = 0;
+  if (type === 'normal' && g.world === 'clock' && pattern !== 'wide' && pattern !== 'portalPad' && chance(g.rng, WORLD_FX.CLOCK_CONVEYOR_CHANCE)) {
+    type = 'conveyor';
+    dir = chance(g.rng, 0.5) ? 1 : -1;
+  }
   const p: Platform = {
     id: g.nextId++,
     x,
@@ -85,6 +99,7 @@ function put(
     shift: moving ? moving.shift : 0,
     broken: false,
     pattern,
+    dir,
   };
   out.platforms.push(p);
   return p;
@@ -247,7 +262,23 @@ const breakables: PatternFn = (g, d, out) => {
   }
 };
 
+const portalPad: PatternFn = (g, _d, out) => {
+  // Plataforma larga de apoio e, ao lado dela, o portal; o caminho segue para o lado oposto: desviar é só não encostar.
+  g.x = clampX(lerp(g.x, FIELD_W / 2, 0.6) + range(g.rng, -20, 20));
+  g.y += gapFor(g, 0, 1);
+  const pad = put(g, out, 'portalPad', g.x, g.y, 132, 'normal');
+  const side = pad.x < FIELD_W / 2 ? 1 : -1;
+  out.items.push({id: g.nextId++, kind: 'portal', x: clamp(pad.x + side * PORTAL.SIDE, 62, FIELD_W - 62), y: pad.y + PORTAL.ABOVE, phase: range(g.rng, 0, Math.PI * 2), hit: false, target: nextWorld(g.world)});
+  g.portalPlaced = true;
+  for (let i = 0; i < 2; i++) {
+    g.x = clampX(g.x - side * 62 + range(g.rng, -18, 18));
+    g.y += gapFor(g, 0.4);
+    put(g, out, 'portalPad', g.x, g.y, widthFor(g, GEN.WIDTH_NORMAL, 0.2), 'normal');
+  }
+};
+
 const PATTERNS: Record<Exclude<PatternName, 'start'>, PatternFn> = {
+  portalPad,
   stairs,
   tower,
   wide,
@@ -259,16 +290,17 @@ const PATTERNS: Record<Exclude<PatternName, 'start'>, PatternFn> = {
   breakables,
 };
 
-const NAMES = Object.keys(PATTERNS) as Exclude<PatternName, 'start'>[];
+const NAMES = Object.keys(PATTERNS).filter(n => n !== 'portalPad') as Exclude<PatternName, 'start' | 'portalPad'>[];
 
 function choosePattern(g: Gen, d: number): PatternName {
   const m = metersAt(g.y);
+  if (!g.portalPlaced && g.y >= g.portalY && g.last !== 'portalPad') return 'portalPad';
   if (m < GEN.WARMUP_M) return weighted(g.rng, [['stairs', 3], ['tower', 2], ['wide', 1]] as const);
   // Novidade do momento (uma vez cada): apresenta o padrão antes de ele entrar no sorteio.
   if (g.intro < INTRO.length && m >= INTRO[g.intro].m) return INTRO[g.intro++].pattern;
   // Respiro garantido: depois de vários padrões tensos, entra um pouso largo.
-  if (g.sinceWide >= 6 && g.last !== 'wide') return 'wide';
-  const calm = cycleAt(g.y) < 0.55;
+  if (g.sinceWide >= 9 && g.last !== 'wide') return 'wide';
+  const calm = cycleAt(g.y) < 0.72;
   const table: [PatternName, number][] = NAMES.map(name => {
     const [easy, hard] = PATTERN_WEIGHTS[name];
     let w = d < PATTERN_MIN_INTENSITY[name] ? 0 : lerp(easy, hard, d);
@@ -279,15 +311,110 @@ function choosePattern(g: Gen, d: number): PatternName {
   return weighted(g.rng, table);
 }
 
+/* ---------- inimigos, poderes e bandeiras (depois de cada padrão) ---------- */
+
+/** X do caminho (cadeia de plataformas) na altura y, por interpolação entre plataformas vizinhas. */
+function routeX(list: Platform[], y: number): number {
+  let lo: Platform | null = null, hi: Platform | null = null;
+  for (const p of list) {
+    if (p.y <= y && (!lo || p.y > lo.y)) lo = p;
+    if (p.y >= y && (!hi || p.y < hi.y)) hi = p;
+  }
+  if (lo && hi && hi.y > lo.y) return lo.x + ((hi.x - lo.x) * (y - lo.y)) / (hi.y - lo.y);
+  return (lo ?? hi)?.x ?? FIELD_W / 2;
+}
+
+function pickEnemyKind(g: Gen, d: number): EnemyKind {
+  const wm = metersAt(g.y) - metersAt(g.worldY0);
+  if (metersAt(g.y) >= SPAWN.GUARDIAN_FROM_M && chance(g.rng, SPAWN.GUARDIAN_CHANCE)) return 'guardian';
+  const table = ENEMY_TABLE[g.world].map(([k, w, from]) => [k as EnemyKind, wm >= from ? w : 0] as const);
+  const any = table.some(([, w]) => w > 0);
+  return weighted(g.rng, any ? table : [[table[0][0], 1] as const]);
+}
+
+/** O caminho percorrido pelo inimigo (âncora ± alcance) cruza alguma plataforma? */
+function crossesPlatform(list: Platform[], x0: number, y: number, rangeX: number, size: number): boolean {
+  for (const p of list) {
+    if (Math.abs(p.y - y) > size + 16) continue;
+    const reach = p.w / 2 + p.shift;
+    if (x0 - rangeX - size < p.x + reach && x0 + rangeX + size > p.x - reach) return true;
+  }
+  return false;
+}
+
+function placeEnemy(g: Gen, out: Out, from: number, d: number) {
+  const list = out.platforms.slice(Math.max(0, from - 2));
+  // Para não atravessar plataformas, olha também os últimos do padrão anterior (a bifurcação tem duas no mesmo y).
+  const near = out.platforms.slice(Math.max(0, from - 8));
+  if (list.length < 2) return;
+  const kind = pickEnemyKind(g, d);
+  const spec = ENEMIES[kind];
+  const block = chance(g.rng, lerp(SPAWN.BLOCK[0], SPAWN.BLOCK[1], d));
+  const ys = list.map(p => p.y).sort((a, b) => a - b);
+  let range0 = 0, speed = 0;
+  if (kind === 'drone') { range0 = range(g.rng, 40, 80) + 30 * d; speed = range(g.rng, 0.6, 1.1) + 0.5 * d; }
+  else if (kind === 'zigzag') { range0 = range(g.rng, 58, 100); speed = range(g.rng, 1.3, 2) + 0.4 * d; }
+  else if (kind === 'orb') { range0 = range(g.rng, 32, 50); speed = range(g.rng, 1.1, 1.7); }
+  else if (kind === 'guardian') { range0 = 52; speed = 0.5; }
+  // Até 6 tentativas de achar um lugar onde o caminho do inimigo não atravessa uma plataforma.
+  for (let k = 0; k < 6; k++) {
+    // y: no vão entre duas plataformas do padrão (bloqueio) ou em qualquer ponto da faixa (ao lado).
+    const i = int(g.rng, 0, ys.length - 2);
+    const y = block ? (ys[i] + ys[i + 1]) / 2 + range(g.rng, -8, 8) : range(g.rng, ys[0] + 25, ys[ys.length - 1] + 10);
+    if (y < PHYS.START_Y + SPAWN.FROM_M * 10) continue; // nada antes da altitude de estreia
+    const rx = routeX(list, y);
+    const sideDir = rx < FIELD_W / 2 ? 1 : -1;
+    const off = block ? range(g.rng, -16, 16) : sideDir * range(g.rng, 100, 150);
+    const lim = range0 + spec.size + 22;
+    const x0 = clamp(rx + off, lim, FIELD_W - lim);
+    if (crossesPlatform(near, x0, y, range0, spec.size)) continue;
+    out.enemies.push({
+      id: g.nextId++, kind, x0, y0: y, x: x0, y, phase: range(g.rng, 0, Math.PI * 2), speed, range: range0,
+      size: spec.size, hp: spec.hp, maxHp: spec.hp,
+      cooldown: kind === 'turret' ? range(g.rng, 2.4, 4.2) : range(g.rng, 3.4, 6),
+      warn: false, alive: true,
+    });
+    return;
+  }
+}
+
+function powerItem(g: Gen, out: Out, from: number) {
+  const p = [...out.platforms.slice(from)].reverse().find(q => q.type === 'normal' && q.pattern !== 'portalPad');
+  if (!p) return false;
+  const kind = weighted(g.rng, POWER_TABLE.map(([k, w]) => [k as ItemKind, w] as const));
+  out.items.push({id: g.nextId++, kind, x: p.x, y: p.y + 54, phase: range(g.rng, 0, Math.PI * 2), hit: false});
+  return true;
+}
+
+function flagItem(g: Gen, out: Out, from: number) {
+  const p = [...out.platforms.slice(from)].reverse().find(q => (q.type === 'normal' || q.type === 'conveyor') && q.w >= 50 && q.pattern !== 'portalPad');
+  if (!p) return false;
+  out.items.push({id: g.nextId++, kind: 'flag', x: p.x, y: p.y + 38, phase: 0, hit: false});
+  return true;
+}
+
+function decorate(g: Gen, out: Out, from: number, name: PatternName, d: number) {
+  const m = metersAt(g.y);
+  if (name === 'portalPad') return; // o portal tem o palco só para ele
+  if (g.y >= g.nextFlagY && flagItem(g, out, from)) g.nextFlagY = g.y + SPAWN.FLAG_GAP_M * 10 + range(g.rng, 0, 400);
+  if (g.y >= g.nextPowerY && powerItem(g, out, from)) g.nextPowerY = g.y + range(g.rng, SPAWN.POWER_GAP_M[0], SPAWN.POWER_GAP_M[1]) * 10;
+  if (m >= SPAWN.FROM_M && g.y >= g.nextEnemyY && name !== 'wide' && name !== 'springPad') {
+    placeEnemy(g, out, from, d);
+    g.nextEnemyY = g.y + range(g.rng, 0.8, 1.2) * lerp(SPAWN.GAP_M[0], SPAWN.GAP_M[1], d) * 10;
+  }
+}
+
 /** Gera UM padrão acima do topo atual. */
 export function generatePattern(g: Gen, out: Out): PatternName {
   const d = intensityAt(g.y);
   const name = choosePattern(g, d) as Exclude<PatternName, 'start'>;
+  const from = out.platforms.length;
   PATTERNS[name](g, d, out);
   g.repeat = name === g.last ? g.repeat + 1 : 0;
   g.last = name;
-  g.sinceWide = name === 'wide' || name === 'fork' || name === 'springPad' ? 0 : g.sinceWide + 1;
+  g.sinceWide = name === 'wide' || name === 'fork' || name === 'springPad' || name === 'portalPad' ? 0 : g.sinceWide + 1;
   g.count++;
+  decorate(g, out, from, name, d);
   return name;
 }
 

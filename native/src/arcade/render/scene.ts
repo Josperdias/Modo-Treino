@@ -2,10 +2,15 @@ import {ClipOp, FilterMode, MipmapMode, Skia, TileMode, createPicture, type SkCa
 import {FIELD_W, PHYS} from '../data/neon.ts';
 import SPRITES from '../data/sprites.json';
 import {platformX} from '../core/physics.ts';
-import type {Platform, Player} from '../core/types.ts';
+import {enemyAt} from '../core/enemies.ts';
+import type {Enemy, Item, Platform, Player, WorldId} from '../core/types.ts';
 import type {Session} from '../session.ts';
 import type {Hero} from '../save';
 import type {SpriteSet} from './assets';
+import {drawPix} from './pixelbake.ts';
+import {ARROW_UP, BOOST, BULLET_ENEMY, BULLET_OWN, ENEMY_SPRITES, FLAG, HEART, HEART_EMPTY, JET, SHIELD} from './pixelart.ts';
+import {drawPixelText} from '../menu/pixelscene.ts';
+import {HUD_ROW_Y, fireZone} from './layout.ts';
 
 /**
  * Desenho da Cidade Neon. Recebe o estado e pinta numa `SkCanvas`; não guarda nada além de caches.
@@ -135,7 +140,7 @@ function pixelFlower(canvas: SkCanvas, petal: string, center: string, x: number,
   rect(canvas, center, x - k / 2, y - k / 2, k, k, a);
 }
 
-function drawBackground(canvas: SkCanvas, cam: number, viewH: number, meters: number) {
+function drawNeonBackground(canvas: SkCanvas, cam: number, viewH: number, meters: number) {
   const p = P();
   p.setShader(bg(viewH));
   p.setAlphaf(1);
@@ -195,41 +200,178 @@ function drawBackground(canvas: SkCanvas, cam: number, viewH: number, meters: nu
   }
 }
 
-function platformColors(t: Platform['type']): string {
-  switch (t) {
-    case 'moving': return '#59dcd6';
-    case 'fragile': return '#ff5896';
-    case 'spring': return '#f5b967';
-    case 'start': return '#bba0fe';
-    default: return '#b594fc';
-  }
+/* ---------- cristal e mecânico ---------- */
+
+const bgGrads = new Map<string, SkShader>();
+function grad(key: string, h: number, a: string, b: string): SkShader {
+  const k = key + h;
+  let g = bgGrads.get(k);
+  if (!g) { g = Skia.Shader.MakeLinearGradient({x: 0, y: 0}, {x: 0, y: h}, [col(a), col(b)], null, TileMode.Clamp); bgGrads.set(k, g); }
+  return g;
 }
 
-const ACCENT: Record<Platform['type'], string> = {normal: '#ff4dac', moving: '#49e6ff', fragile: '#ff5896', spring: '#ffd369', start: '#8e6bff'};
+/** Losango de cristal em pixels (4 degraus) com brilho na quina de cima. */
+function crystalShard(canvas: SkCanvas, x: number, y: number, k: number, color: string, edge: string, a: number) {
+  for (let r = -4; r <= 4; r++) {
+    const w = 5 - Math.abs(r);
+    rect(canvas, color, x - w * k, y + r * k * 1.6, w * 2 * k, k * 1.6, a);
+    rect(canvas, edge, x - w * k, y + r * k * 1.6, k, k * 1.6, a * 1.4);
+  }
+  rect(canvas, '#ffffff', x - k, y - 3 * k * 1.6, k, k, a * 1.6);
+}
 
-/** Plataforma "adesivo neon": contorno de tinta, chapa colorida, brilho por baixo e um padrão por tipo. */
-function drawPlatform(canvas: SkCanvas, pl: Platform, x: number, y: number, time: number) {
+function drawCrystalBackground(canvas: SkCanvas, cam: number, viewH: number, time: number) {
+  const p = P();
+  p.setShader(grad('crystal', viewH, '#16336b', '#0a1230'));
+  p.setAlphaf(1);
+  canvas.drawRect(Skia.XYWHRect(0, 0, FIELD_W, viewH), p);
+  p.setShader(null);
+  // Feixes de luz diagonais devagar.
+  for (let i = 0; i < 4; i++) {
+    const x = ((i * 137 + time * 9) % (FIELD_W + 200)) - 100;
+    const path = Skia.Path.Make();
+    path.moveTo(x, 0); path.lineTo(x + 46, 0); path.lineTo(x - 110, viewH); path.lineTo(x - 156, viewH); path.close();
+    const q = P(); q.setShader(null); q.setColor(col('#7ff6ff')); q.setAlphaf(0.045 + 0.02 * Math.sin(time + i));
+    canvas.drawPath(path, q);
+  }
+  // Cristais à deriva em três profundidades.
+  for (let i = 0; i < 11; i++) {
+    const depth = 0.12 + (i % 3) * 0.09;
+    const x = (i * 83 + 40) % (FIELD_W - 40) + 20;
+    const y = ((((i * 173) + cam * depth) % (viewH + 140)) + viewH + 140) % (viewH + 140) - 70;
+    const k = 3 + (i % 3) * 1.5;
+    crystalShard(canvas, x, viewH - y, k, i % 2 ? '#2f6fd0' : '#3fd4e6', i % 2 ? '#7fb0ff' : '#b9fbff', 0.32 + 0.1 * (i % 3));
+  }
+  for (let i = 0; i < 38; i++) {
+    const x = (i * 71 + 17) % FIELD_W;
+    const y = ((((i * 151) + cam * (0.06 + (i % 4) * 0.04)) % viewH) + viewH) % viewH;
+    const tw = 0.25 + 0.5 * Math.abs(Math.sin(time * 1.6 + i));
+    rect(canvas, i % 4 === 0 ? '#b9fbff' : '#5aa8e8', x, y, i % 9 === 0 ? 3 : 2, i % 9 === 0 ? 3 : 2, tw);
+  }
+  for (let x = 0; x <= FIELD_W; x += 42) rect(canvas, '#7fd8ff', x, 0, 1, viewH, 0.05);
+}
+
+/** Engrenagem: anel, dentes e miolo, girando. */
+function gear(canvas: SkCanvas, x: number, y: number, r: number, rot: number, color: string, a: number) {
+  canvas.save();
+  canvas.translate(x, y);
+  canvas.rotate(rot, 0, 0);
+  const p = P();
+  p.setShader(null); p.setColor(col(color)); p.setAlphaf(a);
+  for (let i = 0; i < 10; i++) {
+    canvas.save();
+    canvas.rotate(i * 36, 0, 0);
+    canvas.drawRect(Skia.XYWHRect(-r * 0.12, -r * 1.22, r * 0.24, r * 0.32), p);
+    canvas.restore();
+  }
+  p.setStyle(1); p.setStrokeWidth(r * 0.22);
+  canvas.drawCircle(0, 0, r * 0.88, p);
+  p.setStrokeWidth(r * 0.1);
+  for (let i = 0; i < 3; i++) { canvas.save(); canvas.rotate(i * 60, 0, 0); canvas.drawLine(-r * 0.7, 0, r * 0.7, 0, p); canvas.restore(); }
+  p.setStyle(0);
+  canvas.drawCircle(0, 0, r * 0.18, p);
+  canvas.restore();
+}
+
+function drawClockBackground(canvas: SkCanvas, cam: number, viewH: number, time: number) {
+  const p = P();
+  p.setShader(grad('clock', viewH, '#33293f', '#19172b'));
+  p.setAlphaf(1);
+  canvas.drawRect(Skia.XYWHRect(0, 0, FIELD_W, viewH), p);
+  p.setShader(null);
+  // Engrenagens grandes, bem escuras, em duas profundidades (giram em sentidos opostos).
+  for (let i = 0; i < 8; i++) {
+    const depth = 0.1 + (i % 2) * 0.12;
+    const x = (i * 97 + 31) % FIELD_W;
+    const y = viewH - (((((i * 197) + cam * depth) % (viewH + 200)) + viewH + 200) % (viewH + 200) - 100);
+    const r = 34 + (i % 3) * 16;
+    gear(canvas, x, y, r, time * (i % 2 ? -14 : 17) + i * 11, i % 2 ? '#8a6a46' : '#6c5a7a', 0.2 + (i % 2) * 0.07);
+  }
+  // Canos nas laterais com rebites.
+  for (const sx of [0, FIELD_W - 16]) {
+    rect(canvas, '#241d33', sx, 0, 16, viewH);
+    rect(canvas, '#3d3252', sx + (sx ? 0 : 10), 0, 6, viewH);
+    for (let y = ((cam * 0.4) % 52) - 52; y < viewH; y += 52) {
+      rect(canvas, '#8a6a46', sx - (sx ? 2 : -2), y, 20, 6, 0.8);
+      rect(canvas, '#d9a964', sx + 4, y + 2, 2, 2);
+      rect(canvas, '#d9a964', sx + 10, y + 2, 2, 2);
+    }
+  }
+  // Vapor subindo.
+  for (let i = 0; i < 6; i++) {
+    const x = (i * 131 + 60) % (FIELD_W - 60) + 30;
+    const t = (time * 0.18 + i * 0.37) % 1;
+    const y = viewH - t * viewH;
+    rect(canvas, '#cdbfe0', x - 6 - t * 6, y, 12 + t * 12, 8 + t * 8, 0.12 * (1 - t));
+  }
+  for (let y = (cam * 0.22) % 42 - 42; y < viewH; y += 42) rect(canvas, '#d0b890', 0, y, FIELD_W, 1, 0.05);
+}
+
+function drawWorldBackground(canvas: SkCanvas, world: WorldId, cam: number, viewH: number, meters: number, time: number) {
+  if (world === 'crystal') drawCrystalBackground(canvas, cam, viewH, time);
+  else if (world === 'clock') drawClockBackground(canvas, cam, viewH, time);
+  else drawNeonBackground(canvas, cam, viewH, meters);
+}
+
+type Skin = {
+  top: Record<Platform['type'], string>;
+  accent: Record<Platform['type'], string>;
+  body: string;
+  bodyDark: string;
+  ink: string;
+  glint: string;
+  dots: string;
+  glass: boolean;
+};
+
+const SKINS: Record<WorldId, Skin> = {
+  neon: {
+    top: {normal: '#b594fc', moving: '#59dcd6', fragile: '#ff5896', spring: '#f5b967', start: '#bba0fe', conveyor: '#b594fc'},
+    accent: {normal: '#ff4dac', moving: '#49e6ff', fragile: '#ff5896', spring: '#ffd369', start: '#8e6bff', conveyor: '#ff4dac'},
+    body: '#3d265e', bodyDark: '#2e1b4a', ink: '#10091f', glint: '#f0ceff', dots: '#ff9bd6', glass: false,
+  },
+  crystal: {
+    top: {normal: '#9ff6ff', moving: '#6bf5d6', fragile: '#ff9ccb', spring: '#ffe08a', start: '#b9d8ff', conveyor: '#9ff6ff'},
+    accent: {normal: '#49e6ff', moving: '#6bf5d6', fragile: '#ff9ccb', spring: '#ffe08a', start: '#7fb0ff', conveyor: '#49e6ff'},
+    body: '#2c6fb8', bodyDark: '#1d4a8c', ink: '#08142e', glint: '#e8ffff', dots: '#b9fbff', glass: true,
+  },
+  clock: {
+    top: {normal: '#e0b070', moving: '#7be0d8', fragile: '#ff7b8a', spring: '#ffd070', start: '#e8c890', conveyor: '#c9d0e8'},
+    accent: {normal: '#ffbf65', moving: '#7be0d8', fragile: '#ff7b8a', spring: '#ffd070', start: '#ffbf65', conveyor: '#8cf0ff'},
+    body: '#6a4a3a', bodyDark: '#3f2c2a', ink: '#120c14', glint: '#fff0d0', dots: '#ffd9a0', glass: false,
+  },
+};
+
+/** Plataforma "adesivo": contorno de tinta, chapa colorida, brilho por baixo e um padrão por tipo (e por mundo). */
+function drawPlatform(canvas: SkCanvas, pl: Platform, x: number, y: number, time: number, world: WorldId) {
+  const sk = SKINS[world];
   const w = pl.w;
   const left = x - w / 2;
-  const acc = ACCENT[pl.type];
-  rect(canvas, acc, left + 6, y + 15, w - 12, 5, 0.22); // brilho neon
+  const acc = sk.accent[pl.type];
+  const ga = sk.glass ? 0.86 : 1;
+  rect(canvas, acc, left + 6, y + 15, w - 12, 5, 0.22); // brilho
   rect(canvas, '#0a0518', left + 4, y + 19, w - 6, 3, 0.5); // sombra dura
-  rect(canvas, '#10091f', left - 3, y - 3, w + 6, 21); // contorno de tinta
-  rect(canvas, '#3d265e', left, y, w, 14);
-  rect(canvas, '#2e1b4a', left, y + 9, w, 5);
-  rect(canvas, platformColors(pl.type), left, y - 3, w, 7);
+  rect(canvas, sk.ink, left - 3, y - 3, w + 6, 21, ga); // contorno de tinta
+  rect(canvas, sk.body, left, y, w, 14, ga);
+  rect(canvas, sk.bodyDark, left, y + 9, w, 5, ga);
+  rect(canvas, sk.top[pl.type], left, y - 3, w, 7, ga);
   rect(canvas, '#ffffff', left + 2, y - 3, w - 4, 1, 0.35); // reflexo
-  rect(canvas, '#f0ceff', left + 10, y - 1, 9, 2);
-  rect(canvas, '#f0ceff', left + w - 21, y - 1, 9, 2);
+  rect(canvas, sk.glint, left + 10, y - 1, 9, 2);
+  rect(canvas, sk.glint, left + w - 21, y - 1, 9, 2);
+  if (sk.glass) {
+    // facetas de vidro: diagonais claras
+    for (let dx = left + 6; dx < left + w - 10; dx += 18) { rect(canvas, '#ffffff', dx, y + 4, 2, 2, 0.35); rect(canvas, '#ffffff', dx + 2, y + 6, 2, 2, 0.25); rect(canvas, '#ffffff', dx + 4, y + 8, 2, 2, 0.15); }
+  } else if (world === 'clock' && pl.type !== 'conveyor') {
+    rect(canvas, '#ffd9a0', left + 4, y + 5, 3, 3); rect(canvas, '#ffd9a0', left + w - 7, y + 5, 3, 3);
+  }
   switch (pl.type) {
     case 'normal':
-      for (let dx = left + 12; dx < left + w - 8; dx += 14) rect(canvas, '#ff9bd6', dx, y + 6, 3, 3);
+      if (!sk.glass) for (let dx = left + 12; dx < left + w - 8; dx += 14) rect(canvas, sk.dots, dx, y + 6, 3, 3);
       break;
     case 'start':
-      // Xadrez de largada.
       for (let i = 0, dx = left + 3; dx < left + w - 6; dx += 6, i++) {
-        rect(canvas, i % 2 ? '#ffffff' : '#10091f', dx, y + 5, 6, 4);
-        rect(canvas, i % 2 ? '#10091f' : '#ffffff', dx, y + 9, 6, 4);
+        rect(canvas, i % 2 ? '#ffffff' : sk.ink, dx, y + 5, 6, 4);
+        rect(canvas, i % 2 ? sk.ink : '#ffffff', dx, y + 9, 6, 4);
       }
       break;
     case 'moving': {
@@ -239,6 +381,21 @@ function drawPlatform(canvas: SkCanvas, pl: Platform, x: number, y: number, time
         rect(canvas, '#66f5e7', dx + 2, y + 7, 2, 2);
         rect(canvas, '#66f5e7', dx, y + 9, 2, 2);
       }
+      break;
+    }
+    case 'conveyor': {
+      // Esteira: faixa escura com setas que correm no sentido do empurrão.
+      rect(canvas, '#1a1424', left + 3, y + 4, w - 6, 8);
+      const dir = pl.dir >= 0 ? 1 : -1;
+      const off = ((time * 26 * dir) % 14 + 14) % 14;
+      for (let dx = left + 4 - 14 + off; dx < left + w - 10; dx += 14) {
+        if (dx < left + 3 || dx + 8 > left + w - 3) continue;
+        const f = dir > 0;
+        rect(canvas, '#8cf0ff', dx + (f ? 0 : 4), y + 5, 2, 6);
+        rect(canvas, '#8cf0ff', dx + (f ? 2 : 2), y + 6, 2, 4);
+        rect(canvas, '#8cf0ff', dx + (f ? 4 : 0), y + 7, 2, 2);
+      }
+      rect(canvas, '#ffbf65', left + 2, y + 3, 3, 10); rect(canvas, '#ffbf65', left + w - 5, y + 3, 3, 10);
       break;
     }
     case 'fragile':
@@ -316,6 +473,141 @@ function drawShadow(canvas: SkCanvas, S: SceneInput, x: number, py: number, time
   canvas.drawOval(Skia.XYWHRect(x - w / 2, sy(under.y) + 1, w, 9 * (1 - 0.5 * d)), p);
 }
 
+/* ---------- inimigos, itens, portais, balas ---------- */
+
+const ENEMY_GLOW: Record<Enemy['kind'], string> = {drone: '#c46bff', zigzag: '#5b8cff', turret: '#ffb35e', orb: '#28d8fd', guardian: '#ff4dac'};
+
+function drawEnemy(canvas: SkCanvas, e: Enemy, time: number, sy: (y: number) => number) {
+  const pos = enemyAt(e, time);
+  const x = pos.x;
+  const y = sy(pos.y);
+  const frames = ENEMY_SPRITES[e.kind];
+  const warn = e.warn && Math.floor(time * 10) % 2 === 0;
+  const fr = e.kind === 'turret' || e.kind === 'guardian' ? (warn ? 1 : 0) : Math.floor(time * (e.kind === 'orb' ? 4 : 9)) % 2;
+  const flip = e.kind === 'drone' || e.kind === 'zigzag' ? enemyAt(e, time + 0.05).x < pos.x : false;
+  drawGlow(canvas, ENEMY_GLOW[e.kind], e.size * 2.2, x, y, 0.2 + (e.warn ? 0.2 : 0));
+  drawPix(canvas, frames[fr], x, y, e.kind === 'guardian' ? 2.4 : 2, {flip});
+  if (e.maxHp > 1) {
+    for (let i = 0; i < e.maxHp; i++) {
+      const px = x - (e.maxHp * 9) / 2 + i * 9 + 1;
+      rect(canvas, '#10091f', px - 1, y - e.size - 16, 9, 8);
+      rect(canvas, i < e.hp ? '#8cf9ee' : '#43223d', px, y - e.size - 15, 7, 6);
+    }
+  }
+  if (e.warn) drawPixelText(canvas, '!', x, y - e.size - (e.maxHp > 1 ? 30 : 20), 3, {top: '#fff1a5', low: '#ffd36b', shadow: '#ff4167'});
+}
+
+const PORTAL_COLOR: Record<WorldId, [string, string]> = {neon: ['#ff7ad9', '#ffd0f2'], crystal: ['#5ceef4', '#d4ffff'], clock: ['#ffbf65', '#fff0cc']};
+const PORTAL_NAME: Record<WorldId, string> = {neon: 'NEON', crystal: 'CRISTAL', clock: 'MECANICO'};
+
+function drawPortal(canvas: SkCanvas, it: Item, x: number, y: number, time: number) {
+  const [c1, c2] = PORTAL_COLOR[it.target ?? 'neon'];
+  const pulse = 1 + 0.06 * Math.sin(time * 7);
+  const rx = 24 * pulse, ry = 40 * pulse;
+  drawGlow(canvas, c1, 90, x, y, 0.35 + 0.1 * Math.sin(time * 5));
+  const p = P();
+  p.setShader(null); p.setColor(col('#2a0f5e')); p.setAlphaf(0.78);
+  canvas.drawOval(Skia.XYWHRect(x - rx, y - ry, rx * 2, ry * 2), p);
+  p.setColor(col('#8846cd')); p.setAlphaf(0.55);
+  canvas.drawOval(Skia.XYWHRect(x - rx * 0.72, y - ry * 0.72, rx * 1.44, ry * 1.44), p);
+  // Redemoinho em pixels, girando para dentro.
+  for (let j = 0; j < 16; j++) {
+    const t = j / 16;
+    const ang = time * 3.2 + t * 11;
+    rect(canvas, j % 2 ? c2 : '#ffffff', x + Math.cos(ang) * rx * 0.78 * (1 - t * 0.9) - 2, y + Math.sin(ang) * ry * 0.78 * (1 - t * 0.9) - 2, 4, 4, 0.9 - t * 0.5);
+  }
+  // Aro de pixels.
+  const n = 56;
+  const tick = Math.floor(time * 12);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + time * 1.1;
+    const color = (i + tick) % 4 === 0 ? '#ffffff' : (i + tick) % 2 ? c1 : c2;
+    rect(canvas, color, Math.round((x + Math.cos(a) * rx) / 2) * 2 - 3, Math.round((y + Math.sin(a) * ry) / 2) * 2 - 3, 6, 6);
+  }
+  drawPixelText(canvas, PORTAL_NAME[it.target ?? 'neon'], x, y + ry + 18, 2, {top: '#ffffff', low: c2, shadow: c1});
+}
+
+function drawItem(canvas: SkCanvas, it: Item, x: number, y: number, time: number) {
+  const bob = Math.sin(time * 4 + it.phase) * 3;
+  const yy = y + bob;
+  switch (it.kind) {
+    case 'tape': drawTape(canvas, x, yy, time); break;
+    case 'shield': drawGlow(canvas, '#51ecff', 38, x, yy, 0.3); drawPix(canvas, SHIELD, x, yy, 2); break;
+    case 'boost': drawGlow(canvas, '#ffe36c', 38, x, yy, 0.3); drawPix(canvas, BOOST, x, yy, 2); break;
+    case 'jet': drawGlow(canvas, '#ff7a95', 40, x, yy, 0.32); drawPix(canvas, JET[Math.floor(time * 20) % 2], x, yy, 2); break;
+    case 'heart': drawGlow(canvas, '#ff3d6e', 38, x, yy, 0.32); drawPix(canvas, HEART, x, yy, 2 + 0.2 * Math.sin(time * 6)); break;
+    case 'flag': drawGlow(canvas, '#ffe36c', 44, x, y - 6, 0.22); drawPix(canvas, FLAG[Math.floor(time * 4) % 2], x - 6, y + 36, 2, {anchor: 'bottom'}); break;
+    case 'portal': drawPortal(canvas, it, x, y, time); break;
+  }
+}
+
+function drawBullets(canvas: SkCanvas, S: SceneInput, time: number, sy: (y: number) => number) {
+  for (const b of S.session.sim.bullets) {
+    const y = sy(b.y);
+    if (y < -20 || y > S.height / (S.width / FIELD_W) + 20) continue;
+    if (b.own) { drawGlow(canvas, '#62fff1', 20, b.x, y, 0.4); drawPix(canvas, BULLET_OWN, b.x, y, 2); }
+    else { drawGlow(canvas, '#ff8a3d', 22, b.x, y, 0.4); drawPix(canvas, BULLET_ENEMY, b.x, y, 2, {flip: Math.floor(time * 16) % 2 === 0}); }
+  }
+}
+
+function drawRingsAndPops(canvas: SkCanvas, S: SceneInput, sy: (y: number) => number) {
+  const fx = S.session.fx;
+  for (const r of fx.rings) {
+    const t = r.age / r.max;
+    const p = P();
+    p.setShader(null); p.setColor(col(r.color)); p.setAlphaf(1 - t); p.setStyle(1); p.setStrokeWidth(4 * (1 - t) + 1);
+    canvas.drawCircle(r.x, sy(r.y), r.r * (0.15 + 0.85 * Math.sqrt(t)), p);
+    p.setStyle(0);
+  }
+  for (const q of fx.pops) {
+    const t = q.age / q.max;
+    drawPixelText(canvas, q.text, q.x, sy(q.y), 2, {top: '#ffffff', low: q.color, shadow: '#3b1a52', alpha: t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3});
+  }
+}
+
+/** Vidas, escudos, bandeira de recuperação e barras dos poderes (canto superior esquerdo, abaixo do cartão de pontos). */
+function drawStatus(canvas: SkCanvas, S: SceneInput, scale: number, time: number) {
+  const sim = S.session.sim;
+  const x0 = 14 / scale;
+  const y0 = HUD_ROW_Y / scale;
+  let x = x0;
+  for (let i = 0; i < 3; i++) {
+    const on = i < sim.lives;
+    const beat = on && sim.lives === 1 ? 1 + 0.1 * Math.abs(Math.sin(time * 6)) : 1;
+    drawPix(canvas, on ? HEART : HEART_EMPTY, x + 14, y0 + 10, 1.8 * beat, {alpha: on ? 1 : 0.5});
+    x += 31;
+  }
+  x += 4;
+  for (let i = 0; i < 2; i++) {
+    drawPix(canvas, SHIELD, x + 14, y0 + 12, 1.6, {alpha: i < sim.shields ? 1 : 0.2});
+    x += 30;
+  }
+  if (sim.revive > 0) { drawPix(canvas, FLAG[Math.floor(time * 3) % 2], x + 8, y0 + 12, 1.4); x += 26; }
+  const bar = (frac: number, color: string, at: number) => {
+    rect(canvas, '#10091f', at, y0 + 25, 42, 6);
+    rect(canvas, '#3b2d57', at + 1, y0 + 26, 40, 4);
+    rect(canvas, color, at + 1, y0 + 26, 40 * frac, 4);
+  };
+  if (sim.boost > 0) { drawPix(canvas, BOOST, x + 12, y0 + 8, 1.3); bar(Math.min(1, sim.boost / 9), '#ffe36c', x); x += 48; }
+  if (sim.jet > 0) { drawPix(canvas, JET[Math.floor(time * 20) % 2], x + 18, y0 + 8, 1.5); bar(Math.min(1, sim.jet / 2.1), '#ff7a95', x); x += 48; }
+}
+
+/** Botão de tiro (px de tela): círculo de neon com seta; mais claro enquanto o dedo está nele. */
+function drawFireButton(canvas: SkCanvas, S: SceneInput, time: number) {
+  const z = fireZone(S.width, S.height);
+  const held = S.session.fire;
+  drawGlow(canvas, '#62fff1', z.r * 1.7, z.cx, z.cy, held ? 0.5 : 0.22);
+  const p = P();
+  p.setShader(null); p.setColor(col('#0c0820')); p.setAlphaf(0.78);
+  canvas.drawCircle(z.cx, z.cy, z.r, p);
+  p.setColor(col(held ? '#e6fffd' : '#62fff1')); p.setAlphaf(held ? 1 : 0.75); p.setStyle(1); p.setStrokeWidth(3);
+  canvas.drawCircle(z.cx, z.cy, z.r - 2, p);
+  p.setStyle(0);
+  const ready = S.session.sim.fireCd <= 0;
+  drawPix(canvas, ARROW_UP, z.cx, z.cy + (held ? 2 : 0), Math.max(3, Math.round(z.r / 9)), {alpha: ready || held ? 1 : 0.45});
+  void time;
+}
+
 /** Pinta o quadro. Devolve o tempo gasto (ms) só para o medidor de desempenho. */
 export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number): number {
   const t0 = nowMs();
@@ -327,30 +619,48 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   const cam = lerp(sim.prevCamera, sim.camera, a);
   const sy = (y: number) => viewH - (y - cam);
   const meters = Math.max(0, (sim.maxY - PHYS.START_Y) / 10);
+  const time = sim.time + a * PHYS.STEP;
+  const fx = session.fx;
 
   canvas.save();
   canvas.scale(scale, scale);
-  const sh = session.fx.shake;
+  canvas.save();
+  const sh = fx.shake;
   if (sh > 0) canvas.translate((Math.sin(sim.tick * 7.3) * sh * 22) | 0, (Math.cos(sim.tick * 5.1) * sh * 14) | 0);
 
-  drawBackground(canvas, cam, viewH, meters);
+  drawWorldBackground(canvas, sim.world, cam, viewH, meters, time);
+  if (fx.worldFade > 0 && fx.worldFrom && fx.worldFrom !== sim.world) {
+    // Mundo anterior some por cima do novo (transição do portal).
+    const lp = P();
+    lp.setAlphaf(Math.min(1, fx.worldFade * 1.2));
+    canvas.saveLayer(lp);
+    drawWorldBackground(canvas, fx.worldFrom, cam, viewH, meters, time);
+    canvas.restore();
+  }
 
-  const time = sim.time + a * PHYS.STEP;
   for (const pl of sim.platforms) {
     if (pl.broken) continue;
     const y = sy(pl.y);
     if (y < -40 || y > viewH + 45) continue;
-    drawPlatform(canvas, pl, platformX(pl, time), y, time);
+    drawPlatform(canvas, pl, platformX(pl, time), y, time, sim.world);
   }
 
   for (const it of sim.items) {
     if (it.hit) continue;
-    const y = sy(it.y) + Math.sin(time * 4 + it.phase) * 3;
-    if (y < -50 || y > viewH + 50) continue;
-    drawTape(canvas, it.x, y, time);
+    const y = sy(it.y);
+    if (y < -80 || y > viewH + 80) continue;
+    drawItem(canvas, it, it.x, y, time);
   }
 
-  for (const p of session.fx.list) {
+  for (const e of sim.enemies) {
+    if (!e.alive) continue;
+    const y = sy(e.y);
+    if (y < -60 || y > viewH + 60) continue;
+    drawEnemy(canvas, e, time, sy);
+  }
+  drawBullets(canvas, S, time, sy);
+
+  for (const p of fx.list) {
     const f = Math.max(0, Math.min(1, p.life / p.max));
     if (p.size > 4) pixelStar(canvas, p.color, p.x, sy(p.y), 1.4, f);
     else rect(canvas, p.color, p.x, sy(p.y), p.size, p.size, f);
@@ -366,16 +676,38 @@ export function drawScene(canvas: SkCanvas, S: SceneInput, nowMs: () => number):
   drawShadow(canvas, S, px, py, time, sy);
   // Aura na cor do personagem (cresce com o combo) e rastro quando a velocidade é alta.
   drawGlow(canvas, HERO_COLOR[S.hero], 66, px, foot - 52, 0.24 + Math.min(4, sim.combo) * 0.035);
+  if (sim.boost > 0) drawGlow(canvas, '#ffe36c', 44, px, foot - 4, 0.3 + 0.1 * Math.sin(time * 14));
   if (Math.abs(pl.vy) > 520 && sim.mode === 'playing') {
     for (let k = 2; k >= 1; k--) drawHero(canvas, S, px - pl.vx * 0.012 * k, foot + pl.vy * 0.03 * k, fi, 0.2 / k);
   }
-  drawHero(canvas, S, px, foot, fi);
+  // Invencível: pisca (exceto com a hélice).
+  const blink = sim.invuln > 0 && sim.jet <= 0 && Math.floor(time * 14) % 2 === 0;
+  const heroAlpha = blink ? 0.35 : 1;
+  if (sim.jet > 0) {
+    // Chama sob os pés.
+    for (let i = 0; i < 4; i++) rect(canvas, i % 2 ? '#ffd36b' : '#ff6a3d', px - 6 + (i % 2) * 2 + ((Math.floor(time * 30) + i) % 3), foot + i * 5, 4 + (i % 2) * 2, 6, 0.9 - i * 0.18);
+  }
+  drawHero(canvas, S, px, foot, fi, heroAlpha);
   const span = FIELD_W + 2 * PHYS.WRAP_MARGIN;
-  if (px < 50) drawHero(canvas, S, px + span, foot, fi);
-  else if (px > FIELD_W - 50) drawHero(canvas, S, px - span, foot, fi);
+  if (px < 50) drawHero(canvas, S, px + span, foot, fi, heroAlpha);
+  else if (px > FIELD_W - 50) drawHero(canvas, S, px - span, foot, fi, heroAlpha);
+  if (sim.jet > 0) drawPix(canvas, JET[Math.floor(time * 30) % 2], px, foot - 102, 2);
+  if (sim.shields > 0) {
+    // Bolha de escudo.
+    const q = P();
+    q.setShader(null); q.setColor(col('#51ecff')); q.setAlphaf(0.5 + 0.2 * Math.sin(time * 8)); q.setStyle(1); q.setStrokeWidth(3);
+    canvas.drawCircle(px, foot - 50, 48, q);
+    q.setStyle(0); q.setAlphaf(0.07);
+    canvas.drawCircle(px, foot - 50, 48, q);
+  }
+  if (sim.boost > 0 && Math.floor(time * 12) % 2 === 0) { rect(canvas, '#ffe36c', px - 14, foot + 2, 4, 4); rect(canvas, '#fff9c5', px + 10, foot + 4, 4, 4); }
 
-  if (session.fx.flash > 0) rect(canvas, session.fx.flashColor, 0, 0, FIELD_W, viewH, Math.min(0.26, session.fx.flash * 0.5));
+  drawRingsAndPops(canvas, S, sy);
+  canvas.restore(); // fim do tremor
+
+  if (fx.flash > 0) rect(canvas, fx.flashColor, 0, 0, FIELD_W, viewH, Math.min(0.3, fx.flash * 0.5));
+  if (sim.mode === 'playing') drawStatus(canvas, S, scale, time);
   canvas.restore();
+  if (sim.mode === 'playing') drawFireButton(canvas, S, time);
   return nowMs() - t0;
 }
-

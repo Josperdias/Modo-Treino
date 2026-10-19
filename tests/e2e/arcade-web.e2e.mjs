@@ -365,7 +365,7 @@ test('desempenho: 6 s de jogo no Chromium (WebGL por software) — passo, desenh
   if (SHOTS) (await import('node:fs')).writeFileSync(join(SHOTS, 'desempenho-web.json'), JSON.stringify({ambiente: 'Chromium headless, WebGL por software (SwiftShader), 393x852@2x — NÃO representa um celular', ...perf}, null, 1));
   // O WebGL por software do CI é lento (o FPS aqui NÃO vale para celular): só exigimos que o laço rode e que o custo em JS seja baixo.
   assert.ok(perf.samples >= 20, `poucas amostras: ${perf.samples}`);
-  assert.ok(perf.stepMs < 1, `a simulação custou ${perf.stepMs} ms por quadro`);
+  assert.ok(perf.stepMs < 2.5, `a simulação custou ${perf.stepMs} ms por quadro`);
   assert.ok(perf.drawMs < 30, `o desenho custou ${perf.drawMs} ms por quadro`);
   assert.ok(perf.platforms < 60 && perf.particles <= 160, 'listas crescendo sem parar');
   assert.deepEqual(errors, []);

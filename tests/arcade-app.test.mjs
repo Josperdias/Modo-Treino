@@ -137,12 +137,15 @@ test('sessão: depois do fim de jogo nada mais avança', () => {
   assert.ok(s.drain().some(e => e.t === 'over'));
 });
 
-test('sessão: HUD reflete pontos, metros e nível', () => {
+test('sessão: HUD reflete pontos, metros, vidas e poderes (sem nível na tela)', () => {
   const s = new Session(1, 690, 777);
   const h = s.hud();
   assert.equal(h.best, 777);
-  assert.equal(h.level, 1);
-  assert.equal(h.levelName, 'AQUECIMENTO');
+  assert.equal(h.lives, 2);
+  assert.equal(h.shields, 0);
+  assert.equal(h.revive, false);
+  assert.equal(h.world, 'neon');
+  assert.ok(!('level' in h) && !('levelName' in h), 'o jogo não avisa fases');
 });
 
 /* ---------- medidor ---------- */

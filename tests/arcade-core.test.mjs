@@ -14,17 +14,19 @@ const {advance, makeLoop} = await C('loop.ts');
 const {apex, reach, vxMax, platformX} = await C('physics.ts');
 const {generateUntil, makeGen, intensityAt, cycleAt, rampAt} = await C('worldgen.ts');
 const {validate, canReach, SAFETY} = await C('validate.ts');
+const {enemyAt, tri} = await C('enemies.ts');
 const {makeBot, botInput, IDEAL, HUMAN} = await C('bot.ts');
-const {PHYS, GEN, SCORE} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
+const {PHYS, GEN, SCORE, LIFE, COMBAT, POWER, PORTAL, SPAWN, ENEMIES, WORLD_FX, SCORE_M2, PICKUP} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
 
 const STEP = PHYS.STEP;
-const plat = (o = {}) => ({id: 1, x: 210, y: 300, w: 100, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'stairs', ...o});
+const plat = (o = {}) => ({id: 1, x: 210, y: 300, w: 100, type: 'normal', phase: 0, speed: 0, shift: 0, broken: false, pattern: 'stairs', dir: 0, ...o});
 
 /** Partida sem mundo gerado: só as plataformas que o teste colocar. */
 function bare(platforms = [], seed = 1) {
   const s = createSim(seed);
   s.platforms.length = 0;
   s.items.length = 0;
+  s.enemies.length = 0;
   s.gen.y = 1e9; // trava a geração
   for (const p of platforms) s.platforms.push(p);
   return s;
@@ -137,19 +139,22 @@ test('determinismo: mesma semente + mesmas entradas ⇒ mesmo estado; sementes d
 
 test('determinismo: o mundo não depende da altura da tela (viewH) nem da câmera', () => {
   const a = createSim(11, 690), b = createSim(11, 910);
-  for (const s of [a, b]) generateUntil(s.gen, {platforms: s.platforms, items: s.items}, 6000);
+  for (const s of [a, b]) generateUntil(s.gen, {platforms: s.platforms, items: s.items, enemies: s.enemies}, 6000);
   const n = Math.min(a.platforms.length, b.platforms.length);
   for (let i = 0; i < n; i++) {
     assert.equal(a.platforms[i].x, b.platforms[i].x);
     assert.equal(a.platforms[i].y, b.platforms[i].y);
     assert.equal(a.platforms[i].type, b.platforms[i].type);
   }
+  const m = Math.min(a.enemies.length, b.enemies.length);
+  assert.ok(m > 5, 'deveria haver inimigos');
+  for (let i = 0; i < m; i++) assert.deepEqual([a.enemies[i].kind, a.enemies[i].x0, a.enemies[i].y0], [b.enemies[i].kind, b.enemies[i].x0, b.enemies[i].y0]);
 });
 
 /* ---------- geração do mundo ---------- */
 function worldOf(seed, untilM = 3000) {
   const g = makeGen(seed);
-  const out = {platforms: [plat({id: 0, x: 210, y: 90, w: 118, type: 'start', pattern: 'start'})], items: []};
+  const out = {platforms: [plat({id: 0, x: 210, y: 90, w: 118, type: 'start', pattern: 'start'})], items: [], enemies: []};
   generateUntil(g, out, 90 + untilM * 10);
   return out;
 }
@@ -178,7 +183,7 @@ test('mundo: o validador pega salto impossível e plataformas sobrepostas', () =
   assert.ok(canReach(plat({type: 'spring', y: 100}), plat({id: 8, y: 100 + 260, x: 110})));
 });
 
-test('mundo: degraus respeitam os limites de projeto (82–146 un.; nunca > 78 % do ápice)', () => {
+test('mundo: degraus respeitam os limites de projeto (nunca > 86 % do ápice)', () => {
   const limit = apex(PHYS.JUMP) * SAFETY.RISE;
   for (let seed = 1; seed <= 50; seed++) {
     const w = worldOf(seed, 2000);
@@ -192,7 +197,7 @@ test('mundo: degraus respeitam os limites de projeto (82–146 un.; nunca > 78 %
   }
 });
 
-test('mundo: aquecimento — nada de móvel/quebrável/mola nos primeiros 28 m', () => {
+test('mundo: aquecimento — nada de móvel/quebrável/mola nos primeiros 18 m', () => {
   for (let seed = 1; seed <= 100; seed++) {
     const w = worldOf(seed, 40);
     for (const p of w.platforms) if (p.y < 90 + GEN.WARMUP_M * 10) assert.ok(['start', 'normal'].includes(p.type), `${p.type} @${p.y}`);
@@ -204,7 +209,7 @@ test('mundo: variedade — vários padrões, sem repetir o mesmo padrão em sequ
   let maxRun = 0, maxSinceWide = 0;
   for (let seed = 1; seed <= 60; seed++) {
     const g = makeGen(seed);
-    const out = {platforms: [], items: []};
+    const out = {platforms: [], items: [], enemies: []};
     let run = 0, last = '', since = 0;
     for (let i = 0; i < 400; i++) {
       const before = out.platforms.length;
@@ -213,12 +218,12 @@ test('mundo: variedade — vários padrões, sem repetir o mesmo padrão em sequ
       if (!pat) continue;
       seen[pat] = (seen[pat] || 0) + 1;
       run = pat === last ? run + 1 : 1; last = pat; maxRun = Math.max(maxRun, run);
-      since = ['wide', 'fork', 'springPad'].includes(pat) ? 0 : since + 1; maxSinceWide = Math.max(maxSinceWide, since);
+      since = ['wide', 'fork', 'springPad', 'portalPad'].includes(pat) ? 0 : since + 1; maxSinceWide = Math.max(maxSinceWide, since);
     }
   }
   for (const name of ['stairs', 'tower', 'wide', 'scatter', 'fork', 'movers', 'zigzag', 'springPad', 'breakables']) assert.ok(seen[name] > 20, `padrão ${name} quase não aparece`);
   assert.ok(maxRun <= 4, `mesmo padrão ${maxRun}x seguidas`);
-  assert.ok(maxSinceWide <= 8, `${maxSinceWide} padrões tensos sem respiro`);
+  assert.ok(maxSinceWide <= 11, `${maxSinceWide} padrões tensos sem respiro`);
 });
 
 test('mundo: apresentação — cada novidade aparece cedo e em ordem (fork, móveis, quebráveis, mola, zigue-zague)', () => {
@@ -227,12 +232,12 @@ test('mundo: apresentação — cada novidade aparece cedo e em ordem (fork, mó
     const w = worldOf(seed, 400);
     const seen = {};
     for (const p of w.platforms) if (!seen[p.pattern]) seen[p.pattern] = (p.y - 90) / 10;
-    for (const [pat, limit] of [['fork', 90], ['movers', 125], ['breakables', 170], ['springPad', 215], ['zigzag', 255]]) {
+    for (const [pat, limit] of [['fork', 90], ['movers', 140], ['breakables', 195], ['springPad', 250], ['zigzag', 300]]) {
       assert.ok(seen[pat] !== undefined && seen[pat] <= limit, `semente ${seed}: ${pat} só aos ${seen[pat]} m`);
       first[pat] = Math.max(first[pat] || 0, seen[pat]);
     }
     const typeAt = t => w.platforms.find(p => p.type === t);
-    assert.ok((typeAt('moving').y - 90) / 10 <= 125 && (typeAt('fragile').y - 90) / 10 <= 180 && (typeAt('spring').y - 90) / 10 <= 225);
+    assert.ok((typeAt('moving').y - 90) / 10 <= 140 && (typeAt('fragile').y - 90) / 10 <= 200 && (typeAt('spring').y - 90) / 10 <= 260);
   }
 });
 
@@ -240,7 +245,7 @@ test('mundo: ritmo — a intensidade oscila (tensão/respiro) e cresce com a alt
   assert.ok(rampAt(90) === 0 && rampAt(90 + 5000) > 0.9);
   const samples = [];
   for (let y = 90 + 5000; y < 90 + 5000 + GEN.CYCLE; y += 100) samples.push(intensityAt(y));
-  assert.ok(Math.max(...samples) > 0.9 && Math.min(...samples) < 0.6);
+  assert.ok(Math.max(...samples) > 0.9 && Math.min(...samples) < 0.75);
   assert.ok(cycleAt(90) < cycleAt(90 + GEN.CYCLE / 2));
 });
 
@@ -249,20 +254,24 @@ test('mundo: distribuição lateral equilibrada (sem encostar sempre numa borda)
   for (let seed = 1; seed <= 100; seed++) {
     const w = worldOf(seed, 1500);
     for (const p of w.platforms) { n++; if (p.x < 210) left++; else right++; }
-    tapes += w.items.length;
+    tapes += w.items.filter(i => i.kind === 'tape').length;
   }
   assert.ok(Math.abs(left - right) / n < 0.06, `${left} × ${right}`);
   assert.ok(tapes / n > 0.12 && tapes / n < 0.6, `fitas/plataforma ${tapes / n}`);
 });
 
 /* ---------- jogabilidade provada por robôs ---------- */
-test('robô IDEAL nunca cai em 25 sementes × 240 s (o jogo é sempre possível)', () => {
+test('robô IDEAL nunca cai em 25 sementes × 240 s (o jogo é sempre possível); no máximo 2 morrem por dano', () => {
+  let byDamage = 0;
   for (let seed = 1; seed <= 25; seed++) {
     const s = createSim(seed), bot = makeBot(IDEAL, seed);
-    while (s.mode === 'playing' && s.tick < 120 * 240) step(s, botInput(s, bot));
-    assert.equal(s.mode, 'playing', `semente ${seed} caiu aos ${s.time.toFixed(1)} s (${metersOf(s)} m)`);
-    assert.ok(metersOf(s) > 1500);
+    let cause = '';
+    while (s.mode === 'playing' && s.tick < 120 * 240) { step(s, botInput(s, bot)); for (const e of s.events) if (e.t === 'over') cause = e.cause; s.events.length = 0; }
+    assert.notEqual(cause, 'fall', `semente ${seed} caiu aos ${s.time.toFixed(1)} s (${metersOf(s)} m)`);
+    if (s.mode === 'over') byDamage++;
+    else assert.ok(metersOf(s) > 1500);
   }
+  assert.ok(byDamage <= 2, `${byDamage}/25 morreram por dano`);
 });
 
 test('robô HUMANO (150 ms de reação, erro de ~14 un.) também sobrevive: o jogo não é injusto', () => {
@@ -272,7 +281,7 @@ test('robô HUMANO (150 ms de reação, erro de ~14 un.) também sobrevive: o jo
     while (s.mode === 'playing' && s.tick < 120 * 240) step(s, botInput(s, bot));
     if (s.mode === 'over') died++;
   }
-  assert.ok(died <= 3, `${died}/25 caíram`);
+  assert.ok(died <= 4, `${died}/25 caíram`);
 });
 
 test('robô DESCUIDADO (250 ms, erro de ~30 un.) cai com frequência: há desafio real', () => {

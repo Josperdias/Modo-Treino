@@ -32,7 +32,7 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
   const {save, loaded} = useArcade();
   const [phase, setPhase] = useState<Phase>('select');
   const [hud, setHud] = useState<Hud | null>(null);
-  const [banner, setBanner] = useState('');
+  const [cause, setCause] = useState<'fall' | 'damage'>('fall');
   const [hint, setHint] = useState(true);
   const [newRecord, setNewRecord] = useState(false);
   const [perf, setPerf] = useState('');
@@ -50,7 +50,6 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
       (globalThis as any).__MODO_ARCADE_STEP__ = (axis: number) => simStep(s.sim, {axis});
     }
     setHud(s.hud());
-    setBanner('');
     setHint(true);
     setNewRecord(false);
     setPhase('play');
@@ -101,12 +100,11 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
 
   const onEvents = useCallback((events: SimEvent[]) => {
     for (const e of events) {
-      if (e.t === 'level') {
-        const s = session.current;
-        if (s) { setBanner(`NÍVEL ${String(e.level).padStart(2, '0')}`); setTimeout(() => setBanner(''), 2200); }
-      }
+      if (e.t === 'over') setCause(e.cause);
       if (!save.settings.haptics || Platform.OS === 'web') continue;
-      if (e.t === 'collect') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      if (e.t === 'collect' || e.t === 'pickup' || e.t === 'kill') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      else if (e.t === 'hit' && !e.blocked) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      else if (e.t === 'portal' || e.t === 'revive') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       else if (e.t === 'over') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     }
   }, [save.settings.haptics]);
@@ -166,15 +164,12 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
             </Press>
           </View>
           <View style={S.strip} pointerEvents="none">
-            <View style={S.pill}><Text style={[S.stripT, {color: NEON.cyan}]}>NEON</Text></View>
-            <View style={S.pill}><Text style={S.stripT}>LV {String(hud.level).padStart(2, '0')} · {hud.levelName}</Text></View>
             {hud.combo > 1 && <View style={[S.pill, {backgroundColor: C.yellow, borderColor: C.ink}]}><Text style={[S.stripT, {color: C.ink, textShadowRadius: 0}]}>COMBO x{hud.combo}</Text></View>}
           </View>
-          {!!banner && <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(300)} style={S.banner} pointerEvents="none"><Text style={S.bannerT}>{banner}</Text></Animated.View>}
           {hint && (
             <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(400)} style={S.hint} pointerEvents="none">
               <Icon name="chevron-back" size={22} color={C.white} />
-              <Text style={S.hintT}>{save.settings.control === 'tilt' ? 'INCLINE O CELULAR' : 'SEGURE OS LADOS DA TELA'}</Text>
+              <Text style={S.hintT}>{save.settings.control === 'tilt' ? 'INCLINE · TOQUE NO BOTÃO ATIRA' : 'SEGURE OS LADOS · BOTÃO ATIRA'}</Text>
               <Icon name="chevron-forward" size={22} color={C.white} />
             </Animated.View>
           )}
@@ -222,7 +217,8 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
             <Text style={S.modalT}>FIM DE JOGO</Text>
             {newRecord && <Text style={[S.modalS, {color: C.yellow, marginTop: 2}]}>★ NOVO RECORDE ★</Text>}
             <Text style={S.final} testID="arcade-final">{pad(hud.score)}</Text>
-            <Text style={S.modalS}>pontos · {hud.meters} m · {hud.tapes} fitas</Text>
+            <Text style={S.modalS}>pontos · {hud.meters} m · {hud.tapes} fitas · {hud.kills} abates</Text>
+            <Text style={[S.modalS, {marginTop: 2, color: cause === 'damage' ? '#ff8aa3' : '#8fd4ff'}]} testID="arcade-cause">{cause === 'damage' ? 'Acabaram as vidas.' : 'Você caiu.'}</Text>
             <Text style={[S.modalS, {marginTop: 2}]}>Recorde de {info.name}: {pad(save.best[hero])}</Text>
             <Btn text="JOGAR DE NOVO" icon="refresh" onPress={() => start()} style={{marginTop: 16}} />
             <View style={{gap: 8, marginTop: 10}}>
@@ -251,11 +247,9 @@ const S = StyleSheet.create({
   side: {overflow: 'hidden', flex: 1, backgroundColor: NEON.glass, borderRadius: R.md, borderWidth: 2, borderColor: '#4A5580', paddingHorizontal: 10, paddingVertical: 6, gap: 2},
   sideN: {color: C.white, fontWeight: '900'},
   pauseBtn: {width: 44, height: 44, borderRadius: 22, backgroundColor: NEON.glass, borderWidth: 2, borderColor: '#4A5580', alignItems: 'center', justifyContent: 'center'},
-  strip: {flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 16, paddingTop: 8},
+  strip: {flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 8},
   stripT: {fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: '#D9DEF5', textShadowColor: '#000', textShadowRadius: 4},
-  banner: {position: 'absolute', top: '24%', alignSelf: 'center', backgroundColor: NEON.glass, borderColor: NEON.cyan, borderWidth: 2, borderRadius: R.pill, paddingHorizontal: 22, paddingVertical: 8},
-  bannerT: {fontSize: 22, fontWeight: '900', letterSpacing: 2, color: NEON.cyan},
-  hint: {position: 'absolute', bottom: 28, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: NEON.glass, borderRadius: R.pill, paddingHorizontal: 16, paddingVertical: 10},
+  hint: {position: 'absolute', bottom: 124, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: NEON.glass, borderRadius: R.pill, paddingHorizontal: 16, paddingVertical: 10},
   hintT: {fontSize: 12, fontWeight: '900', letterSpacing: 1.4, color: C.white},
   perf: {position: 'absolute', left: 8, right: 8, bottom: 6, backgroundColor: 'rgba(0,0,0,.7)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4},
   perfT: {fontSize: 10, color: '#9DFFB0', fontWeight: '700'},
