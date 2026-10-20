@@ -20,6 +20,7 @@ export type MusicCtx = {
  * drum & bass, bossa, ritual, minimalismo de vidro, lo-fi) para o jogo não repetir sempre a mesma música. Todas precisam existir em `assets/arcade/audio/musica/`.
  */
 export const WORLD_TRACKS: Record<string, string[]> = {
+  menu: ['menu'], bonus: ['bonus'],
   neon: ['neon', 'neon2'], crystal: ['crystal', 'crystal2'], clock: ['clock', 'clock2'], cosmos: ['cosmos', 'cosmos2'], ocean: ['ocean', 'ocean2'],
   volcano: ['volcano', 'volcano2'], paper: ['paper', 'paper2'], sketch: ['sketch'], inverse: ['inverse', 'inverse2'],
 };
@@ -37,11 +38,18 @@ export function pickVariant(world: string, seed: number, prev?: number): number 
   return h % n;
 }
 
-export function musicFor(c: MusicCtx): string | null {
+/** Parte do jogo que está tocando: 'menu', 'bonus' ou o mundo (`null` = silêncio). É a chave de `WORLD_TRACKS`. */
+export function partOf(c: MusicCtx): string | null {
   if (c.phase === 'select') return 'menu';
   if (c.phase === 'over') return null;
   if (c.bonusY1 > 0 && c.y >= c.bonusY0 && c.y < c.bonusY1) return 'bonus';
-  const list = WORLD_TRACKS[c.world] ?? WORLD_TRACKS.neon;
+  return WORLD_TRACKS[c.world] ? c.world : 'neon';
+}
+
+export function musicFor(c: MusicCtx): string | null {
+  const part = partOf(c);
+  if (!part) return null;
+  const list = WORLD_TRACKS[part];
   return list[(c.variant ?? 0) % list.length];
 }
 

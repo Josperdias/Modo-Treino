@@ -14,7 +14,7 @@ import tracks as T
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'native', 'assets', 'arcade', 'audio')
-AUDIT = os.path.join(ROOT, 'docs', 'neon-step-dx', 'AUDIT_audio.json')
+AUDIT = os.environ.get('ARCADE_AUDIT') or os.path.join(ROOT, 'docs', 'neon-step-dx', 'AUDIT_audio.json')
 
 
 def to_ogg(wav_path, ogg_path, quality):

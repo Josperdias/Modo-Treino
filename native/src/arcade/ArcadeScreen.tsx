@@ -19,7 +19,7 @@ import {CATALOG, GROUPS, TOTAL, countFound, fresh, fromEvent, fromState, nameOf}
 import {RUN_KEY, parseSnapshot, snapshotOf, type RunSnapshot} from './runsave.ts';
 import type {SimEvent} from './core/types.ts';
 import {ArcadeAudio} from './audio/engine';
-import {cuesFor, lavaClose, musicFor, pickVariant, stingerFor} from './audio/plan.ts';
+import {cuesFor, lavaClose, musicFor, partOf, pickVariant, stingerFor} from './audio/plan.ts';
 
 const NEON = {pink: '#ff4dac', cyan: '#49e6ff', bg: '#140a24', bg2: '#251438', glass: 'rgba(16,9,31,.72)'};
 const HEROES: {id: Hero; name: string}[] = [{id: 'josperd', name: 'JOSPERD'}, {id: 'camila', name: 'CAMILA'}];
@@ -84,7 +84,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   const [news, setNews] = useState<string[]>([]);
   const newsRef = useRef<string[]>([]);
   const session = useRef<Session | null>(null);
-  const trackPick = useRef<{world: string; variant: number}>({world: '', variant: 0});
+  const trackPick = useRef<{world: string; variant: number; bonus: number; inBonus: boolean}>({world: '', variant: 0, bonus: 0, inBonus: false});
   const hero = save.settings.hero;
   const userMusic = useMusic();
   const userMusicRef = useRef(userMusic);
@@ -112,7 +112,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
     session.current = s;
     newsRef.current = [];
     setNews([]);
-    trackPick.current = {world: '', variant: 0};
+    trackPick.current = {world: '', variant: 0, bonus: 0, inBonus: false};
     clearRun();
     updateArcade((a) => addFound(a, ['world:neon'], w));
     // Gancho só para testes de interface (ativo quando o teste fixa a semente).
@@ -147,7 +147,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
     session.current = s;
     newsRef.current = [];
     setNews([]);
-    trackPick.current = {world: '', variant: 0};
+    trackPick.current = {world: '', variant: 0, bonus: 0, inBonus: false};
     if (saved.hero !== getArcade().settings.hero) updateArcade((a) => ({...a, settings: {...a.settings, hero: saved.hero}}));
     if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') (globalThis as any).__MODO_ARCADE_SESSION__ = s;
     setHud(s.hud());
@@ -221,24 +221,34 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   }, [save.settings.music]);
   useEffect(() => () => { audio.current?.dispose(); audio.current = null; }, []);
 
-  // Trilha da parte do jogo (menu, cada mundo, bônus) e aviso da lava.
+  // Trilha da parte do jogo (menu, cada mundo, bônus) e aviso da lava. Cada parte tem 4 músicas: ao ENTRAR nela toca a próxima do rodízio.
+  const pickTrack = (ctx: Parameters<typeof partOf>[0], seed: number): string | null => {
+    const part = partOf(ctx);
+    if (!part) return null;
+    const t = trackPick.current;
+    if (part === 'bonus') {
+      if (!t.inBonus) { const v = pickVariant('bonus', seed, lastTrack.bonus); lastTrack.bonus = v; t.bonus = v; t.inBonus = true; }
+    } else {
+      t.inBonus = false;
+      if (t.world !== part) { const v = pickVariant(part, seed, lastTrack[part]); lastTrack[part] = v; t.world = part; t.variant = v; }
+    }
+    return musicFor({...ctx, variant: part === 'bonus' ? t.bonus : t.variant});
+  };
   useEffect(() => {
     if (!audio.current) return;
     if (phase === 'pause') { audio.current.pause(); return; }
     audio.current.resume();
-    if (phase !== 'play') { audio.current.setMusic(phase === 'select' ? 'menu' : null); return; }
+    if (phase !== 'play') {
+      if (phase === 'select') audio.current.setMusic(pickTrack({phase: 'select', world: 'neon', y: 0, bonusY0: 0, bonusY1: 0}, newSeed()));
+      else { trackPick.current = {world: '', variant: 0, bonus: 0, inBonus: false}; audio.current.setMusic(null); }
+      return;
+    }
     const tick = () => {
       try {
         const s = session.current;
         if (!s || !audio.current) return;
         const m = s.sim;
-        if (trackPick.current.world !== m.world) {
-          // Entrou num mundo (ou começou a partida): escolhe a faixa em rodízio.
-          const v = pickVariant(m.world, m.seed, lastTrack[m.world]);
-          lastTrack[m.world] = v;
-          trackPick.current = {world: m.world, variant: v};
-        }
-        audio.current.setMusic(musicFor({phase: 'play', world: m.world, y: m.player.y, bonusY0: m.bonusY0, bonusY1: m.bonusY1, variant: trackPick.current.variant}));
+        audio.current.setMusic(pickTrack({phase: 'play', world: m.world, y: m.player.y, bonusY0: m.bonusY0, bonusY1: m.bonusY1}, m.seed));
         if (lavaClose(m.world, m.player.y, m.lava)) audio.current.play([{id: 'lava_warn', gain: 0.8}]);
       } catch { /* som é opcional: nunca derruba o jogo */ }
     };
