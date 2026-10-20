@@ -202,7 +202,7 @@ def build():
     sg.sample('fx', S.riser(rng, int(2 * SPB * sg.step_s * SR), 250, 7000, 0.0, 0.0) * 0.5, (iBr + 6) * SPB, 0.5)
     sg.sample('fx', S.crash(rng, None, 1.2) * 0.5, iA3 * SPB, 0.6)
 
-    sg.trim = {'bass': 0.0, 'acc': 0.0, 'accm': 0.0, 'fid': 0.0, 'whistle': 0.0, 'choir': 0.0, 'shout': 0.0, 'drums': 0.0, 'wave': 0.0, 'fx': 0.0}
+    sg.trim = {'bass': 0.0, 'acc': 0.0, 'accm': 0.0, 'fid': 1.0, 'whistle': 0.0, 'choir': 13.0, 'shout': 12.0, 'drums': -3.5, 'wave': 0.0, 'fx': 8.0}
     ID.automate(sg, [(0, -3), (4, 0), (36, 0), (37, -5), (43, -5), (44, 0), (60, 0), (63, -2), (64, -3)])
     sg.post.append(lambda mix, song: TP.tape_color(mix, np.random.default_rng(61), drive=1.2, lp_hz=11500, hiss_level=0.002))
     fx = {

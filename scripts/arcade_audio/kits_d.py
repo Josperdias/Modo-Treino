@@ -66,7 +66,7 @@ def kit_celt(ins, rng, v):
     if ins == 'r': return S.rim(rng) * v * 0.8
     if ins == 's': return S.shaker(rng, int(0.16 * SR), 0.07) * v * 1.1
     if ins == 'f':
-        return (S.wood(150, int(0.18 * SR), 0.07) * 1.1 + S.kick(int(0.2 * SR), 95, 48, 0.08, 0.3) * 0.6) * v
+        return (S.wood(150, int(0.18 * SR), 0.07) * 1.1 + S.kick(int(0.18 * SR), 95, 48, 0.08, 0.3) * 0.6) * v
     if ins == 'w': return S.wood(1500, None, 0.03) * v * 0.9
     if ins == 'c': return S.modal(1180, int(1.5 * SR), 'bell', 0.7) * v * 0.45
     raise KeyError(ins)
