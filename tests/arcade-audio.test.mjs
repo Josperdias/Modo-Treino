@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const AUD = join(ROOT, 'native/assets/arcade/audio');
-const {cuesFor, musicFor, stingerFor, lavaClose, Limiter, GAPS} = await import(join(ROOT, 'native/src/arcade/audio/plan.ts'));
+const {cuesFor, musicFor, stingerFor, lavaClose, Limiter, GAPS, WORLD_TRACKS, pickVariant} = await import(join(ROOT, 'native/src/arcade/audio/plan.ts'));
 const {DEFAULT_SAVE, normalizeSave} = await import(join(ROOT, 'native/src/arcade/save.ts'));
 const {WORLD_ORDER, DETOURS} = await import(join(ROOT, 'native/src/arcade/data/neon.ts'));
 
@@ -101,21 +101,57 @@ test('arquivos gerados: manifesto cobre tudo, atlas dos efeitos coerente, tamanh
   for (let i = 1; i < list.length; i++) assert.ok(list[i].start >= list[i - 1].start + list[i - 1].dur + 0.1, 'clipes do atlas muito juntos');
   const atlasBytes = statSync(join(AUD, 'sfx-atlas.ogg')).size;
   assert.ok(atlasBytes > 50e3 && atlasBytes < 500e3, `atlas ${atlasBytes}`);
-  assert.equal(MUSIC.size, 11);
+  assert.equal(MUSIC.size, 19); // 11 originais + 8 variações
   assert.ok(SFX.size >= 50);
   let total = atlasBytes;
   for (const id of MUSIC) { const b = statSync(join(AUD, 'musica', `${id}.ogg`)).size; total += b; assert.ok(b > 100e3 && b < 1.2e6, `${id} ${b}`); }
   for (const id of SFX) { const b = statSync(join(AUD, 'sfx', `${id}.ogg`)).size; assert.ok(b > 1e3 && b < 60e3, `${id} ${b}`); }
-  assert.ok(total < 10e6, `áudio do jogo pesa ${total}`);
+  assert.ok(total < 18e6, `áudio do jogo pesa ${total}`);
   const rep = JSON.parse(readFileSync(join(ROOT, 'docs/neon-step-dx/AUDIT_audio.json'), 'utf8'));
   for (const id of MUSIC) {
     const m = rep.musica[id];
     assert.ok(m, id);
     assert.ok(m.pico_dBFS <= -1 && m.pico_dBFS > -12, `${id} pico ${m.pico_dBFS}`);
-    assert.ok(m.silencio_pct < 5, `${id} silêncio ${m.silencio_pct}`);
+    assert.ok(m.silencio_pct < 6, `${id} silêncio ${m.silencio_pct}`); // (neon2 fecha com um fade de saída de 4 compassos)
     assert.ok(m.duracao_s >= 20, `${id} curta`);
     assert.ok(m.emenda_loop < 1.5, `${id} emenda ${m.emenda_loop}`);
   }
   for (const id of SFX) assert.ok(rep.sfx[id] && rep.sfx[id].pico_dBFS < 0, id);
   assert.ok(existsSync(join(ROOT, 'scripts/arcade_audio/build.py')));
+});
+
+test('trilhas por mundo: variações em outros gêneros, todas existem, e o rodízio nunca repete duas entradas seguidas', () => {
+  const novas = ['neon2', 'clock2', 'cosmos2', 'inverse2', 'ocean2', 'volcano2', 'crystal2', 'paper2'];
+  for (const n of novas) assert.ok(MUSIC.has(n), `falta musica/${n}.ogg`);
+  const usadas = new Set();
+  for (const w of [...WORLD_ORDER, ...DETOURS]) {
+    const list = WORLD_TRACKS[w];
+    assert.ok(list && list[0] === w, `a primeira faixa de ${w} é a original`);
+    for (const id of list) { assert.ok(MUSIC.has(id), `falta musica/${id}.ogg`); usadas.add(id); }
+    // musicFor devolve a faixa do índice (e dá a volta)
+    list.forEach((id, i) => assert.equal(musicFor(ctx({world: w, variant: i})), id));
+    assert.equal(musicFor(ctx({world: w, variant: list.length})), list[0]);
+    // rodízio
+    for (let seed = 1; seed <= 40; seed++) {
+      const a = pickVariant(w, seed, undefined);
+      assert.ok(a >= 0 && a < list.length);
+      if (list.length > 1) {
+        const b = pickVariant(w, seed, a);
+        assert.notEqual(a, b, `${w}: repetiu a faixa`);
+        assert.ok(b >= 0 && b < list.length);
+        if (list.length === 2) assert.equal(pickVariant(w, seed, b), a);
+      } else assert.equal(a, 0);
+    }
+  }
+  for (const n of novas) assert.ok(usadas.has(n), `${n} não está em nenhum mundo`);
+  // a primeira escolha varia com a semente (não é sempre a mesma faixa)
+  for (const w of ['neon', 'crystal', 'clock', 'cosmos', 'ocean', 'volcano', 'paper', 'inverse']) {
+    const firsts = new Set();
+    for (let seed = 1; seed <= 60; seed++) firsts.add(pickVariant(w, seed * 7919, undefined));
+    assert.equal(firsts.size, 2, `${w}: a semente nunca escolhe a outra faixa`);
+  }
+  // cada faixa tem tamanho razoável e a trilha total continua leve
+  let total = 0;
+  for (const id of MUSIC) { const sz = statSync(join(AUD, 'musica', id + '.ogg')).size; total += sz; assert.ok(sz > 200_000 && sz < 1_300_000, `${id}: ${sz} bytes`); }
+  assert.ok(total < 16_000_000, `trilhas somam ${total} bytes`);
 });

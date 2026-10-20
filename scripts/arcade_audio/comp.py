@@ -175,6 +175,7 @@ class Song:
         self.name = name
         self.kick_steps = []
         self.lead_notes = []
+        self.trim = {}  # ganho final por barramento (dB), aplicado antes de tudo: equilibra a mixagem sem mexer nas partituras
 
     # ---- mix
     def bus(self, name):
@@ -301,6 +302,9 @@ class Song:
 
     # ---- render
     def finalize(self, fx, aux, target_db=-17.0, ceiling_db=-1.2, final_db=-14.8):
+        for b, db in self.trim.items():
+            if b in self.buses:
+                self.buses[b] = self.buses[b] * 10 ** (db / 20.0)
         # sidechain nos barramentos escolhidos
         for buses, depth, rel, steps in self.ducks:
             ks = steps if steps is not None else self.kick_steps

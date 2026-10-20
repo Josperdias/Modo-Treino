@@ -19,12 +19,15 @@ import {CATALOG, GROUPS, TOTAL, countFound, fresh, fromEvent, fromState, nameOf}
 import {RUN_KEY, parseSnapshot, snapshotOf, type RunSnapshot} from './runsave.ts';
 import type {SimEvent} from './core/types.ts';
 import {ArcadeAudio} from './audio/engine';
-import {cuesFor, lavaClose, musicFor, stingerFor} from './audio/plan.ts';
+import {cuesFor, lavaClose, musicFor, pickVariant, stingerFor} from './audio/plan.ts';
 
 const NEON = {pink: '#ff4dac', cyan: '#49e6ff', bg: '#140a24', bg2: '#251438', glass: 'rgba(16,9,31,.72)'};
 const HEROES: {id: Hero; name: string}[] = [{id: 'josperd', name: 'JOSPERD'}, {id: 'camila', name: 'CAMILA'}];
 
 type Phase = 'select' | 'play' | 'pause' | 'over';
+
+/** Última faixa usada em cada mundo (vale enquanto o app estiver aberto): a próxima entrada nesse mundo toca a seguinte. */
+const lastTrack: Record<string, number> = {};
 
 function newSeed(): number {
   const forced = (globalThis as any).__MODO_ARCADE_SEED__;
@@ -81,6 +84,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   const [news, setNews] = useState<string[]>([]);
   const newsRef = useRef<string[]>([]);
   const session = useRef<Session | null>(null);
+  const trackPick = useRef<{world: string; variant: number}>({world: '', variant: 0});
   const hero = save.settings.hero;
   const userMusic = useMusic();
   const userMusicRef = useRef(userMusic);
@@ -108,6 +112,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
     session.current = s;
     newsRef.current = [];
     setNews([]);
+    trackPick.current = {world: '', variant: 0};
     clearRun();
     updateArcade((a) => addFound(a, ['world:neon'], w));
     // Gancho só para testes de interface (ativo quando o teste fixa a semente).
@@ -142,6 +147,7 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
     session.current = s;
     newsRef.current = [];
     setNews([]);
+    trackPick.current = {world: '', variant: 0};
     if (saved.hero !== getArcade().settings.hero) updateArcade((a) => ({...a, settings: {...a.settings, hero: saved.hero}}));
     if (typeof (globalThis as any).__MODO_ARCADE_SEED__ === 'number') (globalThis as any).__MODO_ARCADE_SESSION__ = s;
     setHud(s.hud());
@@ -226,7 +232,13 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
         const s = session.current;
         if (!s || !audio.current) return;
         const m = s.sim;
-        audio.current.setMusic(musicFor({phase: 'play', world: m.world, y: m.player.y, bonusY0: m.bonusY0, bonusY1: m.bonusY1}));
+        if (trackPick.current.world !== m.world) {
+          // Entrou num mundo (ou começou a partida): escolhe a faixa em rodízio.
+          const v = pickVariant(m.world, m.seed, lastTrack[m.world]);
+          lastTrack[m.world] = v;
+          trackPick.current = {world: m.world, variant: v};
+        }
+        audio.current.setMusic(musicFor({phase: 'play', world: m.world, y: m.player.y, bonusY0: m.bonusY0, bonusY1: m.bonusY1, variant: trackPick.current.variant}));
         if (lavaClose(m.world, m.player.y, m.lava)) audio.current.play([{id: 'lava_warn', gain: 0.8}]);
       } catch { /* som é opcional: nunca derruba o jogo */ }
     };

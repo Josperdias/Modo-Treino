@@ -4,15 +4,23 @@
 export const MUSIC = {
   bonus: require('../../../assets/arcade/audio/musica/bonus.ogg'),
   clock: require('../../../assets/arcade/audio/musica/clock.ogg'),
+  clock2: require('../../../assets/arcade/audio/musica/clock2.ogg'),
   cosmos: require('../../../assets/arcade/audio/musica/cosmos.ogg'),
+  cosmos2: require('../../../assets/arcade/audio/musica/cosmos2.ogg'),
   crystal: require('../../../assets/arcade/audio/musica/crystal.ogg'),
+  crystal2: require('../../../assets/arcade/audio/musica/crystal2.ogg'),
   inverse: require('../../../assets/arcade/audio/musica/inverse.ogg'),
+  inverse2: require('../../../assets/arcade/audio/musica/inverse2.ogg'),
   menu: require('../../../assets/arcade/audio/musica/menu.ogg'),
   neon: require('../../../assets/arcade/audio/musica/neon.ogg'),
+  neon2: require('../../../assets/arcade/audio/musica/neon2.ogg'),
   ocean: require('../../../assets/arcade/audio/musica/ocean.ogg'),
+  ocean2: require('../../../assets/arcade/audio/musica/ocean2.ogg'),
   paper: require('../../../assets/arcade/audio/musica/paper.ogg'),
+  paper2: require('../../../assets/arcade/audio/musica/paper2.ogg'),
   sketch: require('../../../assets/arcade/audio/musica/sketch.ogg'),
   volcano: require('../../../assets/arcade/audio/musica/volcano.ogg'),
+  volcano2: require('../../../assets/arcade/audio/musica/volcano2.ogg'),
 } as const;
 
 export const SFX_ATLAS = require('../../../assets/arcade/audio/sfx-atlas.ogg');

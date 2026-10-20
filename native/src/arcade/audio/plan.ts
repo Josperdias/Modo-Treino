@@ -11,18 +11,38 @@ export type MusicCtx = {
   y: number;
   bonusY0: number;
   bonusY1: number;
+  /** Qual das faixas do mundo toca (rodízio; veja `pickVariant`). 0 = a original. */
+  variant?: number;
 };
 
-const WORLD_TRACK: Record<string, string> = {
-  neon: 'neon', crystal: 'crystal', clock: 'clock', cosmos: 'cosmos', ocean: 'ocean', volcano: 'volcano',
-  paper: 'paper', sketch: 'sketch', inverse: 'inverse',
+/**
+ * Faixas de cada mundo. A primeira é a original; as outras são variações em outros gêneros (synthwave, electro-swing, dub techno,
+ * drum & bass, bossa, ritual, minimalismo de vidro, lo-fi) para o jogo não repetir sempre a mesma música. Todas precisam existir em `assets/arcade/audio/musica/`.
+ */
+export const WORLD_TRACKS: Record<string, string[]> = {
+  neon: ['neon', 'neon2'], crystal: ['crystal', 'crystal2'], clock: ['clock', 'clock2'], cosmos: ['cosmos', 'cosmos2'], ocean: ['ocean', 'ocean2'],
+  volcano: ['volcano', 'volcano2'], paper: ['paper', 'paper2'], sketch: ['sketch'], inverse: ['inverse', 'inverse2'],
 };
+
+/**
+ * Escolhe a faixa (índice) ao ENTRAR num mundo. A primeira escolha depende da semente da partida; as seguintes seguem em rodízio a partir
+ * da última usada naquele mundo (`prev`), então duas entradas seguidas nunca repetem a mesma faixa.
+ */
+export function pickVariant(world: string, seed: number, prev?: number): number {
+  const n = WORLD_TRACKS[world]?.length ?? 1;
+  if (n <= 1) return 0;
+  if (prev !== undefined && prev >= 0) return (prev + 1) % n;
+  let h = Math.imul((seed ^ (world.length * 0x9e3779b1)) >>> 0, 2654435761) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0;
+  return h % n;
+}
 
 export function musicFor(c: MusicCtx): string | null {
   if (c.phase === 'select') return 'menu';
   if (c.phase === 'over') return null;
   if (c.bonusY1 > 0 && c.y >= c.bonusY0 && c.y < c.bonusY1) return 'bonus';
-  return WORLD_TRACK[c.world] ?? 'neon';
+  const list = WORLD_TRACKS[c.world] ?? WORLD_TRACKS.neon;
+  return list[(c.variant ?? 0) % list.length];
 }
 
 const LAND: Record<string, string> = {

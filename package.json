@@ -1,6 +1,6 @@
 {
   "name": "modo-treino",
-  "version": "1.4.13",
+  "version": "1.4.14",
   "private": true,
   "description": "Modo Treino — by Josperd. Site/PWA em site/, app Expo em native/. Este package.json só orquestra testes.",
   "scripts": {

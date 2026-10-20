@@ -1,6 +1,6 @@
 {
   "name": "modo-treino-native",
-  "version": "1.4.13",
+  "version": "1.4.14",
   "private": true,
   "main": "expo/AppEntry",
   "scripts": {

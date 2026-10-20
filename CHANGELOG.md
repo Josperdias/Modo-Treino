@@ -2,6 +2,11 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.14] — 2026-10-20
+
+### Mais música no segredo 🎧
+- O jogo escondido ganhou **8 trilhas novas**, em outros gêneros (synthwave, electro-swing, dub techno, drum & bass, bossa lo-fi, taiko e metal em 5/4, minimalismo de vidro, lo-fi de papel), todas originais e feitas por código. Cada mundo agora tem **mais de uma música** e, ao entrar nele, toca a próxima do rodízio: a mesma faixa não repete duas vezes seguidas.
+
 ## [1.4.13] — 2026-10-19
 
 ### Jogabilidade e gráficos 🕹️
