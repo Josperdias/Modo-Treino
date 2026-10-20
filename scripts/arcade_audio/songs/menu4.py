@@ -144,8 +144,8 @@ def build():
     sg.duck(['str'], 0.2, 0.12, steps=None)
     sg.trim = {'chip': 6.0, 'str': 9.0, 'cello': 6.5, 'pizz': 9.0, 'hp1': 12.0, 'hp2': 11.0, 'drums': 4.0, 'fx': 12.0}
     fx = {
-        'hp1': [Reverb(room_size=0.35, wet_level=0.18, dry_level=0.9)],
-        'hp2': [Reverb(room_size=0.35, wet_level=0.18, dry_level=0.9)],
+        'hp1': [LowpassFilter(6200), Reverb(room_size=0.35, wet_level=0.18, dry_level=0.9)],
+        'hp2': [LowpassFilter(6200), Reverb(room_size=0.35, wet_level=0.18, dry_level=0.9)],
         'chip': [Reverb(room_size=0.25, wet_level=0.12, dry_level=0.92), LowpassFilter(7500)],
         'str': [Chorus(rate_hz=0.3, depth=0.2, mix=0.3), Reverb(room_size=0.55, wet_level=0.25, dry_level=0.8)],
         'cello': [LowpassFilter(2200)],
