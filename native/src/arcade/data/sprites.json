@@ -1,0 +1,241 @@
+{
+ "version": 1,
+ "nativeFacing": {
+  "josperd": 1,
+  "camila": -1
+ },
+ "characters": {
+  "josperd": {
+   "frames": [
+    {
+     "file": "josperd_00.png",
+     "w": 90,
+     "h": 104,
+     "pivotX": 43.2,
+     "pivotY": 104,
+     "bbox": [
+      0,
+      0,
+      90,
+      104
+     ],
+     "sha256": "a9179ec68a8527827bc8bab5191b1c2dbd8d1b3ccbd14ece3fd2b27556587a37"
+    },
+    {
+     "file": "josperd_01.png",
+     "w": 96,
+     "h": 95,
+     "pivotX": 49.9,
+     "pivotY": 95,
+     "bbox": [
+      0,
+      0,
+      96,
+      95
+     ],
+     "sha256": "4714c9fc2ea8f2d75e72d66911c052401ef7e4720c3594cee2c315f25e2d81bb"
+    },
+    {
+     "file": "josperd_02.png",
+     "w": 78,
+     "h": 128,
+     "pivotX": 34.8,
+     "pivotY": 128,
+     "bbox": [
+      0,
+      0,
+      78,
+      128
+     ],
+     "sha256": "c9990a98380bc30c095d7d86e1889444d3a22aa14d3a2e5bf45a47da279b336c"
+    },
+    {
+     "file": "josperd_03.png",
+     "w": 87,
+     "h": 125,
+     "pivotX": 43.5,
+     "pivotY": 125,
+     "bbox": [
+      0,
+      0,
+      87,
+      125
+     ],
+     "sha256": "5172dc73e846a27b10a2c28d8e4fa20aef49c2adbb1eb978320c7536623f3c68"
+    },
+    {
+     "file": "josperd_04.png",
+     "w": 84,
+     "h": 110,
+     "pivotX": 39.9,
+     "pivotY": 110,
+     "bbox": [
+      0,
+      0,
+      84,
+      110
+     ],
+     "sha256": "e57595a48424a6d4b05e6cfa361381e29a19de321552fa5c9f509e12ffa450c2"
+    },
+    {
+     "file": "josperd_05.png",
+     "w": 87,
+     "h": 130,
+     "pivotX": 41.9,
+     "pivotY": 130,
+     "bbox": [
+      0,
+      0,
+      87,
+      130
+     ],
+     "sha256": "37773370a1a2a10a394f02dfe05ac75968d91e1f1c85e21447c4da88c7353ec6"
+    },
+    {
+     "file": "josperd_06.png",
+     "w": 86,
+     "h": 111,
+     "pivotX": 41.0,
+     "pivotY": 111,
+     "bbox": [
+      0,
+      0,
+      86,
+      111
+     ],
+     "sha256": "30da7e096dd8be06eeaaa9056761302b165e3132e527701af50e0792bcf73080"
+    },
+    {
+     "file": "josperd_07.png",
+     "w": 84,
+     "h": 124,
+     "pivotX": 41.2,
+     "pivotY": 124,
+     "bbox": [
+      0,
+      0,
+      84,
+      124
+     ],
+     "sha256": "edb0494cd62fa756c4ee74a47e5683c400182402cdc4b61003e19a5c52899f56"
+    }
+   ]
+  },
+  "camila": {
+   "frames": [
+    {
+     "file": "camila_00.png",
+     "w": 70,
+     "h": 106,
+     "pivotX": 39.5,
+     "pivotY": 106,
+     "bbox": [
+      0,
+      0,
+      70,
+      106
+     ],
+     "sha256": "0ac4649e216fbcce3c3e746f24deb53ec03c11a94cd927e4be14aba10bb60ba0"
+    },
+    {
+     "file": "camila_01.png",
+     "w": 71,
+     "h": 92,
+     "pivotX": 40.6,
+     "pivotY": 92,
+     "bbox": [
+      0,
+      0,
+      71,
+      92
+     ],
+     "sha256": "e21a8ce85121f05447caf7151b42eca6e4e35b8099a97b365e582c253f3a51c2"
+    },
+    {
+     "file": "camila_02.png",
+     "w": 70,
+     "h": 114,
+     "pivotX": 39.8,
+     "pivotY": 114,
+     "bbox": [
+      0,
+      0,
+      70,
+      114
+     ],
+     "sha256": "12c41c728d9da0d44b2b423066a5397089544d8ba25cf86716ed6c5bed632e88"
+    },
+    {
+     "file": "camila_03.png",
+     "w": 75,
+     "h": 116,
+     "pivotX": 40.1,
+     "pivotY": 116,
+     "bbox": [
+      0,
+      0,
+      75,
+      116
+     ],
+     "sha256": "8118948cdc70832794e2aee3144aab297e1f8b61cbf40b9b20ba3f05bb067182"
+    },
+    {
+     "file": "camila_04.png",
+     "w": 71,
+     "h": 116,
+     "pivotX": 36.6,
+     "pivotY": 116,
+     "bbox": [
+      0,
+      0,
+      71,
+      116
+     ],
+     "sha256": "7466eab649f65db3b3097b24fabfa84ffece4ae16ece47fe1c36bb463511ed8e"
+    },
+    {
+     "file": "camila_05.png",
+     "w": 72,
+     "h": 114,
+     "pivotX": 38.7,
+     "pivotY": 114,
+     "bbox": [
+      0,
+      0,
+      72,
+      114
+     ],
+     "sha256": "cdfe4ed9b9fc1a6ae7046c03fb4e1344245fc5dcbb9d2b11b0c3081d84d28a96"
+    },
+    {
+     "file": "camila_06.png",
+     "w": 71,
+     "h": 100,
+     "pivotX": 39.2,
+     "pivotY": 100,
+     "bbox": [
+      0,
+      0,
+      71,
+      100
+     ],
+     "sha256": "3253138e5d860c17c0b9dbabc80c0ea8ab5978c5d27a1225b1180fb7d39fa11a"
+    },
+    {
+     "file": "camila_07.png",
+     "w": 75,
+     "h": 117,
+     "pivotX": 39.5,
+     "pivotY": 117,
+     "bbox": [
+      0,
+      0,
+      75,
+      117
+     ],
+     "sha256": "f9c1b53436e8799d154ba0eee814335d0868e076439b03ae37c40721d90a54e2"
+    }
+   ]
+  }
+ }
+}

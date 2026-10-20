@@ -9,7 +9,9 @@ import {GITHUB_REPO} from '../updates';
 import {ModoPlayback, NotificationStyle} from '../../modules/modo-playback';
 import {abrirAjustesDeNotificacao, diagnostico, estadoNotificacoes, mostrarTreino, NotifState, pedirNotificacoes} from '../notify';
 import {ModoNotif} from '../../modules/modo-notif';
-import {Btn, Card, Chips, Icon, Kicker, Pop, Press, Sheet, Switch} from '../ui';
+import {Btn, Card, Chips, Icon, Kicker, Pop, Press, Sheet, Switch, useToast} from '../ui';
+import {NO_TAPS, registerTap, type TapState} from '../arcade/unlock';
+import {updateArcade, useArcade} from '../arcade/arcadeStore';
 import ExerciseVideo from '../ExerciseVideo';
 import {deleteExerciseVideo, pickExerciseVideo} from '../video';
 import {falar} from '../voice';
@@ -106,8 +108,19 @@ function NotifPermission({visible}: {visible: boolean}) {
   );
 }
 
-export function SettingsSheet({visible, onClose, version, status, onCheck, onGallery, backup}: {visible: boolean; onClose: () => void; version: string; status: string; onCheck: () => void; onGallery: () => void; backup: BackupApi}) {
+export function SettingsSheet({visible, onClose, version, status, onCheck, onGallery, onPlayArcade, backup}: {visible: boolean; onClose: () => void; version: string; status: string; onCheck: () => void; onGallery: () => void; onPlayArcade: () => void; backup: BackupApi}) {
   const {state, update} = useApp();
+  const toast = useToast();
+  const {save: arcade} = useArcade();
+  const taps = React.useRef<TapState>(NO_TAPS);
+  // Segredo: 7 toques seguidos no número da versão (como o modo desenvolvedor do Android).
+  const tapVersion = () => {
+    if (arcade.unlocked) return;
+    const r = registerTap(taps.current, Date.now());
+    taps.current = r.state;
+    if (r.unlocked) { updateArcade((a) => ({...a, unlocked: true})); toast.show('Você achou o fliperama! 🕹️'); }
+    else if (r.hint) toast.show(`Faltam ${r.remaining} toque${r.remaining > 1 ? 's' : ''}…`);
+  };
   const snd = state.sounds || DEFAULT_SOUNDS;
   const setSnd = (patch: Partial<typeof snd>) => update((v) => ({...v, sounds: {...v.sounds, ...patch}}));
   return (
@@ -192,7 +205,18 @@ export function SettingsSheet({visible, onClose, version, status, onCheck, onGal
             <Btn kind="ghost" small icon="document-text-outline" text="ENVIAR PLANILHA (CSV)" onPress={() => { void shareCsv(state); }} />
           </View>
         </Section>
-        <Text style={[T.small, {textAlign: 'center'}]}>Modo Treino · versão {version} · by Josperd</Text>
+        {arcade.unlocked && (
+          <Section title="Fliperama">
+            <Card color="#251438" shadowColor="#ff4dac">
+              <Text style={{fontSize: 22, fontWeight: '900', color: C.white, letterSpacing: 0.6}}>NEON STEP DX</Text>
+              <Text style={[T.small, {color: '#B7C1E3', marginTop: 4}]}>O jogo secreto do Modo Treino: Josperd e Camila pulando cada vez mais alto. Funciona offline.</Text>
+              <Btn icon="game-controller" text="JOGAR AGORA" onPress={() => { onClose(); setTimeout(onPlayArcade, 250); }} style={{marginTop: 12}} />
+            </Card>
+          </Section>
+        )}
+        <Press accessibilityRole="text" accessibilityLabel={`Modo Treino, versão ${version}, by Josperd`} onPress={tapVersion} quiet haptic={false} scaleTo={1} style={{paddingVertical: 10}}>
+          <Text style={[T.small, {textAlign: 'center'}]}>Modo Treino · versão {version} · by Josperd</Text>
+        </Press>
       </ScrollView>
     </Sheet>
   );

@@ -1,0 +1,15 @@
+{
+ "ambiente": "Chromium headless, WebGL por software (SwiftShader), 393x852@2x — NÃO representa um celular",
+ "samples": 39,
+ "fps": 26,
+ "p50": 16.7,
+ "p95": 150,
+ "p99": 166.6,
+ "worst": 166.6,
+ "slow": 12,
+ "stepMs": 0.08,
+ "drawMs": 2.09,
+ "tick": 167,
+ "platforms": 17,
+ "particles": 0
+}

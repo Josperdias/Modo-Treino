@@ -1,0 +1,131 @@
+{
+ "corridas": [
+  {
+   "semente": 1,
+   "hz": 30,
+   "fim": "playing",
+   "segundos": 420,
+   "metros": 2155,
+   "pontos": 6744,
+   "nivel": 5,
+   "eventos": [
+    [
+     "mundo",
+     "paper",
+     98
+    ],
+    [
+     "checkpoint",
+     141
+    ]
+   ]
+  },
+  {
+   "semente": 2,
+   "hz": 30,
+   "fim": "over",
+   "segundos": 145,
+   "metros": 1719,
+   "pontos": 4399,
+   "nivel": 3,
+   "eventos": []
+  },
+  {
+   "semente": 3,
+   "hz": 30,
+   "fim": "over",
+   "segundos": 61,
+   "metros": 704,
+   "pontos": 2452,
+   "nivel": 1,
+   "eventos": []
+  },
+  {
+   "semente": 1,
+   "hz": 60,
+   "fim": "playing",
+   "segundos": 420,
+   "metros": 4509,
+   "pontos": 13359,
+   "nivel": 5,
+   "eventos": [
+    [
+     "mundo",
+     "paper",
+     167
+    ],
+    [
+     "mundo",
+     "crystal",
+     284
+    ],
+    [
+     "checkpoint",
+     341
+    ]
+   ]
+  },
+  {
+   "semente": 2,
+   "hz": 60,
+   "fim": "over",
+   "segundos": 247,
+   "metros": 3039,
+   "pontos": 9346,
+   "nivel": 4,
+   "eventos": []
+  },
+  {
+   "semente": 3,
+   "hz": 60,
+   "fim": "over",
+   "segundos": 137,
+   "metros": 1646,
+   "pontos": 5280,
+   "nivel": 3,
+   "eventos": []
+  },
+  {
+   "semente": 1,
+   "hz": 120,
+   "fim": "over",
+   "segundos": 158,
+   "metros": 2024,
+   "pontos": 5527,
+   "nivel": 3,
+   "eventos": []
+  },
+  {
+   "semente": 2,
+   "hz": 120,
+   "fim": "over",
+   "segundos": 58,
+   "metros": 772,
+   "pontos": 2537,
+   "nivel": 1,
+   "eventos": []
+  },
+  {
+   "semente": 3,
+   "hz": 120,
+   "fim": "over",
+   "segundos": 132,
+   "metros": 1614,
+   "pontos": 4565,
+   "nivel": 3,
+   "eventos": []
+  }
+ ],
+ "apice_do_salto_por_hz": {
+  "30": 187,
+  "60": 192.7,
+  "120": 195.5,
+  "240": 196.9
+ },
+ "custo_por_quadro_ms_desktop": {
+  "update": 0.007,
+  "render": 1.298,
+  "quadros": 1500
+ },
+ "erros_js": []
+}

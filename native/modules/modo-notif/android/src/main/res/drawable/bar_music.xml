@@ -1,19 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Barra de tempo do cartão de música COM BOLINHA. A trilha tem 11dp de altura dentro de uma barra de 24dp; a parte de baixo (progress) é um
+     <scale>: o desenho inteiro (preenchimento + bolinha amarela com contorno) cresce com o progresso, então a bolinha fica sempre na ponta.
+     As folgas de 10dp nas laterais deixam a bolinha inteira visível em 0% e em 100%. O ScaleDrawable não desenha em nível 0: o código manda pelo menos 1/1000. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-  <item android:id="@android:id/background">
+  <item android:id="@android:id/background" android:left="10dp" android:right="10dp" android:top="6.5dp" android:bottom="6.5dp">
     <shape android:shape="rectangle">
       <solid android:color="#FF6F7FB8" />
       <stroke android:width="2dp" android:color="@color/mt_ink" />
       <corners android:radius="6dp" />
     </shape>
   </item>
-  <item android:id="@android:id/progress">
-    <clip>
-      <shape android:shape="rectangle">
-        <solid android:color="@color/mt_yellow" />
-        <stroke android:width="2dp" android:color="@color/mt_ink" />
-        <corners android:radius="6dp" />
-      </shape>
-    </clip>
+  <item android:id="@android:id/progress" android:left="10dp" android:right="10dp">
+    <scale android:scaleWidth="100%" android:scaleGravity="start">
+      <layer-list>
+        <item android:top="6.5dp" android:bottom="6.5dp">
+          <shape android:shape="rectangle">
+            <solid android:color="@color/mt_yellow" />
+            <stroke android:width="2dp" android:color="@color/mt_ink" />
+            <corners android:radius="6dp" />
+          </shape>
+        </item>
+        <item android:gravity="center_vertical|end" android:width="20dp" android:height="20dp" android:right="-10dp">
+          <shape android:shape="oval">
+            <solid android:color="@color/mt_yellow" />
+            <stroke android:width="3dp" android:color="@color/mt_ink" />
+          </shape>
+        </item>
+      </layer-list>
+    </scale>
   </item>
 </layer-list>

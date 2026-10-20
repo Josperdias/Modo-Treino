@@ -1,0 +1,32 @@
+[
+  {
+    "viewport": "393x852",
+    "sprites": {
+      "josperd": 8,
+      "camila": 8
+    },
+    "checkpoint": {
+      "lives": 2,
+      "world": "paper",
+      "checkpointUsed": true,
+      "mode": "playing"
+    },
+    "errors": [],
+    "screenshot": "/mnt/data/NEON_STEP_DX_ENTREGA_CLAUDE/QA_393x852_paper.png"
+  },
+  {
+    "viewport": "1280x800",
+    "sprites": {
+      "josperd": 8,
+      "camila": 8
+    },
+    "checkpoint": {
+      "lives": 2,
+      "world": "paper",
+      "checkpointUsed": true,
+      "mode": "playing"
+    },
+    "errors": [],
+    "screenshot": "/mnt/data/NEON_STEP_DX_ENTREGA_CLAUDE/QA_1280x800_paper.png"
+  }
+]

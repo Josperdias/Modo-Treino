@@ -39,6 +39,7 @@ const INSTALLED = JSON.parse(readFileSync(new URL('../../native/package.json', i
 const bump = (v, k) => { const [a, b, c] = v.split('.').map(Number); return k < 0 && c === 0 ? `${a}.${b - 1}.9` : `${a}.${b}.${c + k}`; }; // k=-1 em x.y.0 vira x.(y-1).9 (nunca patch negativo)
 const rel = (tag, extra = {}) => ({tag_name: tag, draft: false, prerelease: true, html_url: `https://github.com/${REPO}/releases/tag/${tag}`, assets: [], ...extra});
 const APP = 'modo-treino-native-v1', MUSIC = 'modotreino-native-music-v1';
+const CAPA_FILE = 'barra_w_vinho.jpg';
 const TRACKS = [['Eye of the Tiger', 245], ['Lose Yourself', 326], ['Till I Collapse', 297], ['Stronger', 312]].map(([title, duration], i) => ({id: 'dev:' + i, title, uri: 'file:///musica/' + i + '.mp3', duration, source: 'device'}));
 
 /** seed: {chave: valor} gravado no localStorage antes do app abrir (uma vez). device: simula o MediaStore (só no navegador). */
@@ -454,6 +455,132 @@ test('fitas: cada música do celular vira uma fita (cassete), com busca; nada é
   await context.close();
 });
 
+test('fita personalizada: cor, figurinhas e anotação aparecem na lista e no "Tocando agora" e persistem; voltar ao padrão limpa', {skip}, async () => {
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByRole('heading', {name: 'Personalizar a fita'}).waitFor();
+  await page.getByLabel('Cor 9 de 14, xadrez').click();
+  await page.getByLabel('Padrão Listras').click();
+  await page.getByLabel('Borda Listras de obra').click();
+  for (const g of ['🔥', '⭐', '💪', '🎧', '❤️', '⚡']) await page.getByLabel(`Colocar figurinha ${g}`).click();
+  assert.equal(await page.getByLabel('Colocar figurinha 🚀').isDisabled(), true, 'no máximo 6 figurinhas');
+  // arrasta a primeira figurinha (🔥) para outro lugar da fita
+  const fire = page.getByLabel(/^Figurinha 🔥/);
+  const box = await fire.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 120, box.y + box.height / 2 + 40, {steps: 6}); await page.mouse.up();
+  await page.getByLabel('Girar a figurinha para a direita').click(); await page.getByLabel('Girar a figurinha para a direita').click();
+  await page.getByLabel('Figurinha maior').click();
+  // bolinha do canto: arrastar para fora aumenta e em volta gira a figurinha ⭐ (selecionada ao tocar nela)
+  const estrela = page.getByLabel(/^Figurinha ⭐/); const eb = await estrela.boundingBox();
+  await page.mouse.click(eb.x + eb.width / 2, eb.y + eb.height / 2);
+  const grip = await page.getByLabel('Arraste para girar e mudar o tamanho da figurinha').boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 70, grip.y + grip.height / 2 + 20, {steps: 6}); await page.mouse.up();
+  await page.getByLabel('Anotação da fita').fill('Fazer 3 séries de supino\ndescanso de 45 s');
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 600);
+  assert.match(await body(page), /📝 Fazer 3 séries de supino/, 'a anotação aparece na linha da fita');
+  const saved = await store(page, MUSIC);
+  const d = saved.deco['dev:1'];
+  assert.equal(d.color, 8); assert.equal(d.pattern, 'stripes'); assert.equal(d.edge, 'hazard'); assert.equal(d.note, 'Fazer 3 séries de supino\ndescanso de 45 s');
+  assert.deepEqual(d.stickers.map((x) => x.e), ['🔥', '⭐', '💪', '🎧', '❤️', '⚡']);
+  assert.ok(d.stickers[0].x < 0.88 && d.stickers[0].y > 0.2, 'a figurinha arrastada mudou de lugar');
+  assert.equal(d.stickers[0].s, 1.2, 'o botão "maior" aumentou a figurinha');
+  assert.equal(d.stickers[0].r, 30, 'girar duas vezes para a direita = 30 graus');
+  assert.ok(d.stickers[1].s > 1 || d.stickers[1].r !== 0, 'a bolinha do canto mudou o tamanho e/ou o giro da figurinha');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await settle(page, 600);
+  await tab(page, 'Início');
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByText('📝 ANOTAÇÃO DA FITA').waitFor();   // o player mostra a anotação da fita que toca
+  assert.match(await body(page), /descanso de 45 s/);
+  await page.getByLabel('Fechar').last().click(); await settle(page, 500);
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Voltar a fita ao padrão').click(); await settle(page, 600);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'], undefined, 'voltar ao padrão apaga a personalização');
+  assert.doesNotMatch(await body(page), /📝 Fazer 3 séries/);
+  await context.close();
+});
+
+test('fita com imagem no rótulo: a capa aparece atrás do nome (lista e player) e sai ao voltar ao padrão', {skip}, async () => {
+  const CAPA = 'https://capa.test/rotulo.png';
+  const deco = {'dev:1': {image: CAPA, imgFit: {z: 1.6, x: 0.5, y: -0.5}, color: 8, stickers: [{e: '🔥', x: 0.85, y: 0.2, s: 1.2, r: -25}, {e: '⭐', x: 1, y: 1, s: 2, r: 40}, {e: '🎧', x: 0, y: 0, s: 2}]}};
+  const {context, page} = await open({seed: {[MUSIC]: musicLib({deco})}, device: {permission: 'granted', tracks: TRACKS}});
+  await context.route(CAPA, (r) => r.fulfill({status: 200, contentType: 'image/jpeg', body: readFileSync(new URL('../../native/assets/exercicios/' + CAPA_FILE, import.meta.url))}));
+  await tab(page, 'Músicas');
+  await page.locator(`img[src="${CAPA}"]`).first().waitFor({state: 'attached'});
+  assert.equal(await page.locator(`img[src="${CAPA}"]`).count(), 1, 'a capa aparece no mini cassete da lista');
+  await page.getByLabel('Tocar Lose Yourself', {exact: true}).click(); await settle(page, 700);
+  await tab(page, 'Início');
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByRole('heading', {name: 'Tocando agora'}).waitFor();
+  await settle(page, 700);
+  assert.ok(await page.locator(`img[src="${CAPA}"]`).count() >= 1, 'a capa aparece no cassete grande do player');
+  await page.screenshot({path: process.env.SHOT_CAPA || '/tmp/capa.png'});
+  // figurinhas na beira (x e y no limite): passam do contorno da fita, mas a fita as RECORTA (como um adesivo de verdade)
+  const caixas = await page.evaluate(() => {
+    const raiz = document.querySelector('[aria-label^="Fita cassete"]');
+    const fita = raiz.getBoundingClientRect();
+    const camada = raiz.querySelector('[aria-label="Figurinhas da fita"]');
+    const out = {fita: {x: fita.x, y: fita.y, w: fita.width, h: fita.height}, recorta: getComputedStyle(camada).overflow};
+    for (const e of ['⭐', '🎧']) {
+      const el = [...camada.querySelectorAll('*')].find((n) => n.children.length === 0 && n.textContent.trim() === e);
+      const r = el.getBoundingClientRect(); out[e] = {x: r.x, y: r.y, w: r.width, h: r.height};
+    }
+    return out;
+  });
+  const F = caixas.fita;
+  assert.equal(caixas.recorta, 'visible', 'a fita não recorta as figurinhas: quem corta é a moldura amarela, mais para fora');
+  const S1 = caixas['⭐'], S2 = caixas['🎧'];
+  assert.ok(S1.x + S1.w / 2 >= F.x + F.w - 2 && S1.y + S1.h / 2 >= F.y + F.h - 2, 'a figurinha do canto inferior direito vai até a beira da fita (centro na quina)');
+  assert.ok(S1.x + S1.w > F.x + F.w + 8, 'e passa da beira da fita, cobrindo a moldura em volta');
+  assert.ok(S2.x < F.x - 8 && S2.y < F.y - 8, 'a do canto superior esquerdo também');
+  // a moldura amarela (o cartão) é quem recorta o que passa mais para fora
+  const moldura = await page.evaluate(() => { let n = document.querySelector('[aria-label^="Fita cassete"]'); while (n && getComputedStyle(n).overflow !== 'hidden') n = n.parentElement; return !!n; });
+  assert.ok(moldura, 'existe uma moldura que recorta as figurinhas que passam dela');
+  await page.getByLabel('Fechar').last().click(); await settle(page, 500);
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Mais zoom na imagem').click();   // enquadramento: o zoom sobe de 1,6 para 1,85
+  await page.getByLabel('Imagem para a esquerda').click();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  const fit = (await store(page, MUSIC)).deco['dev:1'].imgFit;
+  assert.deepEqual(fit, {m: 'cover', z: 1.85, x: 0.25, y: -0.5}, 'o enquadramento da imagem é guardado');
+  // ajustar a imagem com o dedo: arrastar escolhe a região que aparece no rótulo
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Ajustar a imagem com o dedo').click(); await settle(page, 500);
+  const alvo = await page.getByLabel(/^Imagem do rótulo/).boundingBox();
+  await page.mouse.move(alvo.x + alvo.width / 2, alvo.y + alvo.height / 2); await page.mouse.down();
+  await page.mouse.move(alvo.x + alvo.width / 2 + 40, alvo.y + alvo.height / 2 + 14, {steps: 6}); await page.mouse.up();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  const fit2 = (await store(page, MUSIC)).deco['dev:1'].imgFit;
+  assert.ok(fit2.x !== 0.25 || fit2.y !== -0.5, 'arrastar a imagem mudou a região mostrada');
+  assert.equal(fit2.z, 1.85, 'o zoom continua o mesmo');
+  // imagem menor que a área: modo "inteira" e zoom abaixo de 1; e "esticar" para forçar o ajuste
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Imagem inteira, menor se precisar').click();
+  for (let k = 0; k < 5; k++) await page.getByLabel('Menos zoom na imagem').click();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  const fit3 = (await store(page, MUSIC)).deco['dev:1'].imgFit;
+  assert.equal(fit3.m, 'contain'); assert.ok(fit3.z < 1 && fit3.z >= 0.25, `o zoom passou de 1 para baixo (${fit3.z}): a imagem fica menor que a área`);
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Forçar a imagem a ocupar a área toda').click();
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'].imgFit.m, 'stretch');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Voltar a fita ao padrão').click(); await settle(page, 600);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'], undefined);
+  await context.close();
+});
+
 test('fita → bag: "colocar na bag" guarda só a referência e uma fita pode estar em várias bags', {skip}, async () => {
   const {context, page} = await open({device: {permission: 'granted', tracks: TRACKS}});
   await tab(page, 'Músicas');
@@ -564,7 +691,14 @@ test('rádio: estações do diretório, estilos em português e lista de países
   await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
   await tab(page, 'Músicas'); await musicTab(page, 'Rádio do mundo');
   await page.getByText('9 estações').waitFor();
+  assert.equal(await page.getByLabel('Estilo Pop', {exact: true}).count(), 0, 'os estilos ficam recolhidos até abrir o painel');
+  await page.getByLabel('Escolher estilo').click();
   for (const g of ['Pop', 'Eletrônica', 'Clássica', 'Notícias', 'Esportes']) await page.getByLabel(`Estilo ${g}`, {exact: true}).waitFor();
+  await page.getByText('BRASIL E LATINA').waitFor();
+  await page.getByLabel('Estilo Rock', {exact: true}).click(); await settle(page, 300);
+  assert.equal(await page.getByLabel('Estilo Pop', {exact: true}).count(), 0, 'escolher um estilo recolhe o painel');
+  await page.getByLabel(/^Escolher estilo, agora Rock/).click(); await page.getByLabel('Recolher os estilos').click(); await settle(page, 300);
+  await page.getByLabel('Limpar busca').click();
   await page.getByLabel('Ver rádios por país').click();
   await page.getByLabel(/^(Brazil|Brasil), 6 rádios$/).waitFor();
   await page.getByLabel(/^(Portugal), 2 rádios$/).waitFor();
@@ -667,6 +801,105 @@ test('Fitas: a busca de cima só aparece (com animação) ao passar pelas fitas 
   await context.close();
 });
 
+test('"não vou fazer este exercício": confirma ao pular, dá para se arrepender ao voltar e confirma de novo ao finalizar', {skip}, async () => {
+  const {context, page} = await open();
+  await openTreino(page, 'A'); await startWorkout(page);
+  const fills = () => page.evaluate(() => [...document.querySelectorAll('[aria-label="Progresso do treino"] > div')].map((seg) => (seg.firstElementChild ? seg.firstElementChild.style.width : 'pulado')));
+  // 1) pular pede confirmação; "Voltar" não pula
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').click();
+  await page.getByText('Não fazer este exercício?').waitFor();
+  await page.getByLabel('VOLTAR', {exact: true}).click(); await settle(page, 300);
+  assert.match(await body(page), /EXERCÍCIO 1\/6/, 'cancelar a pergunta não pula');
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').click();
+  await page.getByLabel('NÃO VOU FAZER', {exact: true}).click(); await settle(page, 500);
+  assert.match(await body(page), /EXERCÍCIO 2\/6/, 'pulou e foi ao próximo');
+  assert.match(await body(page), /1 pulado/);
+  assert.equal((await fills())[0], 'pulado');
+  // 2) voltar ao pulado: aviso e arrependimento
+  await page.getByLabel('Exercício anterior').click(); await settle(page, 400);
+  await page.getByText('VOCÊ MARCOU', {exact: true}).waitFor();
+  await page.getByText('FORA DO TREINO DE HOJE').waitFor();
+  await page.getByLabel('Fazer Rosca direta na barra W agora').click(); await settle(page, 400);
+  assert.equal(await page.getByText('VOCÊ MARCOU', {exact: true}).count(), 0, 'se arrependeu: o exercício volta ao treino');
+  assert.doesNotMatch(await body(page), /1 pulado/);
+  // 3) pula de novo, faz todos os outros e finaliza: pede confirmação do que ficou de fora
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').click();
+  await page.getByLabel('NÃO VOU FAZER', {exact: true}).click(); await settle(page, 500);
+  for (const [nome, n] of A.slice(1)) {
+    for (let k = 1; k <= n; k++) { await setBtn(page, k, nome).click(); await settle(page, 120); }
+    const skipRest = page.getByLabel('Pular descanso'); if (await skipRest.count()) await skipRest.click();
+    await settle(page, 300);
+  }
+  await page.getByText(/COMPLETO!/).waitFor();
+  assert.match(await body(page), /NÃO FEITO: Rosca direta na barra W/);
+  await page.getByLabel('FINALIZAR E SALVAR').click();
+  await page.getByText('Confirmar o que ficou de fora?').waitFor();
+  await page.getByLabel('VOLTAR E FAZER', {exact: true}).click(); await settle(page, 500);
+  assert.match(await body(page), /EXERCÍCIO 1\/6/, 'voltar e fazer leva ao exercício pulado');
+  await page.getByLabel('Não vou fazer Rosca direta na barra W').count(); // continua pulado
+  await page.getByLabel('TERMINAR', {exact: true}).click(); await settle(page, 500);   // exercício pulado e último que falta: o botão vira TERMINAR
+  await page.getByText(/COMPLETO!/).waitFor();
+  await page.getByLabel('FINALIZAR E SALVAR').click();
+  await page.getByLabel('CONFIRMAR E SALVAR').click(); await settle(page, 600);
+  const saved = await store(page);
+  assert.equal(saved.sessions.length, 1);
+  assert.deepEqual(saved.sessions[0].skipped.map((x) => x.nome), ['Rosca direta na barra W'], 'o histórico guarda o que ficou de fora');
+  assert.equal(saved.sessions[0].items.length, 5, 'só os 5 exercícios feitos entram');
+  await context.close();
+});
+
+test('treino: abrir o player pelo mini rádio NÃO fecha o treino (volta ao mesmo exercício) e o "Tocando agora" cabe na tela', {skip}, async () => {
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Stronger', {exact: true}).click(); await settle(page, 600);
+  await tab(page, 'Início');
+  await openTreino(page, 'A'); await startWorkout(page);
+  await page.getByLabel('Próximo exercício').first().click(); await settle(page, 400);
+  assert.match(await body(page), /EXERCÍCIO 2\/6/);
+  await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByRole('heading', {name: 'Tocando agora'}).waitFor();
+  await settle(page, 700); // espera a animação de subida do painel
+  const head = await page.getByRole('heading', {name: 'Tocando agora'}).boundingBox();
+  assert.ok(head && head.y >= 40, 'o painel não cobre a tela inteira: deixa o treino aparecendo no topo');
+  const play = page.getByLabel('Tocar ou pausar').last();
+  await play.scrollIntoViewIfNeeded();
+  const box = await play.boundingBox();
+  assert.ok(box && box.y >= 0 && box.y + box.height <= 844, 'o botão de tocar/pausar é alcançável dentro da tela (painel rolável)');
+  await page.getByLabel('Fechar').last().click(); await settle(page, 400);
+  assert.match(await body(page), /EXERCÍCIO 2\/6/, 'o treino continua no mesmo exercício');
+  await context.close();
+});
+
+test('rádio: o mundo fica atrás dos controles, o cartão da estação é compacto e o rádio dourado aparece na aba', {skip}, async () => {
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
+  const radios = [{stationuuid: 'u1', name: 'Rádio Lose Control', url_resolved: 'https://example.com/s1', countrycode: 'BR', country: 'Brazil', state: '', tags: 'pop', geo_lat: -10, geo_long: -50, clickcount: 5, bitrate: 128}];
+  await context.route('**/*.api.radio-browser.info/**', (r) => r.fulfill({status: 200, contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: JSON.stringify(radios)}));
+  await tab(page, 'Músicas');
+  await page.getByLabel('Tocar Stronger', {exact: true}).click(); await settle(page, 500);
+  await musicTab(page, 'Rádio do mundo');
+  await page.getByText('1 estações').waitFor();
+  await page.getByLabel('Surpreenda-me com uma rádio aleatória').click(); await settle(page, 600);
+  const card = await page.getByRole('button', {name: 'Rádio Rádio Lose Control'}).boundingBox();
+  assert.ok(card && card.height <= 130, `o cartão da estação é compacto (altura ${card && card.height})`);
+  await page.getByLabel('Guardar rádio numa bag').waitFor();
+  await page.getByLabel('Ouvir rádio').waitFor();
+  await page.getByLabel('Recolher o cartão da rádio').click(); await settle(page, 500);   // recolhe: o globo inteiro aparece
+  assert.equal(await page.getByLabel('Guardar rádio numa bag').count(), 0, 'cartão recolhido');
+  await page.getByLabel(/^Abrir o cartão da rádio/).click(); await settle(page, 500);
+  await page.getByLabel('Guardar rádio numa bag').waitFor();
+  await page.getByLabel('Mais informações da rádio').click();
+  await page.getByRole('heading', {name: 'Sobre a rádio'}).waitFor();
+  assert.match(await body(page), /ESTILOS[\s\S]*pop[\s\S]*128 kbps/, 'o "i" mostra estilos e qualidade da rádio');
+  await page.getByLabel('Fechar').last().click(); await settle(page, 500);
+  const globe = await page.locator('iframe, webview').first().boundingBox();   // o globo começa logo abaixo do seletor FITAS/BAGS/RÁDIO, por trás da busca
+  const surpresa = await page.getByLabel('Surpreenda-me com uma rádio aleatória').boundingBox();
+  assert.ok(globe && surpresa && globe.y < surpresa.y, 'o globo passa por trás dos botões');
+  const busca = await page.getByLabel('Buscar rádio').boundingBox();
+  assert.ok(globe && busca && globe.y <= busca.y, 'o globo também passa por trás do título e da busca');
+  await page.getByRole('toolbar', {name: 'Player de música'}).waitFor();   // música tocando: o rádio dourado também aparece na aba Rádio
+  await context.close();
+});
+
 test('player compacto: só aparece com música tocando; some na aba Músicas; recolhe e abre; fica no modo execução e no descanso', {skip}, async () => {
   const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS}});
   const toolbar = page.getByRole('toolbar', {name: 'Player de música'});
@@ -690,6 +923,8 @@ test('player compacto: só aparece com música tocando; some na aba Músicas; re
   assert.equal(await page.getByRole('toolbar', {name: 'Player de música'}).count(), 1, 'no descanso');
   await page.getByLabel('Pular descanso').click();
   await page.getByRole('button', {name: /^Abrir músicas/}).click();
+  await page.getByRole('heading', {name: 'Tocando agora'}).waitFor();   // o treino continua por baixo
+  await page.getByLabel('VER MINHAS FITAS').click();
   await page.getByText('Suas fitas,', {exact: false}).waitFor();
   await context.close();
 });
@@ -823,5 +1058,18 @@ test('barra do player: a bolinha acompanha o dedo ao arrastar (volume muda na ho
   assert.ok(v2 > 0.7 && v2 < 0.9, `toque em 80% (veio ${v2})`);
   assert.ok(during >= 0);
   assert.deepEqual(errors.filter((e) => !/no supported source/.test(e)), []);   // o navegador não toca file:// de mentira
+  await context.close();
+});
+
+test('imagem do rótulo: "usar a capa do álbum da música" pega a capa que vem dentro do arquivo', {skip}, async () => {
+  const CAPA = 'https://capa.test/album.jpg';
+  const {context, page} = await open({seed: {[MUSIC]: musicLib()}, device: {permission: 'granted', tracks: TRACKS, cover: CAPA}});
+  await context.route(CAPA, (r) => r.fulfill({status: 200, contentType: 'image/jpeg', body: readFileSync(new URL('../../native/assets/exercicios/' + CAPA_FILE, import.meta.url))}));
+  await tab(page, 'Músicas');
+  await page.getByLabel('Mais opções de Lose Yourself').click();
+  await page.getByLabel('Personalizar a fita Lose Yourself').click();
+  await page.getByLabel('Usar a capa do álbum da música').click(); await settle(page, 600);
+  await page.getByText('SALVAR FITA', {exact: true}).click(); await settle(page, 700);
+  assert.equal((await store(page, MUSIC)).deco['dev:1'].image, CAPA, 'a capa do álbum virou a imagem do rótulo');
   await context.close();
 });

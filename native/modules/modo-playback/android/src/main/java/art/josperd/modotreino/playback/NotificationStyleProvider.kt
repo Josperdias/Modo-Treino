@@ -174,7 +174,7 @@ class NotificationStyleProvider(
     if (!live) {
       big.setTextViewText(id("pos", "id"), clock(posSec))
       big.setTextViewText(id("dur", "id"), if (durSec > 0) clock(durSec) else "--:--")
-      big.setProgressBar(id("bar", "id"), 1000, if (durSec > 0) (1000L * posSec / durSec).toInt().coerceIn(0, 1000) else 0, false)
+      big.setProgressBar(id("bar", "id"), 1000, if (durSec > 0) (1000L * posSec / durSec).toInt().coerceIn(1, 1000) else 1, false)
       if (durSec > 0) {
         val zones = seekIntents(session, factory)
         for (i in 0 until SEEK_ZONES) {

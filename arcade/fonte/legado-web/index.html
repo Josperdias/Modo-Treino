@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<meta content="#130a21" name="theme-color"/>
+<meta content="dark" name="color-scheme"/>
+<meta content="Josperd Jump, um protótipo jogável do easter egg arcade de Modo Treino." name="description"/>
+<title>Neon Step DX — Josperd Jump · Modo Treino</title>
+
+<link href="styles.css" rel="stylesheet"/></head>
+<body>
+<div class="page">
+<header class="topbar">
+<div class="brand"><div class="brand-mark">MT.</div><div><div class="brand-name">MODO TREINO</div><div class="brand-caption">BY JOSPERD / ARCADE</div></div></div>
+<div class="tag"><i></i> EASTER EGG · BASE LIMPA PARA APP NATIVO</div>
+</header>
+<main class="main">
+<section aria-label="Informações do jogo" class="left">
+<div class="pre">INTERVALO DESBLOQUEADO</div>
+<h1>NEON<br/><span>STEP DX!</span></h1>
+<p class="lead">O jogo secreto do Modo Treino reúne dois heróis, mundos completos, inimigos e novas regras de exploração! Escolha Josperd ou Camila e pule cada vez mais alto nesse arcade retrô.</p>
+<div class="info-chips"><div class="chip">✦ <b>PULO AUTOMÁTICO</b></div><div class="chip">✦ UNIVERSOS E PORTAIS</div><div class="chip">✦ RECORDES LOCAIS</div></div>
+<div class="controls-desktop">
+<div class="section-head">// COMO JOGAR</div>
+<div class="control-grid"><div class="control-card"><div class="key-row"><span class="key">←</span><span class="key">→</span></div><strong>Teclado</strong><p>Setas ou teclas A e D.</p></div><div class="control-card"><div class="key-row"><span class="key">◀</span><span class="key">▶</span></div><strong>Celular</strong><p>Segure os botões ou toque nas laterais.</p></div></div>
+</div>
+<div class="what"><strong>✳ UM ARCADE ESCONDIDO NO TREINO</strong><p>Quanto mais alto, mais difícil: <b>drones elétricos</b>, plataformas <b>estreitas</b>, <b>transportadoras</b>, móveis e frágeis. Pegue <b>escudos</b>, <b>impulsos</b> e fitas para aumentar seu combo. Você tem três vidas!</p></div>
+</section>
+<section aria-label="Jogo Josperd Jump" class="arcade">
+<div class="arcade-top"><div class="machine-label"><div class="machine-icon">✦</div><span>NEON_STEP_DX</span></div><div class="machine-tools"><button aria-label="Trocar personagem" class="tool" id="characterBtn" title="Trocar personagem">♧</button><button aria-label="Próxima música" class="tool sound" id="nextSongBtn" title="Próxima música">♫↗</button><button aria-label="Ativar ou desativar som" class="tool sound" id="soundBtn" title="Som">♪ ON</button><button aria-label="Pausar ou continuar" class="tool" id="pauseBtn" title="Pausar">Ⅱ</button><button aria-label="Recomeçar jogo" class="tool" id="resetBtn" title="Recomeçar">↻</button></div></div>
+<div class="screen-wrap">
+<div class="hud"><div class="stat"><div class="stat-name">PONTOS</div><div class="stat-value" id="scoreVal">0000</div></div><div class="stat"><div class="stat-name">RECORDE</div><div class="stat-value" id="bestVal">0000</div></div><div class="stat"><div class="stat-name">FITAS</div><div class="stat-value" id="tapesVal">00</div></div></div>
+<canvas aria-label="Jogo Neon Step DX: Josperd ou Camila saltando em plataformas; use setas ou controles na tela" height="690" id="game" role="img" width="420"></canvas>
+<div class="challenge-bar" id="challengeBar"><span id="worldVal" style="color:#82f3ff">NEON</span><span id="levelVal">NÍVEL 01 · AQUECIMENTO</span><span id="livesVal">♥ ♥ ♥</span><span id="buffVal"></span></div><div aria-live="polite" class="toast" id="gameToast"></div><div class="overlay" id="overlay"><div class="overlay-inner"><div class="tiny-label" id="overlayTag">PRESS START</div><h2 id="overlayTitle">PRONTO PRA<br/><em>SUBIR?</em></h2><p id="overlayDesc">Josperd pula sozinho. Você só precisa guiar os saltos e não deixar ele cair!</p><button class="primary-btn" id="startBtn">COMEÇAR A JOGAR ↗</button><div class="micro" id="overlayFoot">← → OU A / D · TOQUE NOS LADOS</div></div></div>
+<section aria-label="Seleção de personagens" class="character-select" id="characterSelect">
+<div class="selection-art"><img alt="Logo oficial NEON STEP DX com Josperd e Camila" src="assets/ui/ui_0.webp"/></div>
+<div class="select-kicker"><span class="select-line"></span> SELECIONE SEU PERSONAGEM <span class="select-line"></span></div>
+<div aria-label="Escolha um personagem" class="selection-cards" role="group">
+<button aria-pressed="true" class="choose-card active" data-character="josperd" id="chooseJosperd" type="button"><span class="choose-index">PLAYER 01</span><img alt="Sprite do Josperd" id="selectJosperdSprite" src="assets/ui/ui_1.png"/><strong>JOSPERD</strong><small>NEON / BREAKBEAT</small><span class="selected-flag">✓ SELECIONADO</span></button>
+<button aria-pressed="false" class="choose-card" data-character="camila" id="chooseCamila" type="button"><span class="choose-index">PLAYER 02</span><img alt="Sprite da Camila" id="selectCamilaSprite" src="assets/ui/ui_2.png"/><strong>CAMILA</strong><small>CITRUS / FUTURE FUNK</small><span class="selected-flag">ESCOLHER</span></button>
+</div>
+<div class="selection-footer">
+<div class="select-song"><span>♪</span> <span id="selectSongLabel">PICK YOUR PLAYER! · CHARACTER SELECT</span></div>
+<div class="selection-actions"><button aria-label="Ativar música" class="select-music" id="selectMusicBtn">♪ ON</button><button class="select-go" id="launchBtn">▶ COMEÇAR JOGO</button></div>
+<div class="selection-hint">TOQUE NO PERSONAGEM · ← → ESCOLHE · ENTER COMEÇA</div>
+</div>
+</section>
+
+</div>
+<div class="controls-bottom"><button aria-label="Mover para a esquerda" class="touch-btn" id="btnLeft">◀</button><div class="controls-center"><b>◈ ◈ ◈</b><span id="activeCharacter">JOSPERD</span><br/>MOVER / ⚡ ATIRAR</div><button aria-label="Mover para a direita" class="touch-btn" id="btnRight">▶</button><button class="touch-btn fire-btn" id="fireBtn" title="Atirar" aria-label="Atirar no drone">⚡</button></div>
+<div class="music-now">♫ <span id="nowPlaying">PICK YOUR PLAYER!</span><small id="worldClock" aria-label="Tempo de exploração">00:00 NO UNIVERSO</small></div><div class="arcade-foot"><span>ARCADE SYSTEM // 012</span><span style="display:flex;gap:6px;align-items:center"><i class="dot"></i> ONLINE OFFLINE</span></div>
+</section>
+</main>
+<footer class="page-footer"><span>NEON STEP DX · DESAFIO PROGRESSIVO · HTML5</span><strong>FUTURO EASTER EGG NATIVO DO MODO TREINO</strong></footer>
+</div>
+
+<script defer src="audio-catalog.js"></script>
+<script defer src="audio-effects.js"></script>
+<script defer src="progression.js"></script>
+<script defer src="paper-soundtrack.js"></script>
+<script defer src="music-director.js"></script>
+<script defer src="worlds.js"></script>
+<script defer src="game.js"></script></body>
+</html>

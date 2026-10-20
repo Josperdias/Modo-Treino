@@ -2,6 +2,99 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.16] — 2026-10-20
+
+### Música da pausa e rodízio só com faixas aprovadas 🎧
+- Ao **pausar** o jogo secreto passa a tocar uma música própria (trip-hop noir) em vez de silêncio; ao voltar, a trilha da fase retorna com fade. Em segundo plano tudo continua calando.
+- O lote de faixas automáticas da 1.4.15 saiu do rodízio (foi considerado genérico); voltam uma a uma, depois de aprovadas.
+
+## [1.4.15] — 2026-10-20
+
+### 4 músicas para cada parte do segredo 🎧
+- O jogo escondido agora tem **44 músicas originais**: **4 diferentes entre si em cada parte** (menu, bônus e cada mundo), de gêneros, andamentos e melodias distintos (chillwave, disco-funk, cravo barroco, ragtime, samba, hyperpop, valsa, pop-punk, trip-hop, eurodance, chip-metal, harpa, glitch, industrial, gamelan, krautrock, épico de ficção científica, surf rock, jig de marinheiros, doom, flamenco, ukulele, shoegaze, hard techno, phonk e mais). Ao entrar numa parte toca a próxima do rodízio, e a mesma faixa nunca repete duas vezes seguidas. O som continua desligado por padrão.
+
+## [1.4.14] — 2026-10-20
+
+### Mais música no segredo 🎧
+- O jogo escondido ganhou **8 trilhas novas**, em outros gêneros (synthwave, electro-swing, dub techno, drum & bass, bossa lo-fi, taiko e metal em 5/4, minimalismo de vidro, lo-fi de papel), todas originais e feitas por código. Cada mundo agora tem **mais de uma música** e, ao entrar nele, toca a próxima do rodízio: a mesma faixa não repete duas vezes seguidas.
+
+## [1.4.13] — 2026-10-19
+
+### Jogabilidade e gráficos 🕹️
+- **Sala do portal removida** (o botão, a barreira e o portal azul "trancado" atrapalhavam o jogo): agora só existem os portais normais.
+- **Gráficos de volta**: o modo leve não reduz mais o tamanho da tela do jogo (isso podia deixar o desenho cortado ou sumido no Android). Ele só tira efeitos pesados e limita os quadros por segundo.
+
+## [1.4.12] — 2026-10-19
+
+### Mais leve de verdade no celular 🕹️
+- O jogo agora **começa no modo leve** no app (sem brilhos, sem a transição pesada de portal, menos partículas e fundo mais simples) e, se o celular ainda não der conta, passa **sozinho** para o nível mínimo e guarda isso como Modo leve. Telas de 90/120 Hz deixam de desenhar mais de 60 quadros por segundo.
+- A tela de erro mostra mais detalhes (qual parte do desenho falhou) para eu corrigir de vez o erro dos portais e da linha de recorde.
+
+## [1.4.11] — 2026-10-19
+
+### O jogo não para mais num erro de desenho 🕹️
+- O desenho do jogo agora é feito em **partes isoladas** (fundo, plataformas, itens, inimigos, herói, efeitos, textos...). Se uma delas der erro no seu aparelho (o motor de desenho do Android é mais rígido que o do navegador), só ela some naquele quadro e a partida **continua**. A pausa mostra qual parte falhou, para eu poder corrigir de vez.
+
+## [1.4.10] — 2026-10-19
+
+### O segredo não cai mais por erro de som, desenho ou diário 🕹️
+- Erros de **som, vibração, desenho e diário** agora são isolados: o quadro com problema é pulado, o desenho recomeça do zero em modo leve e a partida **continua** (antes qualquer um desses erros derrubava o jogo). Se ainda assim o jogo parar, a tela de aviso mostra o motivo, tem **TENTAR DE NOVO** e a partida guardada continua disponível.
+
+## [1.4.9] — 2026-10-19
+
+### O segredo roda em aparelho fraco e vicia mais 🕹️
+- **Bem mais leve**: o desenho do jogo gasta até 3× menos chamadas ao Skia (plataformas, fitas e engrenagens viraram figuras guardadas e reaproveitadas). Se o aparelho não aguentar, o jogo **simplifica sozinho** (sem brilhos, menos partículas, 30 quadros/s e resolução menor). Quem quiser pode forçar o **Modo leve** no menu de pausa.
+- **Dificuldade sobe aos poucos**: até uns 300 m é só plataforma comum e larga; móveis aparecem depois dos 140 m, frágeis depois dos 300 m, inimigos só depois dos 220 m e a dificuldade máxima só perto dos 2400 m.
+- **Diário de descobertas**: mundos, portais, inimigos, poderes, tipos de chão e feitos ficam **salvos** a cada descoberta (o que ainda não foi visto aparece como ???, com uma pista). O botão de livro na abertura abre o Diário e o fim de jogo lista o que entrou nele.
+- **Partida guardada**: o jogo salva a partida a cada 10 s e ao pausar. Se o app fechar no meio, a abertura do jogo mostra **CONTINUAR** e a partida volta exatamente de onde parou.
+
+## [1.4.8] — 2026-10-19
+
+### O segredo ficou mais justo 🕹️
+- O **jogo escondido** foi refeito para jogar de verdade: plataformas **bem maiores** e vãos menores no começo, só plataforma comum nos primeiros metros, dificuldade subindo devagar (como no Doodle Jump), muito menos inimigos e só depois de bastante altura. A animação de escolher o personagem agora **vai e volta** (da direita para a esquerda e da esquerda para a direita). O botão de tiro ficou menor e não cobre mais as plataformas.
+- **Mais estável**: os efeitos sonoros usam bem menos recursos do aparelho (antes dezenas de players podiam travar o app) e um erro dentro do jogo não fecha mais o app: aparece um aviso e dá para voltar.
+
+## [1.4.7] — 2026-10-19
+
+### O segredo ganhou som 🎧
+- O **jogo escondido** agora tem **trilhas e efeitos sonoros originais**, feitos por código: uma música para cada parte do jogo e sons para pular, pegar fitas, atirar e atravessar portais. Tudo vem **desligado**; ligue pelo botão de alto-falante na abertura do jogo ou no menu de pausa (com volume). Se a música do app estiver tocando, ela é pausada quando você liga a trilha do jogo. A pista continua a mesma: ele mora onde o app conta a própria versão.
+
+## [1.4.6] — 2026-10-19
+
+### O segredo ficou bem maior 🕹️
+- O **jogo escondido** ganhou uma tela de abertura nova (com animação de PRESS START e carregamento), **inimigos, portais, poderes e mundos diferentes**. Continua offline, com Josperd e Camila, e a pista continua a mesma: ele mora onde o app conta a própria versão.
+
+## [1.4.5] — 2026-10-16
+
+### Um segredo novo 🕹️
+- Tem um **jogo escondido** no app. A pista: ele mora onde o app conta a própria versão. Funciona offline, com Josperd e Camila.
+
+
+### Treino: "não vou fazer" com dupla verificação
+- **Botão X vermelho** ao lado do "?" em cada exercício para desistir dele. Pede confirmação ao marcar e, de novo, ao finalizar o treino ("Confirmar o que ficou de fora?").
+- **Dá para se arrepender**: o aviso fica **na frente da ilustração**, com degradê circular vermelho, X grande, faixas amarelas e pretas e o botão **VOLTAR E FAZER ESTE**; tocar numa série também desfaz. Na barrinha de progresso o exercício pulado fica vermelho. O nome do exercício aparece riscado em vermelho, com o selo "FORA DO TREINO DE HOJE", e séries e carga ficam esmaecidas. Acima da barra de botões aparece uma divisa vermelha com degradê e "x" que crescem de baixo para cima. Cada exercício abre sempre no topo da tela.
+- O treino salvo no histórico guarda o que ficou de fora; o treino só fica "completo" quando tudo foi feito ou decidido.
+- **Progresso verde não se perde mais ao voltar**: abrir o player pelo mini rádio durante o treino não fecha mais o treino, e o app lembra em qual exercício você parou (por dia e treino).
+
+### Rádio e player
+- **Aba Rádio com o mundo atrás de tudo**: o globo ocupa a área inteira (inclusive atrás do título e da busca), com busca e botões (dado SURPREENDA-ME, PAÍSES, ESTILOS) por cima; a legenda fica embaixo da bandeira; estilos agrupados e recolhíveis; o cartão da estação virou uma faixa branca compacta (OUVIR, NA BAG, lista) que **recolhe** (seta ⌄) numa bolinha com a bandeira para o globo aparecer inteiro. Um **"i"** no canto superior direito do cartão abre "Sobre a rádio": estilos, qualidade, popularidade, onde fica, o que está tocando e o botão VER NO GLOBO.
+- **O mini rádio agora aparece na aba Rádio** e também durante o treino.
+- **"Tocando agora" não cobre mais a tela toda**: o painel rola, a capa se adapta à altura e o treino continua aparecendo no topo.
+- **Transição suave dos painéis**: o fundo escuro surge com fade (sem a quina dura) e a folha sobe com uma borda de degradê rosa com bolinhas que vão sumindo.
+- Bolinha da barra de tempo não é mais cortada nas pontas.
+
+### Notificação de música
+- **Bolinha na barra de tempo do cartão**: uma bolinha amarela com contorno marca a posição da faixa (a barra continua só de toque: tocar numa região pula para ela; arrastar é no estilo PLAYER).
+
+### Fitas personalizáveis (parte 1)
+- **Mais opções ⋯ → PERSONALIZAR FITA**: a personalização aparece **na própria fita** (a lista, o cassete grande do player e o da aba Fitas). Tela com a fita em cima (fixa) e os controles rolando embaixo.
+- **Cor**: 8 lisas e 6 em **xadrez de duas cores** (preto e branco, rosa e branco, amarelo e preto, azul e branco, vermelho e preto, roxo e rosa), mais **padrão no corpo da fita** (bolinhas, listras, xadrez, estrelas).
+- **Borda da fita**: xadrez preto e branco, listras de obra (amarelo e preto) ou docinho (rosa e branco).
+- **Figurinhas arrastáveis**: até 6; arraste com o dedo para o lugar que quiser na fita, **gire** e **aumente com os dedos** (pinça e giro com dois dedos, ou arrastando a bolinha do canto da figurinha selecionada; os botões de girar de 15 em 15° e de tamanho continuam), ou tire. Nas beiras a figurinha **passa por cima da borda e da moldura** em volta da fita e só é **cortada na beira da moldura amarela** (a prévia da tela de personalizar também tem a moldura, para ver igual ao player). O centro nunca sai da fita, então dá para pegar de volta.
+- **Imagem no rótulo**, atrás do nome da fita (escolhida no celular e copiada para o app). **USAR A CAPA DO ÁLBUM DA MÚSICA**: pega a capa que vem dentro do arquivo da música (a mesma que o app de música do celular mostra); se a música não tiver capa, o app avisa. **AJUSTAR A IMAGEM COM O DEDO**: arraste para escolher a região que aparece e use dois dedos para dar zoom (zoom de 0,25× a 3×); as setas e os botões de zoom continuam lá. Onde a imagem não cobre o rótulo fica o **azul padrão** (com bordinha azul clara), qualquer que seja a cor da fita. **Como a imagem encaixa**: PREENCHER (cobre toda a área), INTEIRA (aparece inteira e pode ficar menor, sem preencher tudo) ou ESTICAR (força o ajuste à área toda).
+- **Anotação** de até 280 letras ("fita anotada"): bilhetinho amarelo na lista, começo da anotação na linha e cartão no "Tocando agora".
+- Tudo fica só neste celular. **VOLTAR AO PADRÃO** limpa a fita (e apaga a cópia da imagem).
+
 ## [1.4.4] — 2026-10-14
 
 ### Ajustes a partir do seu teste da 1.4.3
