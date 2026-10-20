@@ -198,7 +198,7 @@ def build():
     sg.put('fx', yr * 0.8, sg.t_step(iV * 16) - len(yr) / SR, 0.5)
     sg.duck(['pad', 'bell', 'chop', 'cow'], 0.35, 0.1)
     sg.duck(['b808'], 0.35, 0.07)
-    sg.trim = {'drums': 0.0, 'b808': 0.0, 'cow': 0.0, 'cow2': 0.0, 'chop': 0.0, 'bell': 0.0, 'pad': 0.0, 'fall': 0.0, 'fx': 0.0}
+    sg.trim = {'drums': 2.0, 'b808': -6.5, 'cow': 6.0, 'cow2': 10.0, 'chop': 4.0, 'bell': 2.5, 'pad': 2.5, 'fall': 3.5, 'fx': 1.0}
 
     def stops(mix, song):
         i0 = int(song.t_step((iD - 1 + 8) * 16 + 8) * SR)
