@@ -3,7 +3,7 @@
     "name": "Modo Treino",
     "slug": "modo-treino-josperd",
     "scheme": "modotreino",
-    "version": "1.4.14",
+    "version": "1.4.15",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/brand.png",
@@ -58,7 +58,7 @@
         "me.everything.badger.permission.BADGE_COUNT_WRITE"
       ],
       "allowBackup": true,
-      "versionCode": 10414
+      "versionCode": 10415
     },
     "plugins": [
       [

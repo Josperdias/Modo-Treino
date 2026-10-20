@@ -2,6 +2,11 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.15] — 2026-10-20
+
+### 4 músicas para cada parte do segredo 🎧
+- O jogo escondido agora tem **44 músicas originais**: **4 diferentes entre si em cada parte** (menu, bônus e cada mundo), de gêneros, andamentos e melodias distintos (chillwave, disco-funk, cravo barroco, ragtime, samba, hyperpop, valsa, pop-punk, trip-hop, eurodance, chip-metal, harpa, glitch, industrial, gamelan, krautrock, épico de ficção científica, surf rock, jig de marinheiros, doom, flamenco, ukulele, shoegaze, hard techno, phonk e mais). Ao entrar numa parte toca a próxima do rodízio, e a mesma faixa nunca repete duas vezes seguidas. O som continua desligado por padrão.
+
 ## [1.4.14] — 2026-10-20
 
 ### Mais música no segredo 🎧

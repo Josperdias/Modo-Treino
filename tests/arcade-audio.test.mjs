@@ -101,12 +101,12 @@ test('arquivos gerados: manifesto cobre tudo, atlas dos efeitos coerente, tamanh
   for (let i = 1; i < list.length; i++) assert.ok(list[i].start >= list[i - 1].start + list[i - 1].dur + 0.1, 'clipes do atlas muito juntos');
   const atlasBytes = statSync(join(AUD, 'sfx-atlas.ogg')).size;
   assert.ok(atlasBytes > 50e3 && atlasBytes < 500e3, `atlas ${atlasBytes}`);
-  assert.equal(MUSIC.size, 19); // 11 originais + 8 variações
+  assert.equal(MUSIC.size, 44); // 11 partes × 4 faixas
   assert.ok(SFX.size >= 50);
   let total = atlasBytes;
   for (const id of MUSIC) { const b = statSync(join(AUD, 'musica', `${id}.ogg`)).size; total += b; assert.ok(b > 100e3 && b < 1.2e6, `${id} ${b}`); }
   for (const id of SFX) { const b = statSync(join(AUD, 'sfx', `${id}.ogg`)).size; assert.ok(b > 1e3 && b < 60e3, `${id} ${b}`); }
-  assert.ok(total < 18e6, `áudio do jogo pesa ${total}`);
+  assert.ok(total < 36e6, `áudio do jogo pesa ${total}`);
   const rep = JSON.parse(readFileSync(join(ROOT, 'docs/neon-step-dx/AUDIT_audio.json'), 'utf8'));
   for (const id of MUSIC) {
     const m = rep.musica[id];
@@ -120,38 +120,36 @@ test('arquivos gerados: manifesto cobre tudo, atlas dos efeitos coerente, tamanh
   assert.ok(existsSync(join(ROOT, 'scripts/arcade_audio/build.py')));
 });
 
-test('trilhas por mundo: variações em outros gêneros, todas existem, e o rodízio nunca repete duas entradas seguidas', () => {
-  const novas = ['neon2', 'clock2', 'cosmos2', 'inverse2', 'ocean2', 'volcano2', 'crystal2', 'paper2'];
-  for (const n of novas) assert.ok(MUSIC.has(n), `falta musica/${n}.ogg`);
-  const usadas = new Set();
-  for (const w of [...WORLD_ORDER, ...DETOURS]) {
-    const list = WORLD_TRACKS[w];
-    assert.ok(list && list[0] === w, `a primeira faixa de ${w} é a original`);
-    for (const id of list) { assert.ok(MUSIC.has(id), `falta musica/${id}.ogg`); usadas.add(id); }
-    // musicFor devolve a faixa do índice (e dá a volta)
-    list.forEach((id, i) => assert.equal(musicFor(ctx({world: w, variant: i})), id));
-    assert.equal(musicFor(ctx({world: w, variant: list.length})), list[0]);
-    // rodízio
-    for (let seed = 1; seed <= 40; seed++) {
-      const a = pickVariant(w, seed, undefined);
-      assert.ok(a >= 0 && a < list.length);
-      if (list.length > 1) {
-        const b = pickVariant(w, seed, a);
-        assert.notEqual(a, b, `${w}: repetiu a faixa`);
-        assert.ok(b >= 0 && b < list.length);
-        if (list.length === 2) assert.equal(pickVariant(w, seed, b), a);
-      } else assert.equal(a, 0);
+test('trilhas por parte: QUATRO músicas diferentes em cada uma (menu e bônus incluídos), todas existem, ninguém repete e o rodízio nunca repete duas entradas seguidas', () => {
+  const partes = ['menu', 'bonus', ...WORLD_ORDER, ...DETOURS];
+  assert.deepEqual(new Set(Object.keys(WORLD_TRACKS)), new Set(partes));
+  const usadas = new Map();
+  for (const parte of partes) {
+    const list = WORLD_TRACKS[parte];
+    assert.equal(list.length, 4, `${parte} precisa de 4 faixas`);
+    assert.equal(list[0], parte, `a primeira faixa de ${parte} é a original`);
+    assert.equal(new Set(list).size, 4, `${parte} repete faixa`);
+    for (const id of list) {
+      assert.ok(MUSIC.has(id), `falta musica/${id}.ogg`);
+      assert.ok(!usadas.has(id), `${id} está em ${usadas.get(id)} e em ${parte}`);
+      usadas.set(id, parte);
     }
-  }
-  for (const n of novas) assert.ok(usadas.has(n), `${n} não está em nenhum mundo`);
-  // a primeira escolha varia com a semente (não é sempre a mesma faixa)
-  for (const w of ['neon', 'crystal', 'clock', 'cosmos', 'ocean', 'volcano', 'paper', 'inverse']) {
+    list.forEach((id, i) => assert.equal(musicFor(ctx({world: parte, phase: parte === 'menu' ? 'select' : 'play', variant: i, ...(parte === 'bonus' ? {y: 1500, bonusY0: 1000, bonusY1: 2000} : {})})), id));
+    // rodízio: nunca a mesma faixa duas vezes seguidas e passa por todas
+    for (let seed = 1; seed <= 40; seed++) {
+      let v = pickVariant(parte, seed, undefined);
+      const vistos = new Set([v]);
+      for (let k = 0; k < 7; k++) { const n = pickVariant(parte, seed, v); assert.notEqual(n, v, `${parte}: repetiu a faixa`); assert.ok(n >= 0 && n < 4); v = n; vistos.add(n); }
+      assert.equal(vistos.size, 4, `${parte}: o rodízio não passa por todas`);
+    }
+    // a primeira escolha varia com a semente
     const firsts = new Set();
-    for (let seed = 1; seed <= 60; seed++) firsts.add(pickVariant(w, seed * 7919, undefined));
-    assert.equal(firsts.size, 2, `${w}: a semente nunca escolhe a outra faixa`);
+    for (let seed = 1; seed <= 80; seed++) firsts.add(pickVariant(parte, seed * 7919, undefined));
+    assert.ok(firsts.size >= 3, `${parte}: a semente quase não varia a faixa (${firsts.size})`);
   }
+  assert.equal(usadas.size, MUSIC.size, 'há faixa em musica/ que nenhuma parte usa');
   // cada faixa tem tamanho razoável e a trilha total continua leve
   let total = 0;
   for (const id of MUSIC) { const sz = statSync(join(AUD, 'musica', id + '.ogg')).size; total += sz; assert.ok(sz > 200_000 && sz < 1_300_000, `${id}: ${sz} bytes`); }
-  assert.ok(total < 16_000_000, `trilhas somam ${total} bytes`);
+  assert.ok(total < 30e6, `trilhas somam ${total} bytes`);
 });

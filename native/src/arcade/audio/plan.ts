@@ -16,13 +16,16 @@ export type MusicCtx = {
 };
 
 /**
- * Faixas de cada mundo. A primeira é a original; as outras são variações em outros gêneros (synthwave, electro-swing, dub techno,
- * drum & bass, bossa, ritual, minimalismo de vidro, lo-fi) para o jogo não repetir sempre a mesma música. Todas precisam existir em `assets/arcade/audio/musica/`.
+ * Faixas de cada parte do jogo (menu, bônus e cada mundo): QUATRO músicas diferentes entre si, de gêneros, andamentos e melodias distintos.
+ * A primeira é a original; o rodízio (`pickVariant`) toca a próxima ao entrar na parte, para não repetir sempre a mesma. Todas precisam existir em `assets/arcade/audio/musica/`.
  */
 export const WORLD_TRACKS: Record<string, string[]> = {
-  menu: ['menu'], bonus: ['bonus'],
-  neon: ['neon', 'neon2'], crystal: ['crystal', 'crystal2'], clock: ['clock', 'clock2'], cosmos: ['cosmos', 'cosmos2'], ocean: ['ocean', 'ocean2'],
-  volcano: ['volcano', 'volcano2'], paper: ['paper', 'paper2'], sketch: ['sketch'], inverse: ['inverse', 'inverse2'],
+  menu: ['menu', 'menu2', 'menu3', 'menu4'], bonus: ['bonus', 'bonus2', 'bonus3', 'bonus4'],
+  neon: ['neon', 'neon2', 'neon3', 'neon4'], crystal: ['crystal', 'crystal2', 'crystal3', 'crystal4'],
+  clock: ['clock', 'clock2', 'clock3', 'clock4'], cosmos: ['cosmos', 'cosmos2', 'cosmos3', 'cosmos4'],
+  ocean: ['ocean', 'ocean2', 'ocean3', 'ocean4'], volcano: ['volcano', 'volcano2', 'volcano3', 'volcano4'],
+  paper: ['paper', 'paper2', 'paper3', 'paper4'], sketch: ['sketch', 'sketch2', 'sketch3', 'sketch4'],
+  inverse: ['inverse', 'inverse2', 'inverse3', 'inverse4'],
 };
 
 /**

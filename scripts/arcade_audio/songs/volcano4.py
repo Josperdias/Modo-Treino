@@ -162,10 +162,13 @@ def build():
     # ---- fogo que cresce (C e D) e estouro do remate
     n_f = int(8 * SPB * sg.step_s * SR)
     sg.sample('fire', E.fire(rng, n_f, level=0.5, density=90.0), iC * SPB, 0.9)
+    # calor: bordão de serras que sobe de brilho (C, depois D) sob o fogo
+    sg.pads('heat', E.i_sinpad, H_C, iC, 40, 64, gain=0.6, n=3, cutoff=800, a=1.2, r=1.2)
+    sg.pads('heat', E.i_sinpad, H_B, iD, 40, 64, gain=0.9, n=3, cutoff=1500, a=1.0, r=1.2)
     yrev = S.reverse(S.crash(rng, int(2.2 * SR), 0.7))
     sg.put('fx', yrev * 0.8, sg.t_step(iD * SPB) - len(yrev) / SR, 0.6)
     sg.put('fx', yrev * 0.9, sg.t_step((iE + 1) * SPB) - len(yrev) / SR, 0.7)
-    sg.trim = {'gtr': -6.2, 'lead': 9.0, 'voice': 9.5, 'bass': 1.5, 'drums': -2.5, 'fire': 7.0, 'fx': 6.0}
+    sg.trim = {'gtr': -6.2, 'lead': 9.0, 'voice': 9.5, 'bass': 1.5, 'drums': -3.5, 'fire': 8.0, 'fx': 5.0, 'heat': 3.0}
     sg.post.append(lambda mix, song: TP.tape_color(mix, np.random.default_rng(41), drive=1.15, lp_hz=12500, hiss_level=0.0006))
     fx = {
         'gtr': [Reverb(room_size=0.3, wet_level=0.12, dry_level=0.9), Compressor(threshold_db=-20, ratio=2.2, attack_ms=12, release_ms=120)],
@@ -174,6 +177,7 @@ def build():
         'bass': [LowpassFilter(1000)],
         'drums': [Reverb(room_size=0.25, wet_level=0.12, dry_level=0.92), Compressor(threshold_db=-18, ratio=2.2, attack_ms=8, release_ms=100)],
         'fire': [HighpassFilter(400)],
+        'heat': [Reverb(room_size=0.6, wet_level=0.25, dry_level=0.8)],
     }
     sg.sends = {'lead': {'echo': 0.12}, 'voice': {'echo': 0.18, 'verb': 0.15}, 'fx': {'verb': 0.3}}
     return sg, fx, aux_default(104, room=0.5, delay_fb=0.3, delay_beats=1.5)
