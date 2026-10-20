@@ -131,7 +131,7 @@ def build():
     sg.pads('acc', ID.i_accordion, H_BR, iBr, 52, 70, gain=0.55, n=3, a=0.25, r=0.5, cutoff=2400)
 
     # ---- tema: rabeca (A), acordeão + rabeca em oitava (A2), rabeca + apito (B, B2), ponte, A3 e B3 com enfeites
-    sg.line('whistle', ID.i_whistle, TEASE, iI + 2, gain=0.8)
+    sg.line('whistle', ID.i_whistle, TEASE, iI + 2, gain=0.5)
     sg.line('fid', ID.i_fiddle, A1, iA, gain=0.95)
     sg.line('accm', ID.i_accordion, A2, iA2, gain=0.85)
     sg.line('fid', ID.i_fiddle, shift(A2, 0, 12, 0.8), iA2, gain=0.55, pan=0.25)
@@ -203,7 +203,7 @@ def build():
     sg.sample('fx', S.crash(rng, None, 1.2) * 0.5, iA3 * SPB, 0.6)
 
     sg.trim = {'bass': 0.0, 'acc': 0.0, 'accm': 0.0, 'fid': 1.0, 'whistle': 0.0, 'choir': 13.0, 'shout': 12.0, 'drums': -3.5, 'wave': 0.0, 'fx': 8.0}
-    ID.automate(sg, [(0, -3), (4, 0), (36, 0), (37, -5), (43, -5), (44, 0), (60, 0), (63, -2), (64, -3)])
+    ID.automate(sg, [(0, -1), (4, 0), (36, 0), (37, -5), (43, -5), (44, 0), (60, 0), (63, -2), (64, -1)])
     sg.post.append(lambda mix, song: TP.tape_color(mix, np.random.default_rng(61), drive=1.2, lp_hz=11500, hiss_level=0.002))
     fx = {
         'bass': [LowpassFilter(1500)],

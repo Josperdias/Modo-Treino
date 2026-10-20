@@ -131,9 +131,9 @@ def build():
     rev_swell(sg, iB, [50, 57, 61, 66], 0.9, 3.0)
     rev_swell(sg, iK, [47, 54, 61, 68], 0.7, 3.0)
     rev_swell(sg, iO, [50, 57, 61, 66], 0.7, 3.0)
-    wash(sg, iI, 4, 0.5, 400, 5000)
-    wash(sg, iB - 2, 2, 0.5)
-    wash(sg, iK + 2, 2, 0.5)
+    wash(sg, iI, 4, 0.35, 300, 2600)
+    wash(sg, iB - 2, 2, 0.4, 400, 4000)
+    wash(sg, iK + 2, 2, 0.4, 400, 4000)
     # sub-grave sustentado na névoa de abertura
     sg.note('bass', I2.i_sub, 0, 42, 32, gain=0.4, vel=0.6, drive=0.3)
     sg.duck(['shim', 'arp'], 0.25, 0.12)
