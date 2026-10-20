@@ -97,7 +97,7 @@ def build():
     iI, iV, iU1, iD, iB, iU2, iD2 = 0, 4, 12, 16, 24, 28, 32
     SIX = int(4 * 16 * sg.step_s * SR)
     # ---- acordes: sustentados (com sidechain) e 'rasgados' em 3-3-2
-    for h, bar, g in ((H_I, iI, 0.5), (H_V, iV, 0.45), (H_B, iB, 0.4)):
+    for h, bar, g in ((H_I, iI, 1.0), (H_V, iV, 0.45), (H_B, iB, 0.28)):
         sg.pads('chord', IB.i_hsaw, h, bar, 55, 80, gain=g, cutoff=2600, spread=0.012, a=0.05, s=0.85, r=0.25, open_t=1.2)
     for h, bar, g in ((H_D, iD, 0.55), (H_D, iD2, 0.6)):
         sg.pads('chord', IB.i_hsaw, h, bar, 52, 76, gain=g, cutoff=6500, spread=0.02, a=0.01, s=0.9, r=0.2)
@@ -118,7 +118,7 @@ def build():
     sg.bass('bass', I2.i_sub, H_U1, iU1, 'R - - - - - - - R - - - - - - -', octave=33, gain=0.8)
     sg.bass('bass', I2.i_sub, H_U2, iU2, 'R - - - - - - - R - - - - - - -', octave=33, gain=0.8)
     # ---- vocal chops
-    sg.line('vox', IB.i_vox, shift(V_L[:12], 0, 12, 0.6), iI, gain=0.35, shift=1.25, scoop=2.0)   # a intro só insinua
+    sg.line('vox', IB.i_vox, shift(V_L[:12], 0, 12, 0.6), iI, gain=0.6, shift=1.25, scoop=2.0)   # a intro só insinua
     sg.line('vox', IB.i_vox, V_L, iV, gain=0.75, shift=1.3, scoop=2.0)
     sg.line('vox', IB.i_vox, U_L, iU1, gain=0.8, shift=1.35, scoop=3.0)
     sg.line('vox', IB.i_vox, U2_L, iU2, gain=0.8, shift=1.4, scoop=3.0)
@@ -130,20 +130,21 @@ def build():
     sg.line('lead2', IB.i_hsaw, shift(D_L, 0, 12, 0.55), iD2, gain=0.4, cutoff=9000, spread=0.014, voices=3, pan=0.3)
     sg.line('vox2', IB.i_vox, shift(D_L, 0, 0, 0.5), iD2, gain=0.5, shift=1.25, vib=0.004, pan=-0.3, a=0.02)
     # quebra: piano seco + vidro
-    sg.line('piano', IB.i_piano, B_L, iB, gain=0.85, tau=0.9)
-    sg.line('piano', IB.i_piano, shift(B_L, 0, -12, 0.5), iB, gain=0.55, tau=0.9)
-    sg.line('lead2', K.i_modal, shift(B_L, 0, 24, 0.4), iB, gain=0.25, kind='glass', tilt=1.2, pan=0.4)
+    sg.line('piano', IB.i_piano, B_L, iB, gain=0.55, tau=0.9)
+    sg.line('piano', IB.i_piano, shift(B_L, 0, -12, 0.5), iB, gain=0.35, tau=0.9)
+    sg.line('lead2', K.i_modal, shift(B_L, 0, 24, 0.4), iB, gain=0.15, kind='glass', tilt=1.2, pan=0.4)
     for (st, ln, pc, q) in H_B.events():
         v = K.voice(None, pc, q, 58, 72, 3)
         for k, m in enumerate(v):
-            sg.note('vox2', IB.i_vox, iB * 16 + st, m, ln, gain=0.3, vowel='u' if k % 2 == 0 else 'o', shift=1.1, a=0.2, r=0.5, vib=0.005, pan=-0.4 + 0.4 * k)
+            sg.note('vox2', IB.i_vox, iB * 16 + st, m, ln, gain=0.2, vowel='u' if k % 2 == 0 else 'o', shift=1.1, a=0.2, r=0.5, vib=0.005, pan=-0.4 + 0.4 * k)
     # ---- bateria
     kit = KB.kit_hyper
     D_I = {'h': 'x.x.x.x.x.x.x.x.'}
     D_V = {'k': 'x.....x...x.....', 's': '........x.......', 'h': 'x.xxx.xxx.xxx.xx', 'o': '......x.......x.', 'g': '.o..o.o...o..o.o'}
     D_U = {'k': 'x...x...x...x...', 'h': 'x.x.x.x.x.x.x.x.'}
     D_D = {'k': 'x......x..x.....', 's': '........x.......', 'p': '........x.......', 'h': 'xxxxxxxxxxxxxxxx', 'o': '..o...o...o...o.', 'g': 'o...o..o..o...o.', 'c': 'X...............'}
-    sg.drums(kit, iI, 4, D_I, gain=0.5)
+    sg.drums(kit, iI, 4, D_I, gain=0.7)
+    sg.drums(kit, iI + 2, 2, {'k': 'x...x...x...x...'}, gain=0.6)
     sg.drums(kit, iV, 8, D_V, gain=0.9)
     sg.drums(kit, iU1, 4, D_U, gain=0.85)
     # rufos de caixa
@@ -180,7 +181,7 @@ def build():
             if rng.random() < dens:
                 sg.note('rain', I2.i_chime, st, int(rng.choice(PENT)), 1, gain=float(rng.uniform(0.25, 0.5)), pan=float(rng.uniform(-0.9, 0.9)), tilt=0.4)
     sg.duck(['chord', 'stab', 'wub', 'vox2'], 0.62, 0.17)
-    sg.trim = {'chord': 8.0, 'stab': 9.0, 'bass': -7.5, 'wub': 5.0, 'vox': 14.0, 'vox2': 14.0, 'lead': 12.0, 'lead2': 12.0, 'piano': 6.0, 'rain': 0.0, 'drums': -0.5, 'fx': -5.0}
+    sg.trim = {'chord': 8.0, 'stab': 9.0, 'bass': -7.5, 'wub': 5.0, 'vox': 16.0, 'vox2': 14.0, 'lead': 12.0, 'lead2': 12.0, 'piano': 6.0, 'rain': 0.0, 'drums': -0.5, 'fx': -5.0}
     fx = {
         'chord': [Chorus(rate_hz=0.5, depth=0.25, mix=0.3), Reverb(room_size=0.5, wet_level=0.2, dry_level=0.85)],
         'stab': [HighpassFilter(180), Reverb(room_size=0.35, wet_level=0.12, dry_level=0.9)],

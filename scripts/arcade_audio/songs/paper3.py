@@ -150,8 +150,8 @@ def build():
     for bar in (iA, iB, iK, iB2):
         sg.drums(kit, bar, 1, {'t': pat({0: 'x'})}, gain=0.7)
     for bar in (iA, iB, iB2):
-        swish(sg, bar - 1, 1, 0.5)
-    swish(sg, iK + 2, 2, 0.6)
+        swish(sg, bar - 1, 1, 0.32)
+    swish(sg, iK + 2, 2, 0.4)
     sg.duck(['pad'], 0.25, 0.1, steps=[b * 16 + s for b in range(iB2, iB2 + 8) for s in (0, 4, 8, 12)])
     sg.trim = {'uke': 3.5, 'glock': 1.5, 'whistle': -0.5, 'whistle2': 2.0, 'bass': -0.5, 'drums': 2.5, 'pad': 8.0, 'fx': 5.0}
     sg.post.append(lambda mix, song: TP.tape_color(mix, np.random.default_rng(17), drive=1.1, lp_hz=12000, hiss_level=0.0008, crackle=0.01))

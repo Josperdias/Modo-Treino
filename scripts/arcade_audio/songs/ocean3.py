@@ -134,7 +134,7 @@ def build():
     wash(iO, 2, 0.8)
 
     sg.duck(['clean'], 0.2, 0.15)
-    sg.trim = {'bass': -2.0, 'chop': 8.0, 'lead': 0.0, 'lead2': 4.5, 'clean': 8.0, 'drums': -5.5, 'wave': -2.5, 'fx': 4.0}
+    sg.trim = {'bass': -6.5, 'chop': 9.0, 'lead': 0.0, 'lead2': 4.5, 'clean': 8.0, 'drums': -5.5, 'wave': -2.5, 'fx': 4.0}
     ID.automate(sg, [(0, -5), (2, 0), (17.5, 0), (18.5, -4), (21, -4), (22, 0), (38, 0), (40, -2)])
     sg.post.append(lambda mix, song: TP.tape_color(mix, np.random.default_rng(51), drive=1.2, lp_hz=12000, hiss_level=0.002))
     spring = lambda mix=0.4: Convolution(ID.spring_ir(), mix=mix, sample_rate=SR)

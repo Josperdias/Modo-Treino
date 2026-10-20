@@ -74,16 +74,16 @@ def build():
     sg.bass('bass', IB.i_offbass, Harmony("Ab Eb"), iI + 2, OFF, octave=29, gain=0.8)
     for h, bar, g in ((H_A, iA, 0.95), (H_B, iB, 1.0), (H_B, iC, 1.0)):
         sg.bass('bass', IB.i_offbass, h, bar, OFF, octave=29, gain=g)
-    sg.bass('sub', I2.i_sub, H_BD, iBD, 'R - - - - - - - - - - - - - - -', octave=29, gain=0.7)
+    sg.bass('sub', I2.i_sub, H_BD, iBD, 'R - - - - - - - - - - - - - - -', octave=29, gain=0.5)
     sg.bass('sub', I2.i_sub, H_U, iU, 'R - - - - - - - R - - - - - - -', octave=29, gain=0.7)
     # ---- piano: acordes em 3-3-4-3-3 (A, B, C); na quebra, arpejo e tema lento
     PS = (0, 3, 6, 10, 13)
     chord_hits(sg, 'piano', IB.i_piano, H_A, iA, PS, 53, 77, 0.8, ln=2, tau=0.45, bright=0.95)
     chord_hits(sg, 'piano', IB.i_piano, H_B, iB, (0, 6, 10), 53, 77, 0.55, ln=2, tau=0.45, bright=0.95)
     chord_hits(sg, 'piano', IB.i_piano, H_B, iC, PS, 53, 77, 0.7, ln=2, tau=0.45, bright=0.95)
-    sg.line('piano', IB.i_piano, BD_L, iBD, gain=0.95, tau=1.2, bright=0.9)
-    sg.line('piano', IB.i_piano, shift(BD_L, 0, -12, 0.6), iBD, gain=0.7, tau=1.2, pan=-0.2)
-    sg.arp('piano2', IB.i_piano, H_BD, iBD, '0 . 1 . 2 . 1 . 0 . 1 . 2 . 3 .', lo=53, gain=0.5, tau=0.8)
+    sg.line('piano', IB.i_piano, BD_L, iBD, gain=0.45, tau=1.2, bright=0.9)
+    sg.line('piano', IB.i_piano, shift(BD_L, 0, -12, 0.6), iBD, gain=0.3, tau=1.2, pan=-0.2)
+    sg.arp('piano2', IB.i_piano, H_BD, iBD, '0 . 1 . 2 . 1 . 0 . 1 . 2 . 3 .', lo=53, gain=0.22, tau=0.8)
     sg.arp('piano2', IB.i_piano, H_U, iU, '0 . 1 . 2 . 1 . 0 . 1 . 2 . 3 .', lo=53, gain=0.55, tau=0.8)
     # ---- stabs de rave (hoover): teaser na intro, fills no A, 3-3-2 no B e no C
     chord_hits(sg, 'stab', IB.i_hoover, Harmony("Ab Eb"), iI + 2, (0, 3, 6), 55, 75, 0.7, ln=1, cutoff=3800)
@@ -91,10 +91,10 @@ def build():
     chord_hits(sg, 'stab', IB.i_hoover, H_B, iB, (8, 11, 14), 55, 75, 0.6, ln=1)
     chord_hits(sg, 'stab', IB.i_hoover, H_B, iC, (0, 3, 6, 8, 11, 14), 55, 75, 0.75, ln=1, cutoff=5200)
     # ---- pad/cordas
-    sg.pads('pad', IB.i_strings, H_I, iI, 48, 69, gain=0.3, a=0.6, r=0.8, cutoff=1500)
+    sg.pads('pad', IB.i_strings, H_I, iI, 48, 69, gain=0.7, a=0.6, r=0.8, cutoff=1500)
     sg.pads('pad', IB.i_strings, H_A, iA, 48, 69, gain=0.4, a=0.5, r=0.7, cutoff=1900)
     sg.pads('pad', IB.i_strings, H_B, iB, 48, 70, gain=0.55, a=0.4, r=0.7, cutoff=2400)
-    sg.pads('pad', IB.i_strings, H_BD, iBD, 48, 70, gain=0.9, a=0.9, r=1.0, cutoff=2200)
+    sg.pads('pad', IB.i_strings, H_BD, iBD, 48, 70, gain=0.55, a=0.9, r=1.0, cutoff=2200)
     sg.pads('pad', IB.i_strings, H_U, iU, 48, 70, gain=0.7, a=0.6, r=0.8, cutoff=2800)
     sg.pads('pad', IB.i_strings, H_B, iC, 48, 70, gain=0.6, a=0.3, r=0.6, cutoff=3000)
     # ---- arpejo agudo (contratempo de 16) no B e no C
@@ -107,7 +107,7 @@ def build():
     sg.line('lead', IB.i_hsaw, B_L, iC, gain=0.8, cutoff=9000, spread=0.019, voices=7, a=0.006, s=0.9, r=0.1)
     sg.line('lead2', IB.i_hsaw, shift(B_L, 0, 12, 0.5), iC, gain=0.45, cutoff=9000, spread=0.014, voices=5, pan=0.35)
     sg.line('lead2', IB.i_hsaw, shift(B_L, 0, -12, 0.5), iC, gain=0.4, cutoff=3500, spread=0.01, voices=3, pan=-0.35)
-    sg.line('lead2', IB.i_hsaw, BD_L, iBD, gain=0.5, cutoff=4500, spread=0.012, voices=5, a=0.15, s=0.9, r=0.4, pan=0.2)
+    sg.line('lead2', IB.i_hsaw, BD_L, iBD, gain=0.22, cutoff=4500, spread=0.012, voices=5, a=0.15, s=0.9, r=0.4, pan=0.2)
     sg.line('vox', IB.i_vox, shift(A_V, 0, 0, 0.8), iC, gain=0.5, shift=1.2, scoop=1.5, vib=0.004, pan=0.3)
     # ---- bateria
     kit = KB.kit_trance
@@ -117,8 +117,8 @@ def build():
     D_A = {'k': K4, 'o': '..x...x...x...x.', 'p': '....x.......x...', 'h': '.x.x.x.x.x.x.x.x'}
     D_B = {'k': K4, 'o': '..x...x...x...x.', 'p': '....x.......x...', 'h': '.x.x.x.x.x.x.x.x', 'sh': 'xxxxxxxxxxxxxxxx', 'c': 'X...............'}
     D_BD = {'sh': 'x.x.x.x.x.x.x.x.'}
-    sg.drums(kit, iI, 2, D_I, gain=0.8)
-    sg.drums(kit, iI + 2, 2, D_I2, gain=0.9)
+    sg.drums(kit, iI, 2, D_I, gain=1.0)
+    sg.drums(kit, iI + 2, 2, D_I2, gain=1.0)
     sg.drums(kit, iA, 8, D_A, gain=0.95)
     sg.drums(kit, iB, 8, D_B, gain=1.0)
     sg.drums(kit, iBD, 4, D_BD, gain=0.3)
