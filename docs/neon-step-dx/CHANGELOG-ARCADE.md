@@ -165,6 +165,11 @@ Inimigos, poderes, portais e os outros universos (M2), checkpoint na Cidade Neon
 - Todas medidas: pico ≤ −1,2 dBFS, emenda de loop 0,0, 86–93 % da energia na escala, 5–7 dB de dinâmica. Nunca foram ouvidas por quem escreveu.
 - Runtime: `WORLD_TRACKS` + `pickVariant` (plan.ts, puro): a primeira escolha depende da semente da partida e as seguintes rodam a partir da última usada no mundo (guardada em memória enquanto o app está aberto).
 
+## 1.4.16 — Música da pausa; rodízio só com faixas aprovadas
+- `PAUSE_TRACK = 'sketch4'` ("Planta Baixa em Névoa") toca na pausa (`ArcadeScreen`, fase `pause`), exceto com o app em segundo plano (`AppState`).
+- `WORLD_TRACKS` volta a 1 faixa aprovada por parte; as outras 32 (`*2..*4`, `bonus2..4`, `menu2..4`) foram para `native/assets/arcade/audio/rascunho/`. `pickVariant` aceita `count`. Teste de trilhas ajustado (1–4 faixas por parte + pausa).
+- Próximo passo: compor uma faixa por vez (uma por parte por rodada) e só ligar após aprovação no player de escuta.
+
 ## 1.4.15 — Trilhas v4: 4 músicas por parte
 - Pedido do dono: "4 variações de cada faixa, nada com a mesma melodia, músicas diferentes entre si para cada parte até o menu". Cada parte (menu, bônus, 9 mundos) tem 4 faixas de gêneros/andamentos/tonalidades/formas distintos: 11 originais + 8 da 1.4.14 + 25 novas (compostas em paralelo por cinco compositores com o mesmo motor; kits/instrumentos próprios em `kits_*.py`/`inst_*.py`, registros em `songs/reg_*.py`, descobertos por `tracks.py`).
 - Novas: menu2 chillwave, menu3 disco-funk, menu4 cravo barroco; bonus2 ragtime, bonus3 samba, bonus4 hyperpop; sketch2 valsa 3/4, sketch3 pop-punk, sketch4 trip-hop; neon3 eurodance, neon4 chip-metal; crystal3 harpa 3/4, crystal4 glitch/IDM; clock3 EBM, clock4 gamelan (grade de 60 passos, `Song.bpm`=375 por isso); cosmos3 krautrock, cosmos4 épico orquestral; ocean3 surf rock, ocean4 jig 6/8; volcano3 doom, volcano4 flamenco 12; paper3 ukulele indie-pop, paper4 shoegaze; inverse3 hard techno, inverse4 phonk.

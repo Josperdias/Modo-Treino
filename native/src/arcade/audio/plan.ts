@@ -16,24 +16,24 @@ export type MusicCtx = {
 };
 
 /**
- * Faixas de cada parte do jogo (menu, bônus e cada mundo): QUATRO músicas diferentes entre si, de gêneros, andamentos e melodias distintos.
- * A primeira é a original; o rodízio (`pickVariant`) toca a próxima ao entrar na parte, para não repetir sempre a mesma. Todas precisam existir em `assets/arcade/audio/musica/`.
+ * Faixas de cada parte do jogo (menu, bônus e cada mundo). A meta é ter 4 músicas diferentes por parte; uma faixa só entra aqui depois que o dono
+ * aprova (as outras ficam em `assets/arcade/audio/rascunho/`, fora do app). O rodízio (`pickVariant`) toca a próxima ao entrar na parte.
+ * Todas precisam existir em `assets/arcade/audio/musica/`.
  */
 export const WORLD_TRACKS: Record<string, string[]> = {
-  menu: ['menu', 'menu2', 'menu3', 'menu4'], bonus: ['bonus', 'bonus2', 'bonus3', 'bonus4'],
-  neon: ['neon', 'neon2', 'neon3', 'neon4'], crystal: ['crystal', 'crystal2', 'crystal3', 'crystal4'],
-  clock: ['clock', 'clock2', 'clock3', 'clock4'], cosmos: ['cosmos', 'cosmos2', 'cosmos3', 'cosmos4'],
-  ocean: ['ocean', 'ocean2', 'ocean3', 'ocean4'], volcano: ['volcano', 'volcano2', 'volcano3', 'volcano4'],
-  paper: ['paper', 'paper2', 'paper3', 'paper4'], sketch: ['sketch', 'sketch2', 'sketch3', 'sketch4'],
-  inverse: ['inverse', 'inverse2', 'inverse3', 'inverse4'],
+  menu: ['menu'], bonus: ['bonus'], neon: ['neon'], crystal: ['crystal'], clock: ['clock'], cosmos: ['cosmos'], ocean: ['ocean'],
+  volcano: ['volcano'], paper: ['paper'], sketch: ['sketch'], inverse: ['inverse'],
 };
+
+/** Música do menu de PAUSA ("Planta Baixa em Névoa", trip-hop noir): toca enquanto o jogo está pausado, em vez de silêncio. */
+export const PAUSE_TRACK = 'sketch4';
 
 /**
  * Escolhe a faixa (índice) ao ENTRAR num mundo. A primeira escolha depende da semente da partida; as seguintes seguem em rodízio a partir
  * da última usada naquele mundo (`prev`), então duas entradas seguidas nunca repetem a mesma faixa.
  */
-export function pickVariant(world: string, seed: number, prev?: number): number {
-  const n = WORLD_TRACKS[world]?.length ?? 1;
+export function pickVariant(world: string, seed: number, prev?: number, count?: number): number {
+  const n = count ?? WORLD_TRACKS[world]?.length ?? 1;
   if (n <= 1) return 0;
   if (prev !== undefined && prev >= 0) return (prev + 1) % n;
   let h = Math.imul((seed ^ (world.length * 0x9e3779b1)) >>> 0, 2654435761) >>> 0;

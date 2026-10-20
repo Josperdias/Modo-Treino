@@ -2,6 +2,12 @@
 
 Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/). Versionamento semântico.
 
+## [1.4.16] — 2026-10-20
+
+### Música da pausa e rodízio só com faixas aprovadas 🎧
+- Ao **pausar** o jogo secreto passa a tocar uma música própria (trip-hop noir) em vez de silêncio; ao voltar, a trilha da fase retorna com fade. Em segundo plano tudo continua calando.
+- O lote de faixas automáticas da 1.4.15 saiu do rodízio (foi considerado genérico); voltam uma a uma, depois de aprovadas.
+
 ## [1.4.15] — 2026-10-20
 
 ### 4 músicas para cada parte do segredo 🎧

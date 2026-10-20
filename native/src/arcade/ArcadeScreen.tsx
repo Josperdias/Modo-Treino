@@ -19,7 +19,7 @@ import {CATALOG, GROUPS, TOTAL, countFound, fresh, fromEvent, fromState, nameOf}
 import {RUN_KEY, parseSnapshot, snapshotOf, type RunSnapshot} from './runsave.ts';
 import type {SimEvent} from './core/types.ts';
 import {ArcadeAudio} from './audio/engine';
-import {cuesFor, lavaClose, musicFor, partOf, pickVariant, stingerFor} from './audio/plan.ts';
+import {PAUSE_TRACK, cuesFor, lavaClose, musicFor, partOf, pickVariant, stingerFor} from './audio/plan.ts';
 
 const NEON = {pink: '#ff4dac', cyan: '#49e6ff', bg: '#140a24', bg2: '#251438', glass: 'rgba(16,9,31,.72)'};
 const HEROES: {id: Hero; name: string}[] = [{id: 'josperd', name: 'JOSPERD'}, {id: 'camila', name: 'CAMILA'}];
@@ -73,6 +73,9 @@ export default function ArcadeScreen({onClose}: {onClose: () => void}) {
 function ArcadeGame({onClose}: {onClose: () => void}) {
   const {save, loaded} = useArcade();
   const [phase, setPhase] = useState<Phase>('select');
+  const phaseRef = useRef<Phase>('select');
+  phaseRef.current = phase;
+  const appActive = useRef(true);
   const [hud, setHud] = useState<Hud | null>(null);
   const [cause, setCause] = useState<'fall' | 'damage' | 'crush'>('fall');
   const [hint, setHint] = useState(true);
@@ -196,7 +199,11 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
 
   // Saiu do app ou bloqueou a tela: pausa sozinho.
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (st) => { if (st !== 'active') pause(); });
+    const sub = AppState.addEventListener('change', (st) => {
+      appActive.current = st === 'active';
+      if (st !== 'active') { pause(); audio.current?.pause(); } // segundo plano: tudo cala (inclusive a música da pausa)
+      else if (phaseRef.current === 'pause') audio.current?.resume();
+    });
     return () => sub.remove();
   }, [pause]);
 
@@ -236,7 +243,11 @@ function ArcadeGame({onClose}: {onClose: () => void}) {
   };
   useEffect(() => {
     if (!audio.current) return;
-    if (phase === 'pause') { audio.current.pause(); return; }
+    if (phase === 'pause') {
+      // Jogo pausado: entra a música da pausa (Planta Baixa em Névoa), a menos que o app esteja em segundo plano.
+      if (appActive.current) { audio.current.resume(); audio.current.setMusic(PAUSE_TRACK); } else audio.current.pause();
+      return;
+    }
     audio.current.resume();
     if (phase !== 'play') {
       if (phase === 'select') audio.current.setMusic(pickTrack({phase: 'select', world: 'neon', y: 0, bonusY0: 0, bonusY1: 0}, newSeed()));
